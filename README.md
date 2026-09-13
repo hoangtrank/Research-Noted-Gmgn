@@ -97,10 +97,25 @@ gmgn bị chặn trong môi trường phát triển extension này nên phần g
 - **Nhắc lại:** tự động thêm mốc "chưa xem lại 14 ngày" hoặc badge màu khác cho dự án lâu không cập nhật.
 - **Snapshot giá:** lưu MC mỗi lần mở ghi chú để vẽ mini-chart MC theo các mốc bạn đã ghi.
 
+## Đưa lên Chrome Web Store
+
+1. Đóng gói: `python3 scripts/pack.py` (hoặc `npm run zip`) tạo `dist/noted-for-gmgn-<version>.zip`. ZIP chỉ chứa `manifest.json`, `icons/`, `src/`; manifest nằm ngay ở gốc ZIP.
+2. Vào https://chrome.google.com/webstore/devconsole, đăng ký tài khoản developer (phí một lần 5 USD) → **New item** → tải ZIP lên.
+3. Điền **Store listing**: tên, mô tả, ít nhất 1 ảnh chụp 1280×800 (hoặc 640×400), danh mục Productivity, ngôn ngữ Tiếng Việt.
+4. **Privacy practices**: mục đích duy nhất là "ghi chú research cho token trên gmgn.ai"; khai báo lý do từng quyền (xem bảng dưới); chọn "không thu thập dữ liệu người dùng" vì mọi ghi chú chỉ lưu trong `chrome.storage.local`, không gửi đi đâu; không dùng remote code.
+5. **Distribution** → chọn **Unlisted** nếu chỉ mình bạn dùng: không hiện trên tìm kiếm, ai có link mới cài được, vẫn được tự cập nhật. Chọn Public nếu muốn chia sẻ.
+6. **Submit for review**. Lần đầu thường 1–3 ngày. Bản cập nhật sau: tăng `version` trong `manifest.json`, đóng gói lại, tải lên ở tab Package.
+
+| Quyền | Lý do khai báo |
+|---|---|
+| `storage`, `unlimitedStorage` | Lưu ghi chú của người dùng ngay trên máy, không giới hạn số dự án |
+| `activeTab` | Đọc URL tab đang mở khi người dùng bấm icon hoặc phím tắt để mở đúng ghi chú của token đó |
+| Content script trên `gmgn.ai` | Gắn nút ghi chú cạnh mỗi token và hiển thị ghi chú ngay trong trang |
+
 ## Phát triển
 
 ```bash
 npm test            # chạy test Playwright (dùng Chromium của Playwright, không cần gmgn thật)
 npm run icons       # sinh lại icon
-npm run zip         # đóng gói để cài ở máy khác
+npm run zip         # đóng gói ZIP để tải lên Chrome Web Store (dist/)
 ```

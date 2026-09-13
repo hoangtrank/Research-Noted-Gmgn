@@ -6,7 +6,7 @@ const fs = require('fs');
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const mock = require('./mock-gmgn');
 
-const EXT = path.resolve(__dirname, '..');
+const EXT = process.env.EXT_DIR || path.resolve(__dirname, '..'); // EXT_DIR: kiểm tra một bản đã đóng gói
 const OUT = process.env.SHOT_DIR || path.join(__dirname, 'shots');
 fs.mkdirSync(OUT, { recursive: true });
 
