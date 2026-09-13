@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Noted</title>
+  <style>
+    body{margin:0;width:260px;background:#111318;color:#e6e8ec;font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    .wrap{padding:12px}
+    h1{margin:0 0 2px;font-size:15px}
+    .stats{color:#9aa3b2;font-size:11px;margin-bottom:10px}
+    button{display:block;width:100%;margin-top:6px;font:inherit;cursor:pointer;border:1px solid #2b303a;background:#181b22;color:#e6e8ec;border-radius:8px;padding:8px 10px;text-align:left}
+    button:hover{background:#20242d}
+    button.primary{background:#facc15;border-color:#facc15;color:#111;font-weight:600}
+    button.primary:hover{background:#fde047}
+    button[hidden]{display:none}
+    .hint{margin-top:10px;color:#6b7280;font-size:11px}
+    kbd{font:10px ui-monospace,Menlo,monospace;background:#181b22;border:1px solid #2b303a;border-bottom-width:2px;border-radius:4px;padding:0 4px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📝 Noted for GMGN</h1>
+    <div class="stats" id="stats">…</div>
+    <button id="note-this" class="primary" hidden>📝 Ghi chú token đang xem</button>
+    <button id="open-dash">📚 Mở Dashboard</button>
+    <button id="export">⬇ Xuất JSON (backup)</button>
+    <div class="hint">Trên gmgn.ai: bấm nút ✎ cạnh symbol, hoặc <kbd>Alt</kbd>+<kbd>N</kbd> trên trang token.</div>
+  </div>
+  <script src="../lib/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

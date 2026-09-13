@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Noted — Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <header class="side-head">
+        <div class="brand">
+          <h1>📝 Noted <span class="sub">for GMGN</span></h1>
+          <div class="stats" id="stats"></div>
+        </div>
+        <input id="search" type="search" placeholder="Tìm symbol, tên, tóm tắt, tag, địa chỉ, nội dung timeline…" autocomplete="off">
+        <div class="filters">
+          <select id="f-status"><option value="">Mọi trạng thái</option></select>
+          <select id="f-sort">
+            <option value="updated">Mới sửa</option>
+            <option value="created">Mới tạo</option>
+            <option value="symbol">Symbol A→Z</option>
+            <option value="rating">Conviction cao</option>
+            <option value="entries">Nhiều mốc nhất</option>
+          </select>
+          <label class="chk"><input type="checkbox" id="f-pinned"> 📌 chỉ pin</label>
+        </div>
+        <div class="tagbar" id="tagbar"></div>
+      </header>
+      <ul class="list" id="list"></ul>
+      <footer class="side-foot">
+        <button id="add-url" class="primary">+ Thêm từ URL gmgn</button>
+        <button id="export-json">Xuất JSON</button>
+        <button id="export-md">Xuất Markdown</button>
+        <button id="import-json">Nhập JSON</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </footer>
+    </aside>
+    <main class="main">
+      <div class="empty" id="empty">
+        <div class="empty-icon">📝</div>
+        <p>Chọn một dự án bên trái để xem/sửa ghi chú, hoặc <b>Thêm từ URL gmgn</b>.</p>
+        <p class="muted">Trên gmgn.ai, bấm nút ✎ cạnh symbol trong danh sách, hoặc <kbd>Alt</kbd>+<kbd>N</kbd> trên trang token.</p>
+      </div>
+      <div id="editor-mount" class="editor-mount" hidden></div>
+    </main>
+  </div>
+  <script src="../lib/storage.js"></script>
+  <script src="../lib/editor.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
