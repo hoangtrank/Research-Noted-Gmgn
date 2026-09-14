@@ -216,11 +216,11 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await page.hover(`.noted-badge[data-key="${PROLOG}"]`);
   await page.waitForTimeout(250);
   assert((await shadowQ(page, '.nd-tip')).includes('研究中'), 'tooltip trong trang gmgn dùng tiếng Trung');
-  assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === '为该项目添加笔记 (Noted)', 'title nút tiếng Trung');
+  assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === '为该项目添加笔记 (Research-Noted-Gmgn)', 'title nút tiếng Trung');
   await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', lang: 'en' } }));
   await page.waitForTimeout(300);
   await page.hover('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]');
-  assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === 'Add a note for this project (Noted)', 'đổi ngôn ngữ áp ngay cho nút mà không cần tải lại');
+  assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === 'Add a note for this project (Research-Noted-Gmgn)', 'đổi ngôn ngữ áp ngay cho nút mà không cần tải lại');
 
   console.log('12) Research with Grok: deep link + Save to Noted');
   await dash.waitForSelector('.card');
