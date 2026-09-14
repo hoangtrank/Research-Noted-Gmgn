@@ -27,7 +27,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Token page: floating button with symbol + summary, shortcut Alt+N.
     • Dashboard: full-text search, filter by tag / status / pinned, sort, edit in place, add by gmgn URL.
     • Export/import JSON for backup, export Markdown to feed an AI.
-    • Research with Grok: one click opens Grok with a prompt built from your template (symbol, contract, market cap), and a Save button on the Grok page puts the answer into the token's timeline.
+    • Research with Grok: one click opens Grok with a prompt built from your template (symbol, contract, market cap); the answer is saved into the token's timeline automatically (with Undo), or manually.
     • Interface in English, Vietnamese and Chinese.
 
     Your data stays on your device. No server, no tracking, no account.

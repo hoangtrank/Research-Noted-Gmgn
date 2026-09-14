@@ -28,13 +28,23 @@ function page(url) {
   <aside><h3>Trends for you</h3><div>Trending in Crypto: Robinhood chain launches new agent framework as volume climbs across memecoins and AI tokens, traders discuss the next narrative for the fourth quarter of the year.</div></aside>
   <footer>Terms of Service Privacy Policy Cookie Policy Accessibility Ads info More © 2026 X Corp. This footer intentionally contains more than one hundred and twenty characters of text.</footer>
   <script>
+    // Giả lập streaming: câu trả lời hiện dần theo từng đoạn nhỏ trong ~1.5s; lần trả lời sau có thêm dòng riêng.
+    let n = 0;
     document.getElementById('send').addEventListener('click', () => {
       const c = document.getElementById('composer');
       const conv = document.getElementById('conv');
       const q = c.textContent.trim();
+      n++;
       conv.insertAdjacentHTML('beforeend', '<div class="msg user"><div class="hdr">You</div><div class="txt"></div></div>');
-      conv.lastElementChild.querySelector('.txt').textContent = q;
-      conv.insertAdjacentHTML('beforeend', '<div class="msg grok"><div class="hdr">Grok</div><div class="md"><p>${esc(ANSWER_P1)}</p><p>${esc(ANSWER_P2)}</p><ul><li>${esc(ANSWER_LI)}</li></ul></div><div class="actions">Copy · Share · Regenerate</div></div>');
+      conv.lastElementChild.querySelector('.txt').textContent = q || 'Any other risks with the unlock?';
+      conv.insertAdjacentHTML('beforeend', '<div class="msg grok"><div class="hdr">Grok</div><div class="md"><p class="p1"></p><p class="p2"></p><ul><li class="li"></li></ul></div><div class="actions">Copy · Share · Regenerate</div></div>');
+      const md = conv.lastElementChild.querySelector('.md');
+      const parts = [['.p1', ${JSON.stringify(ANSWER_P1)}], ['.p2', ${JSON.stringify(ANSWER_P2)}], ['.li', ${JSON.stringify(ANSWER_LI)} + (n > 1 ? ' Follow-up answer number ' + n + '.' : '')]];
+      const chunks = [];
+      for (const [sel, text] of parts) for (let i = 0; i < text.length; i += 40) chunks.push([sel, text.slice(0, i + 40)]);
+      let k = 0;
+      const tick = () => { if (k >= chunks.length) return; const [sel, text] = chunks[k++]; md.querySelector(sel).textContent = text; setTimeout(tick, 60); };
+      tick();
       c.textContent = '';
       history.replaceState({}, '', '/i/grok?conversation=1234567890');
     });

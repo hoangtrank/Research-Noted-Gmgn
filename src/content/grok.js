@@ -39,9 +39,18 @@ input{flex:1 1 160px}
 .status.ok{color:#22c55e}
 .status.err{color:#f87171}
 .status a{color:#60a5fa;text-decoration:none}
+.auto{display:flex;align-items:center;gap:6px;cursor:pointer}
+.auto input{margin:0}
 `;
 
-  let ctxInfo = null; // { token, symbol, prompt }
+  let ctxInfo = null;          // { token, symbol, prompt }
+  let autoSave = true;         // settings.grokAutoSave
+  const savedHashes = new Set(); // nội dung đã lưu trong tab này (chống trùng)
+  let lastSeen = { hash: '', since: 0 };
+  let lastSaved = null;        // { entryId, symbol } để Hoàn tác
+  let autoTimer = 0;
+
+  function hashText(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return `${h}:${s.length}`; }
   const host = document.createElement('div');
   host.id = 'noted-grok-host';
   const shadow = host.attachShadow({ mode: 'open' });
@@ -63,6 +72,7 @@ input{flex:1 1 160px}
               <button class="sel" type="button">${esc(t('grok_selection'))}</button>
               <button class="save primary" type="button" ${linked ? '' : 'disabled'}>${esc(t('grok_save'))}</button>
             </div>
+            ${linked && ctxInfo.prompt ? `<label class="hint auto"><input type="checkbox" class="autochk" ${autoSave ? 'checked' : ''}> ${esc(t('grok_auto'))}</label>` : ''}
             <div class="status"></div>
           </div>
         </div>
@@ -74,6 +84,11 @@ input{flex:1 1 160px}
     q('.cap').addEventListener('click', () => { const v = captureLastAnswer(); if (v) { text.value = v; setStatus(''); } else setStatus(t('grok_empty'), 'err'); });
     q('.sel').addEventListener('click', () => { const v = String(window.getSelection && window.getSelection().toString() || '').trim(); if (v) { text.value = v; setStatus(''); } else setStatus(t('grok_empty'), 'err'); });
     q('.save').addEventListener('click', () => save(text.value));
+    const autochk = q('.autochk');
+    if (autochk) autochk.addEventListener('change', async () => {
+      autoSave = autochk.checked;
+      try { const r = await chrome.storage.local.get('settings'); await chrome.storage.local.set({ settings: { ...(r.settings || {}), grokAutoSave: autoSave } }); } catch (_) {}
+    });
     if (!linked) {
       const sel = q('.recent');
       chrome.runtime.sendMessage({ type: 'noted:recent-projects' }, list => {
@@ -104,25 +119,81 @@ input{flex:1 1 160px}
     });
   }
 
-  function save(value) {
+  function save(value, opts = {}) {
     const text = String(value || '').trim();
     if (!text) { render.setStatus(t('grok_nothing'), 'err'); return; }
+    savedHashes.add(hashText(text));
     const u = new URL(location.href);
     u.searchParams.delete('text'); u.searchParams.delete('q');
     chrome.runtime.sendMessage({ type: 'noted:grok-save', text, url: u.toString(), sourceLabel: t('grok_source') }, res => {
       if (chrome.runtime.lastError || !res || !res.ok) { render.setStatus(t('grok_unlinked'), 'err'); return; }
+      const sym = res.symbol || S.shortAddress(ctxInfo.token.address);
       const st = shadow.querySelector('.status');
       st.className = 'status ok';
-      st.innerHTML = `${esc(t('grok_saved', { symbol: res.symbol || S.shortAddress(ctxInfo.token.address) }))} · <a href="#" class="opendash">${esc(t('grok_open_dashboard'))}</a>`;
+      const label = res.duplicate ? t('grok_dup') : (opts.auto ? t('grok_autosaved', { symbol: sym }) : t('grok_saved', { symbol: sym }));
+      st.innerHTML = `${esc(label)}${res.duplicate ? '' : ` · <a href="#" class="undo">${esc(t('undo'))}</a>`} · <a href="#" class="opendash">${esc(t('grok_open_dashboard'))}</a>`;
+      if (!res.duplicate) lastSaved = { entryId: res.entryId, symbol: sym };
       // Trang web không được điều hướng tới chrome-extension://, nên nhờ background mở tab dashboard.
       st.querySelector('.opendash').addEventListener('click', ev => { ev.preventDefault(); chrome.runtime.sendMessage({ type: 'noted:open-dashboard', key: res.key }); });
+      const undo = st.querySelector('.undo');
+      if (undo) undo.addEventListener('click', ev => {
+        ev.preventDefault();
+        if (!lastSaved) return;
+        chrome.runtime.sendMessage({ type: 'noted:grok-unsave', entryId: lastSaved.entryId }, r2 => {
+          if (chrome.runtime.lastError || !r2 || !r2.ok) return;
+          lastSaved = null; // giữ hash trong savedHashes để auto không lưu lại đúng nội dung vừa hoàn tác
+          render.setStatus(t('grok_undone'), '');
+        });
+      });
     });
   }
 
+  // ---- Tự lưu: sau khi prompt đã được gửi, câu trả lời mới nhất giữ nguyên ≥ 3s (hết streaming) thì lưu ----
+  // Bong bóng chứa prompt của người dùng (khối tối giản chứa 60 ký tự đầu của prompt), null nếu chưa gửi.
+  function promptBubble() {
+    if (!ctxInfo || !ctxInfo.prompt) return null;
+    const head = norm(ctxInfo.prompt).slice(0, 60);
+    if (!head) return null;
+    const composer = document.querySelector('[contenteditable="true"], textarea');
+    for (const el of document.querySelectorAll('div, p, article, section')) {
+      if (host.contains(el) || el.closest('[contenteditable], textarea, form')) continue;
+      if (composer && el.contains(composer)) continue;
+      if (!norm(el.textContent).includes(head)) continue;
+      let deeper = false;
+      for (const c of el.children) if (norm(c.textContent).includes(head)) { deeper = true; break; }
+      if (deeper) continue;
+      if (!el.getClientRects().length) continue;
+      return el;
+    }
+    return null;
+  }
+
+  function autoCheck() {
+    if (!autoSave || !ctxInfo || !ctxInfo.token || !ctxInfo.prompt) return;
+    const bubble = promptBubble();
+    if (!bubble) return; // prompt chưa được gửi
+    const text = captureLastAnswer(bubble);
+    if (!text || text.length < 80) return;
+    const h = hashText(text);
+    if (savedHashes.has(h)) return;
+    const now = Date.now();
+    if (lastSeen.hash !== h) { lastSeen = { hash: h, since: now }; return; }
+    if (now - lastSeen.since < 3000) return;
+    if (render.textEl) render.textEl.value = text;
+    save(text, { auto: true });
+  }
+
+  function startAutoWatch() {
+    const mo = new MutationObserver(() => { clearTimeout(autoTimer); autoTimer = setTimeout(autoCheck, 1500); });
+    mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    setInterval(autoCheck, 2000);
+  }
+
   // Tìm khối văn bản "tối giản" cuối cùng trước ô nhập, bỏ khối chứa prompt và khối chứa ô nhập.
-  function captureLastAnswer() {
+  function captureLastAnswer(afterEl) {
     const composer = document.querySelector('[contenteditable="true"], textarea');
     const promptHead = ctxInfo && ctxInfo.prompt ? norm(ctxInfo.prompt).slice(0, 60) : '';
+    const after = afterEl || promptBubble();
     const cands = [];
     for (const el of document.querySelectorAll('div, article, section, p, li')) {
       if (host.contains(el)) continue;
@@ -136,6 +207,7 @@ input{flex:1 1 160px}
       if (dominated) continue;
       if (!el.getClientRects().length) continue;
       if (promptHead && norm(txt).includes(promptHead)) continue;
+      if (after && !(after.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue; // chỉ khối sau prompt
       cands.push(el);
     }
     const top = cands.filter(el => !cands.some(o => o !== el && o.contains(el)));
@@ -149,10 +221,20 @@ input{flex:1 1 160px}
 
   async function start() {
     await I.init();
+    try { const r = await chrome.storage.local.get('settings'); autoSave = !(r.settings && r.settings.grokAutoSave === false); } catch (_) {}
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.settings) {
+        const v = changes.settings.newValue && changes.settings.newValue.grokAutoSave;
+        autoSave = v !== false;
+        const chk = shadow.querySelector('.autochk');
+        if (chk) chk.checked = autoSave;
+      }
+    });
     chrome.runtime.sendMessage({ type: 'noted:grok-context' }, res => {
       if (!chrome.runtime.lastError && res && res.token) ctxInfo = res;
       render();
       (document.body || document.documentElement).appendChild(host);
+      startAutoWatch();
     });
   }
   start();

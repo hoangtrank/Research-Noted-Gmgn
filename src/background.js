@@ -119,9 +119,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         let p = await NotedStore.get(m.token.key) || NotedStore.emptyProject(m.token.chain, m.token.address, { symbol: m.symbol || '' });
         if (!p.symbol && m.symbol) p.symbol = m.symbol;
         const body = msg.url ? `${text}\n\n${msg.sourceLabel || 'Source'}: ${msg.url}` : text;
-        p.timeline.push(NotedStore.newEntry('research', body, { source: 'grok' }));
+        // Chống trùng: cùng nội dung đã có trong 10 mốc Grok gần nhất thì không thêm nữa.
+        const dup = p.timeline.filter(e => e.source === 'grok').slice(-10).find(e => e.text === body);
+        if (dup) { sendResponse({ ok: true, duplicate: true, key: p.key, symbol: p.symbol, entryId: dup.id, entries: p.timeline.length }); return; }
+        const entry = NotedStore.newEntry('research', body, { source: 'grok' });
+        p.timeline.push(entry);
         p = await NotedStore.save(p);
-        sendResponse({ ok: true, key: p.key, symbol: p.symbol, entries: p.timeline.length });
+        sendResponse({ ok: true, key: p.key, symbol: p.symbol, entryId: entry.id, entries: p.timeline.length });
       })();
       return true;
     }
@@ -149,6 +153,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       dexResolve(String(msg.chain || '').toLowerCase(), Array.isArray(msg.addresses) ? msg.addresses : [])
         .then(r => sendResponse({ ok: true, results: r.results, reasons: r.reasons }))
         .catch(err => sendResponse({ ok: false, error: String(err && err.message), results: {}, reasons: {} }));
+      return true;
+    }
+    case 'noted:grok-unsave': { // hoàn tác một mốc Grok vừa tự lưu (chỉ mốc source=grok của token gắn với tab)
+      const tabId = fromHost(sender, GROK_HOSTS) ? sender.tab.id : null;
+      (async () => {
+        const r = tabId ? await chrome.storage.session.get(GROK_PREFIX + tabId) : {};
+        const m = r[GROK_PREFIX + tabId];
+        const id = String(msg.entryId || '');
+        if (!m || !m.token || !id) { sendResponse({ ok: false }); return; }
+        const p = await NotedStore.get(m.token.key);
+        if (!p) { sendResponse({ ok: false }); return; }
+        const before = p.timeline.length;
+        p.timeline = p.timeline.filter(e => !(e.id === id && e.source === 'grok'));
+        if (p.timeline.length !== before) await NotedStore.save(p);
+        sendResponse({ ok: true, removed: before - p.timeline.length });
+      })();
       return true;
     }
     case 'noted:recent-projects': {

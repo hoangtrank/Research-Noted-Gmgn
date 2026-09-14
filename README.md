@@ -28,10 +28,10 @@ Works on every chain gmgn supports (`sol`, `eth`, `base`, `bsc`, `robinhood`, `x
 
 1. Open a note (side panel, overlay or dashboard) and click **✨ Research with Grok**.
 2. The extension builds a prompt from your template with the token's symbol, chain, contract, current market cap and gmgn link, and opens Grok on X (or grok.com) in a new tab with the prompt prefilled. Press Enter.
-3. On the Grok page a small **Research-Noted-Gmgn** panel appears at the bottom right. After Grok answers, click **Capture last answer**, or select the text you want and click **Use selected text**. Edit if needed, then **Save to Research-Noted-Gmgn**.
-4. The answer lands in the token's timeline as a *Research* entry with a link back to the Grok conversation. If you opened Grok by hand, the panel lets you pick a recent project or paste a gmgn token URL to link it.
+3. On the Grok page a small **Research-Noted-Gmgn** panel appears at the bottom right. Once Grok finishes answering (the text has stopped changing for ~3 s), the answer is **saved automatically** into the token's timeline; the panel shows "Auto-saved" with an **Undo** link. Follow-up answers in the same conversation are saved as new entries; identical content is never saved twice. You can still **Capture last answer** or select text and **Use selected text** to save something specific.
+4. Entries are of type *Research* and carry a link back to the Grok conversation. If you opened Grok by hand, the panel lets you pick a recent project or paste a gmgn token URL to link it; auto-save only applies to tabs opened from a note (so it never guesses on an unrelated page).
 
-The template, the target (Grok on X / grok.com) and the follow-the-page toggle live in **Dashboard → ⚙ Settings**. Placeholders: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}`. No API key is needed; Grok runs in your own X account, and only the answer text you choose to save is stored, locally.
+The template, the target (Grok on X / grok.com), auto-save and the follow-the-page toggle live in **Dashboard → ⚙ Settings** (auto-save can also be toggled on the Grok panel itself). Placeholders: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}`. No API key is needed; Grok runs in your own X account, and only the answer text you choose to save is stored, locally.
 
 ## Install (load unpacked)
 
