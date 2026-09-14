@@ -14,6 +14,8 @@
     button.primary:hover{background:#fde047}
     button[hidden]{display:none}
     .hint{margin-top:10px;color:#6b7280;font-size:11px}
+    .setting{display:block;margin-top:10px;font-size:11px;color:#9aa3b2}
+    select{display:block;width:100%;margin-top:4px;font:inherit;color:#e6e8ec;background:#181b22;border:1px solid #2b303a;border-radius:8px;padding:6px 8px}
     kbd{font:10px ui-monospace,Menlo,monospace;background:#181b22;border:1px solid #2b303a;border-bottom-width:2px;border-radius:4px;padding:0 4px}
   </style>
 </head>
@@ -24,6 +26,12 @@
     <button id="note-this" class="primary" hidden>📝 Ghi chú token đang xem</button>
     <button id="open-dash">📚 Mở Dashboard</button>
     <button id="export">⬇ Xuất JSON (backup)</button>
+    <label class="setting">Giao diện ghi chú
+      <select id="ui-mode">
+        <option value="panel">Side panel (không che trang)</option>
+        <option value="drawer">Overlay trong trang</option>
+      </select>
+    </label>
     <div class="hint">Trên gmgn.ai: bấm nút ✎ cạnh symbol, hoặc <kbd>Alt</kbd>+<kbd>N</kbd> trên trang token.</div>
   </div>
   <script src="../lib/storage.js"></script>

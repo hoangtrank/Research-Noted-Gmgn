@@ -1,5 +1,6 @@
 // Nạp extension thật vào Chromium (Playwright), chặn mọi request tới gmgn.ai và trả về trang giả lập,
-// rồi kiểm tra: gắn nút, mở drawer, lưu ghi chú, tooltip, FAB trên trang token, dashboard.
+// rồi kiểm tra: gắn nút, mở Side Panel (qua trang panel với ?tab=) và drawer dự phòng, lưu ghi chú,
+// tooltip, FAB trên trang token, dashboard, export/import, popup.
 'use strict';
 const path = require('path');
 const fs = require('fs');
@@ -10,7 +11,10 @@ const EXT = process.env.EXT_DIR || path.resolve(__dirname, '..'); // EXT_DIR: ki
 const OUT = process.env.SHOT_DIR || path.join(__dirname, 'shots');
 fs.mkdirSync(OUT, { recursive: true });
 
+const PROLOG = 'robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3';
 const assert = (cond, msg) => { if (!cond) throw new Error('ASSERT: ' + msg); console.log('  ✓', msg); };
+const shadowQ = (page, sel) => page.evaluate(s => { const el = document.getElementById('noted-gmgn-host').shadowRoot.querySelector(s); return el ? (el.hidden ? '' : el.textContent) : null; }, sel);
+const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-drawer.open'));
 
 (async () => {
   const userDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'noted-prof-'));
@@ -30,88 +34,121 @@ const assert = (cond, msg) => { if (!cond) throw new Error('ASSERT: ' + msg); co
   page.on('pageerror', e => console.log('PAGE ERROR', e.message));
   page.on('console', m => { if (m.type() === 'error') console.log('CONSOLE', m.text()); });
 
-  console.log('1) Danh sách theo dõi');
+  console.log('1) Danh sách theo dõi: gắn nút');
   await page.goto('https://gmgn.ai/follow?chain=robinhood');
   await page.waitForSelector('.noted-badge', { timeout: 10000 });
   await page.waitForTimeout(1500); // đợi hàng "LATE" được thêm động
   const badges = await page.$$eval('.noted-badge', els => els.map(b => ({ key: b.dataset.key, prev: b.previousSibling && b.previousSibling.nodeValue && b.previousSibling.nodeValue.trim() })));
-  console.log('  badges:', badges);
   assert(badges.length === mock.TOKENS.length + 2, `mỗi hàng có một nút (${badges.length}: 6 link + 1 hàng thêm động + 1 hàng data-row-key)`);
-  assert(badges.find(b => b.key === 'robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3' && b.prev === 'PROLOG'), 'nút PROLOG nằm ngay sau symbol');
+  assert(badges.find(b => b.key === PROLOG && b.prev === 'PROLOG'), 'nút PROLOG nằm ngay sau symbol');
   assert(badges.find(b => b.key === 'sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump'), 'nhận diện địa chỉ Solana');
   assert(badges.find(b => b.key === 'robinhood:0x5555555555555555555555555555555555555555' && b.prev === 'ROWKEY'), 'dự phòng data-row-key hoạt động');
   assert(badges.find(b => b.key === 'base:0x6666666666666666666666666666666666666666'), 'hàng thêm động cũng có nút');
+  const badgeColor = await page.$eval(`.noted-badge[data-key="${PROLOG}"]`, b => getComputedStyle(b).borderColor);
+  assert(badgeColor !== 'rgba(0, 0, 0, 0)' && !/255, 255, 255/.test(badgeColor), 'nút chưa ghi có màu nổi bật: ' + badgeColor);
 
-  console.log('2) Bấm nút PROLOG -> drawer, không điều hướng');
-  await page.click('.noted-badge[data-key="robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3"]');
-  const drawerOpen = await page.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-drawer.open'), null, { timeout: 5000 });
-  assert(!!drawerOpen, 'drawer mở');
+  console.log('2) Chế độ mặc định (Side Panel): bấm nút -> background nhận yêu cầu');
+  // Không có quyền "tabs" nên không query tab theo URL được: ghi lại tab id từ sender của message noted:open.
+  await sw.evaluate(() => { chrome.runtime.onMessage.addListener((m, sender) => { if (m && m.type === 'noted:open' && sender.tab) globalThis.__lastTab = sender.tab.id; }); });
+  await page.click(`.noted-badge[data-key="${PROLOG}"]`);
+  await page.waitForTimeout(800);
+  const gmgnTabId = await sw.evaluate(() => globalThis.__lastTab);
+  assert(typeof gmgnTabId === 'number', 'background nhận message noted:open từ tab gmgn (' + gmgnTabId + ')');
+  const session = await sw.evaluate(async () => chrome.storage.session.get(null));
+  const panelMode = !!session['tab:' + gmgnTabId];
+  const drawerMode = await drawerOpen(page);
+  console.log('  chế độ thực tế:', panelMode ? 'Side Panel' : 'drawer dự phòng (headless không mở được side panel)');
+  assert(panelMode || drawerMode, 'bấm nút mở được panel hoặc drawer dự phòng');
+  if (panelMode) assert(session['tab:' + gmgnTabId].ctx.symbol === 'PROLOG' && session['tab:' + gmgnTabId].ctx.mc === '$10.64M', 'background nhớ token + symbol + MC theo tab');
   assert((await page.evaluate(() => location.pathname)) === '/follow', 'bấm nút không điều hướng sang trang token');
   assert(!(await page.evaluate(() => document.body.dataset.navigated)), 'handler click của trang không bị kích hoạt');
-  const sh = () => page.evaluateHandle(() => document.getElementById('noted-gmgn-host').shadowRoot);
-  const symbol = await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.ne-symbol').value);
-  assert(symbol === 'PROLOG', 'symbol tự điền từ hàng: ' + symbol);
-  const mcNow = await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.ne-mcnow').textContent);
-  assert(mcNow.includes('$10.64M'), 'MC lấy từ hàng: ' + mcNow);
+  if (drawerMode) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
 
-  console.log('3) Nhập ghi chú');
-  const root = await sh();
-  const type = async (sel, text) => { const el = await root.$(sel); await el.click(); await el.type(text); };
-  await type('.ne-name', 'AI agent launchpad tren Robinhood chain');
-  await type('.ne-summary', 'Launchpad cho AI agent, doi ex-Coinbase, TGE thang 10. Rui ro: unlock lon.');
-  await type('.ne-taginput', 'ai, launchpad');
-  await (await root.$('.ne-taginput')).press('Enter');
-  await (await root.$('.ne-pin')).click();
-  await (await root.$('.ne-stars span[data-n="4"]')).click();
-  await (await root.$('.ne-status')).selectOption('researching');
-  await type('.ne-newtext', 'Thread X cua founder: https://x.com/example/status/123 - noi ve tokenomics');
-  await (await root.$('.ne-newtype')).selectOption('research');
-  await (await root.$('.ne-add')).click();
-  await type('.ne-newtext', 'Mua thu 0.1 ETH');
-  await (await root.$('.ne-newtype')).selectOption('buy');
-  await (await root.$('.ne-newtext')).press('Control+Enter');
-  await page.waitForTimeout(700);
-  const entries = await root.$$eval('.ne-entry', els => els.map(e => e.dataset.type));
-  assert(entries.length === 2 && entries[0] === 'buy', 'timeline có 2 mốc, mới nhất ở trên: ' + entries.join(','));
-  const linkified = await root.$eval('.ne-entries', el => !!el.querySelector('a[href="https://x.com/example/status/123"]'));
-  assert(linkified, 'URL trong mốc được biến thành link');
-  await page.screenshot({ path: path.join(OUT, '1-list-drawer.png') });
+  console.log('3) Trang Side Panel (mở như tab với ?tab=) — ctx không có symbol để test hỏi content script');
+  await sw.evaluate(async (args) => chrome.storage.session.set({ ['tab:' + args.tabId]: { token: { chain: 'robinhood', address: args.addr, key: args.key }, ctx: { mc: '$10.64M' }, at: Date.now() } }),
+    { tabId: gmgnTabId, addr: PROLOG.split(':')[1], key: PROLOG });
+  const panel = await ctx.newPage();
+  panel.on('pageerror', e => console.log('PANEL ERROR', e.message));
+  await panel.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${gmgnTabId}`);
+  await panel.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+  assert((await panel.$eval('.ne-symbol', e => e.value)) === 'PROLOG', 'panel lấy symbol từ content script của tab gmgn');
+  assert((await panel.$eval('.ne-mcnow', e => e.textContent)).includes('$10.64M'), 'panel hiện MC lúc ghi');
+  await panel.click('.ne-name'); await panel.type('.ne-name', 'AI agent launchpad tren Robinhood chain');
+  await panel.click('.ne-summary'); await panel.type('.ne-summary', 'Launchpad cho AI agent, doi ex-Coinbase, TGE thang 10. Rui ro: unlock lon.');
+  await panel.click('.ne-taginput'); await panel.type('.ne-taginput', 'ai, launchpad'); await panel.press('.ne-taginput', 'Enter');
+  await panel.click('.ne-pin');
+  await panel.click('.ne-stars span[data-n="4"]');
+  await panel.selectOption('.ne-status', 'researching');
+  await panel.click('.ne-newtext'); await panel.type('.ne-newtext', 'Thread X cua founder: https://x.com/example/status/123 - noi ve tokenomics');
+  await panel.selectOption('.ne-newtype', 'research'); await panel.click('.ne-add');
+  await panel.click('.ne-newtext'); await panel.type('.ne-newtext', 'Mua thu 0.1 ETH');
+  await panel.selectOption('.ne-newtype', 'buy'); await panel.press('.ne-newtext', 'Control+Enter');
+  await panel.waitForTimeout(700);
+  const entries = await panel.$$eval('.ne-entry', els => els.map(e => e.dataset.type));
+  assert(entries.length === 2 && entries[0] === 'buy', 'timeline trong panel có 2 mốc, mới nhất ở trên: ' + entries.join(','));
+  assert(await panel.$eval('.ne-entries', el => !!el.querySelector('a[href="https://x.com/example/status/123"]')), 'URL trong mốc được biến thành link');
+  await panel.setViewportSize({ width: 380, height: 800 });
+  await panel.screenshot({ path: path.join(OUT, '5-side-panel.png') });
+  // chuyển token qua message noted:show (như khi bấm nút khác)
+  await sw.evaluate(async (args) => { await chrome.storage.session.set({ ['tab:' + args.tabId]: { token: args.token, ctx: { symbol: 'JUGGER', mc: '$9.05M' } } }); chrome.runtime.sendMessage({ type: 'noted:show', tabId: args.tabId, token: args.token, ctx: { symbol: 'JUGGER', mc: '$9.05M' } }).catch(() => {}); },
+    { tabId: gmgnTabId, token: { chain: 'robinhood', address: '0x1111111111111111111111111111111111111111', key: 'robinhood:0x1111111111111111111111111111111111111111' } });
+  await panel.waitForFunction(() => document.querySelector('.ne-symbol').value === 'JUGGER', null, { timeout: 5000 });
+  assert(true, 'panel chuyển sang token khác khi nhận noted:show');
+  await panel.close();
 
-  console.log('4) Dữ liệu trong storage');
-  const stored = await sw.evaluate(async () => (await chrome.storage.local.get(null)));
-  const p = stored['p:robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3'];
+  console.log('4) Dữ liệu trong storage + nút đổi màu ở tab gmgn (cập nhật chéo ngữ cảnh)');
+  const stored = await sw.evaluate(async () => chrome.storage.local.get(null));
+  const p = stored['p:' + PROLOG];
   assert(p && p.symbol === 'PROLOG' && p.pinned && p.rating === 4 && p.status === 'researching', 'project lưu đúng pin/rating/status');
   assert(p.tags.join(',') === 'ai,launchpad', 'tags: ' + p.tags.join(','));
   assert(p.timeline.length === 2 && p.timeline[0].mc === '$10.64M', 'mốc timeline kèm MC lúc ghi');
-  assert(p.summary.startsWith('Launchpad'), 'summary lưu');
-
-  console.log('5) Nút đổi trạng thái + tooltip');
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
-  const cls = await page.$eval('.noted-badge[data-key="robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3"]', b => b.className + '|' + b.textContent);
-  assert(cls.includes('noted-badge--has') && cls.includes('noted-badge--pin') && cls.endsWith('2'), 'nút hiện trạng thái đã ghi + pin + số mốc: ' + cls);
-  await page.hover('.noted-badge[data-key="robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3"]');
+  assert(p.name.startsWith('AI agent') && p.summary.startsWith('Launchpad'), 'name + summary lưu');
+  await page.bringToFront();
+  await page.waitForFunction(k => document.querySelector(`.noted-badge[data-key="${k}"]`).classList.contains('noted-badge--pin'), PROLOG, { timeout: 5000 });
+  const cls = await page.$eval(`.noted-badge[data-key="${PROLOG}"]`, b => b.className + '|' + b.textContent);
+  assert(cls.includes('noted-badge--has') && cls.includes('noted-badge--pin') && cls.endsWith('2'), 'nút hiện đã ghi + pin + số mốc: ' + cls);
+  await page.hover(`.noted-badge[data-key="${PROLOG}"]`);
   await page.waitForTimeout(200);
-  const tipText = await page.evaluate(() => { const t = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-tip'); return t.hidden ? '' : t.textContent; });
+  const tipText = await shadowQ(page, '.nd-tip');
   assert(tipText.includes('Launchpad') && tipText.includes('#ai'), 'tooltip hiện tóm tắt + tag');
   await page.screenshot({ path: path.join(OUT, '2-list-tooltip.png') });
 
-  console.log('6) Trang token: FAB + Alt+N');
+  console.log('5) Chế độ overlay (settings.ui = drawer): bấm nút mở drawer trong trang');
+  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'drawer' } }));
+  await page.reload();
+  await page.waitForSelector(`.noted-badge[data-key="${PROLOG}"]`);
+  await page.waitForTimeout(400);
+  await page.click(`.noted-badge[data-key="${PROLOG}"]`);
+  await page.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-drawer.open'), null, { timeout: 5000 });
+  assert(true, 'drawer mở');
+  assert((await shadowQ(page, '.ne-symbol')) !== null && (await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.ne-symbol').value)) === 'PROLOG', 'drawer nạp đúng dự án');
+  await page.evaluate(() => { const r = document.getElementById('noted-gmgn-host').shadowRoot; r.querySelector('.ne-newtext').value = 'Ghi tu drawer'; r.querySelector('.ne-add').click(); });
+  await page.waitForTimeout(600);
+  const n = await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k].timeline.length, PROLOG);
+  assert(n === 3, 'thêm mốc từ drawer lưu được (3 mốc)');
+  await page.screenshot({ path: path.join(OUT, '1-list-drawer.png') });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  assert(!(await drawerOpen(page)), 'Esc đóng drawer');
+
+  console.log('6) Trang token: FAB');
   await page.goto('https://gmgn.ai/robinhood/token/0xaa40e79e987517f7462bf79315b8a118799b04e3');
   await page.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden; }, null, { timeout: 8000 });
-  const fabText = await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').textContent);
+  const fabText = await shadowQ(page, '.nd-fab');
   assert(fabText.includes('PROLOG') && fabText.includes('Launchpad'), 'FAB hiện symbol + tóm tắt: ' + fabText);
   await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
   await page.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-drawer.open'), null, { timeout: 5000 });
-  assert(true, 'FAB mở drawer');
+  assert(true, 'FAB mở drawer (chế độ overlay)');
+  await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(OUT, '3-token-page.png') });
   await page.keyboard.press('Escape');
 
-  console.log('7) Trang token chưa có ghi chú: symbol từ <title>');
+  console.log('7) Trang token chưa có ghi chú: symbol từ <title>, và page-info cho panel');
   await page.goto('https://gmgn.ai/robinhood/token/0x2222222222222222222222222222222222222222');
   await page.waitForTimeout(500);
-  const fab2 = await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').textContent);
-  assert(fab2.includes('FRONG'), 'FAB đọc symbol từ title: ' + fab2);
+  assert((await shadowQ(page, '.nd-fab')).includes('FRONG'), 'FAB đọc symbol từ title');
+  const info = await sw.evaluate(async (args) => chrome.tabs.sendMessage(args.tabId, { type: 'noted:page-info', key: args.key }), { tabId: gmgnTabId, key: 'robinhood:0x2222222222222222222222222222222222222222' });
+  assert(info && info.symbol === 'FRONG', 'content script trả symbol cho panel: ' + JSON.stringify(info));
 
   console.log('8) Dashboard');
   const dash = await ctx.newPage();
@@ -140,8 +177,8 @@ const assert = (cond, msg) => { if (!cond) throw new Error('ASSERT: ' + msg); co
     return NotedStore.importJSON(data);
   }, json);
   assert(r.added === 1 && r.merged === 1, `import gộp: ${JSON.stringify(r)}`);
-  const after = await dash.evaluate(async () => (await NotedStore.get('robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3')).timeline.length);
-  assert(after === 3, 'timeline sau import gộp = 3');
+  const after = await dash.evaluate(async k => (await NotedStore.get(k)).timeline.length, PROLOG);
+  assert(after === 4, 'timeline sau import gộp = 4');
 
   console.log('10) Popup');
   const pop = await ctx.newPage();
@@ -149,6 +186,10 @@ const assert = (cond, msg) => { if (!cond) throw new Error('ASSERT: ' + msg); co
   await pop.waitForFunction(() => !document.querySelector('#stats').textContent.includes('…'));
   const stats = await pop.$eval('#stats', e => e.textContent);
   assert(stats.startsWith('2 dự án'), 'popup thống kê: ' + stats);
+  assert((await pop.$eval('#ui-mode', e => e.value)) === 'drawer', 'popup hiện đúng tuỳ chọn giao diện');
+  await pop.selectOption('#ui-mode', 'panel');
+  await pop.waitForTimeout(200);
+  assert((await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings.ui)) === 'panel', 'đổi tuỳ chọn từ popup được lưu');
 
   await ctx.close();
   console.log('\nALL PASSED');

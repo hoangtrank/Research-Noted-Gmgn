@@ -4,14 +4,16 @@ Extension Chrome (Manifest V3) thêm nút **✎ Noted** cạnh mỗi token trên
 
 Mục tiêu: khi research hàng trăm dự án, chỉ cần rê chuột vào nút cạnh symbol là nhớ lại ngay "dự án này làm gì, mình đã thấy gì, đã mua ở MC nào".
 
-![Danh sách theo dõi với nút Noted và drawer ghi chú](docs/1-list-drawer.png)
+![Danh sách theo dõi với nút Noted; tooltip khi rê chuột](docs/2-list-tooltip.png)
+
+![Side Panel ghi chú, nằm ngoài trang gmgn](docs/5-side-panel.png)
 
 ## Tính năng
 
 | Ở đâu | Có gì |
 |---|---|
 | Mọi danh sách token trên gmgn (theo dõi, trending, meme, ví…) | Nút ✎ ngay sau symbol. Vàng = đã có ghi chú, cam 📌 = đã pin, số = số mốc timeline. Rê chuột hiện tóm tắt + tag + mốc mới nhất. |
-| Bấm nút | Drawer bên phải: symbol, tên/mô tả một dòng, trạng thái, conviction 1–5, **Dự án làm gì?**, tags, timeline. Tự lưu. MC trong hàng được lưu kèm mỗi mốc ("Mua ở MC $10.6M"). |
+| Bấm nút | Mở **Side Panel** của Chrome bên phải (nằm ngoài trang, trình duyệt tự thu hẹp gmgn nên không che gì; kéo mép để đổi độ rộng): symbol, tên/mô tả một dòng, trạng thái, conviction 1–5, **Dự án làm gì?**, tags, timeline. Tự lưu. MC trong hàng được lưu kèm mỗi mốc ("Mua ở MC $10.6M"). Popup có tuỳ chọn đổi sang overlay trong trang. |
 | Trang token `/{chain}/token/{address}` | Nút nổi góc dưới phải hiện symbol + tóm tắt; bấm hoặc `Alt+N` để mở ghi chú. |
 | Icon extension → Dashboard | Danh sách mọi dự án đã ghi chú: tìm theo symbol/tên/tóm tắt/tag/địa chỉ/nội dung mốc, lọc trạng thái/tag/pin, sắp xếp; sửa ngay tại chỗ; thêm từ URL gmgn. |
 | Xuất / nhập | JSON (backup, đồng bộ tay giữa máy) và Markdown (đưa cho AI tổng hợp lại toàn bộ research). |
@@ -21,6 +23,8 @@ Hỗ trợ mọi chain gmgn có (`sol`, `eth`, `base`, `bsc`, `robinhood`, `xlay
 ![Dashboard tổng hợp mọi dự án đã ghi chú](docs/4-dashboard.png)
 
 ## Cài đặt (load unpacked)
+
+Yêu cầu Chrome/Brave/Edge phiên bản 116 trở lên (có Side Panel API).
 
 1. Tải mã nguồn (clone repo hoặc Download ZIP rồi giải nén).
 2. Chrome/Brave/Edge: mở `chrome://extensions`, bật **Developer mode**.
@@ -45,11 +49,12 @@ Phím tắt `Alt+N` (mở ghi chú token đang xem) có thể đổi ở `chrome
 manifest.json            MV3, chỉ cần quyền storage + unlimitedStorage + activeTab
 src/lib/storage.js       NotedStore: model dữ liệu, đọc/ghi chrome.storage.local, export/import, Markdown
 src/lib/editor.js        NotedEditor: UI ghi chú dùng chung (drawer trên gmgn và panel trong dashboard)
-src/content/gmgn.js      Content script: quét link token, gắn nút, tooltip, FAB, drawer (Shadow DOM)
+src/content/gmgn.js      Content script: quét link token, gắn nút, tooltip, FAB; drawer Shadow DOM làm dự phòng
+src/panel/               Trang Side Panel (editor cho token của tab đang xem)
 src/content/gmgn.css     Style cho nút gắn trong trang (light DOM)
 src/dashboard/           Trang tổng hợp (options page)
 src/popup/               Popup icon extension
-src/background.js        Service worker: phím tắt, mở dashboard
+src/background.js        Service worker: mở Side Panel, nhớ token theo tab (storage.session), phím tắt
 scripts/make_icons.py    Sinh icon PNG, không cần thư viện ngoài
 test/                    Trang gmgn giả lập + test Playwright nạp extension thật
 ```
@@ -110,6 +115,7 @@ gmgn bị chặn trong môi trường phát triển extension này nên phần g
 |---|---|
 | `storage`, `unlimitedStorage` | Lưu ghi chú của người dùng ngay trên máy, không giới hạn số dự án |
 | `activeTab` | Đọc URL tab đang mở khi người dùng bấm icon hoặc phím tắt để mở đúng ghi chú của token đó |
+| `sidePanel` | Hiển thị editor ghi chú trong Side Panel của Chrome, không che nội dung gmgn |
 | Content script trên `gmgn.ai` | Gắn nút ghi chú cạnh mỗi token và hiển thị ghi chú ngay trong trang |
 
 ## Phát triển

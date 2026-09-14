@@ -78,7 +78,7 @@
 .ne-etext a{word-break:break-all}
 .ne-entry textarea{margin-top:4px}
 .ne-empty{color:var(--ne-fg3);font-size:12px;padding:8px 0 4px 30px}
-.ne-foot{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--ne-line);font-size:11px;color:var(--ne-fg3);background:var(--ne-bg2)}
+.ne-foot{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--ne-line);font-size:11px;color:var(--ne-fg3);background:var(--ne-bg2);white-space:nowrap}
 .ne-foot .ne-spacer{flex:1}
 .ne-saved{color:var(--ne-green);opacity:0;transition:opacity .2s}
 .ne-saved.show{opacity:1}
@@ -318,9 +318,8 @@
     }
 
     function renderTimes() {
-      ui.times.textContent = persisted
-        ? `Tạo ${S.fmtDate(project.createdAt)} · Sửa ${relTime(project.updatedAt)}`
-        : 'Chưa lưu — sẽ tự lưu khi bạn nhập';
+      ui.times.textContent = persisted ? `Sửa ${relTime(project.updatedAt)}` : 'Chưa lưu — tự lưu khi bạn nhập';
+      ui.times.title = persisted ? `Tạo ${S.fmtDate(project.createdAt)} · Sửa ${S.fmtDate(project.updatedAt)}` : '';
     }
 
     function flashSaved() {

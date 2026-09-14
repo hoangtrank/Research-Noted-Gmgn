@@ -1,7 +1,8 @@
 // Content script cho gmgn.ai:
 //  - quét mọi link /{chain}/token/{address} (danh sách theo dõi, trending, meme...) và gắn nút Noted cạnh symbol
 //  - trang token: hiện nút nổi (FAB) cho token đang xem
-//  - drawer Shadow DOM chứa editor ghi chú (summary, tags, pin, trạng thái, timeline)
+//  - bấm nút: gửi background mở Chrome Side Panel (nằm ngoài trang, không che gmgn);
+//    nếu không mở được hoặc người dùng chọn "overlay" thì dùng drawer Shadow DOM trong trang
 (() => {
   'use strict';
   if (window.__notedGmgnLoaded) return;
@@ -31,16 +32,17 @@
 .nd-tip .t-empty{color:#6b7280;font-style:italic}
 .nd-tip .t-tags{margin-top:6px;color:#93c5fd;font-size:11px}
 .nd-tip .t-last{margin-top:6px;color:#9aa3b2;font-size:11px;border-top:1px solid #2b303a;padding-top:6px;word-break:break-word}
-.nd-fab{position:fixed;right:16px;bottom:88px;z-index:2147482999;display:flex;align-items:center;gap:8px;max-width:min(380px,calc(100vw - 32px));padding:9px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:#181b22;color:#e6e8ec;font:600 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer}
-.nd-fab:hover{background:#20242d}
-.nd-fab.has{border-color:rgba(250,204,21,.55);color:#fde047}
+.nd-fab{position:fixed;right:16px;bottom:88px;z-index:2147482999;display:flex;align-items:center;gap:8px;max-width:min(380px,calc(100vw - 32px));padding:9px 14px;border-radius:999px;border:1px solid rgba(167,139,250,.7);background:linear-gradient(180deg,#2a1f4d,#1c1730);color:#e9e5ff;font:600 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer}
+.nd-fab:hover{filter:brightness(1.15)}
+.nd-fab.has{border-color:rgba(250,204,21,.7);color:#fde047;background:linear-gradient(180deg,#2a2610,#1b1a12)}
 .nd-fab .f-sum{font-weight:400;color:#9aa3b2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}
 .nd-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483002;padding:8px 14px;border-radius:999px;background:#20242d;color:#e6e8ec;border:1px solid #2b303a;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .15s;pointer-events:none}
 .nd-toast.show{opacity:1}
 `;
 
   let host, shadow, drawer, editor, tip, fab, toastEl;
-  let openKey = null;
+  let openKey = null;      // key đang mở trong drawer (chỉ dùng ở chế độ overlay)
+  let uiMode = 'panel';    // settings.ui: 'panel' (Side Panel) | 'drawer' (overlay trong trang)
   let lastHref = location.href;
   let scanTimer = 0;
   let toastTimer = 0;
@@ -104,12 +106,17 @@
 
   // ---------------- dữ liệu ----------------
   async function loadAll() {
-    const all = await S.getAll();
+    const [all, r] = await Promise.all([S.getAll(), chrome.storage.local.get('settings')]);
+    uiMode = (r.settings && r.settings.ui) || 'panel';
     cache.clear();
     for (const p of all) cache.set(p.key, p);
     refreshBadges();
     refreshFab();
   }
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.settings) uiMode = (changes.settings.newValue && changes.settings.newValue.ui) || 'panel';
+  });
 
   S.onChange(async keys => {
     for (const k of keys) {
@@ -263,7 +270,18 @@
     const container = b.closest(`[${ATTR}]`) || b.parentElement;
     const t = { chain: b.dataset.chain, address: b.dataset.address, key: b.dataset.key };
     hideTip();
-    openDrawer(t, { symbol: symbolFor(container), mc: captureMc(container) });
+    openNote(t, { symbol: symbolFor(container), mc: captureMc(container) });
+  }
+
+  // Gửi background mở Side Panel. Gọi đồng bộ ngay trong click để giữ user gesture (sidePanel.open yêu cầu).
+  function openNote(token, ctx) {
+    const fallback = () => openDrawer(token, ctx);
+    try {
+      chrome.runtime.sendMessage({ type: 'noted:open', token, ctx, mode: uiMode }, res => {
+        if (chrome.runtime.lastError || !res || res.mode !== 'panel') fallback();
+        else if (openKey) closeDrawer();
+      });
+    } catch (_) { fallback(); }
   }
 
   // ---------------- tooltip ----------------
@@ -322,7 +340,15 @@
     const t = S.parseTokenUrl(location.href);
     if (!t) { toast('Hãy mở một trang token trên gmgn rồi bấm Alt+N hoặc nút Noted.'); return; }
     if (openKey === t.key) closeDrawer();
-    else openDrawer(t, { symbol: pageSymbol(), mc: null });
+    else openNote(t, { symbol: pageSymbol(), mc: null });
+  }
+
+  // Panel/popup hỏi symbol đang hiển thị cho một token.
+  function pageInfoFor(key) {
+    const t = S.parseTokenUrl(location.href);
+    if (t && t.key === key) return { symbol: pageSymbol() };
+    const a = document.querySelector(`[${ATTR}="${CSS.escape(key)}"]`);
+    return { symbol: a ? symbolFor(a) : '' };
   }
 
   function refreshFab() {
@@ -342,7 +368,20 @@
   // ---------------- khởi động ----------------
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (!msg || typeof msg.type !== 'string') return;
-    if (msg.type === 'noted:toggle' || msg.type === 'noted:open') { toggleForPage(); sendResponse({ ok: true }); }
+    switch (msg.type) {
+      case 'noted:toggle':
+        toggleForPage(); sendResponse({ ok: true }); break;
+      case 'noted:open-drawer': { // background chọn chế độ overlay (hoặc Side Panel không mở được)
+        const ctx = msg.ctx || {};
+        const t = msg.token || S.parseTokenUrl(location.href);
+        if (t) openDrawer(t, { symbol: ctx.symbol || (S.parseTokenUrl(location.href)?.key === t.key ? pageSymbol() : pageInfoFor(t.key).symbol), mc: ctx.mc || null });
+        sendResponse({ ok: true }); break;
+      }
+      case 'noted:page-info':
+        sendResponse(pageInfoFor(msg.key)); break;
+      case 'noted:toast':
+        toast(msg.text || ''); sendResponse({ ok: true }); break;
+    }
   });
 
   mount();
