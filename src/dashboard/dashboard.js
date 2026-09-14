@@ -145,11 +145,11 @@
 
   ui.exportJson.addEventListener('click', async () => {
     const data = await S.exportJSON();
-    download(`noted-gmgn-${stamp()}.json`, JSON.stringify(data, null, 2), 'application/json');
+    download(`research-noted-gmgn-${stamp()}.json`, JSON.stringify(data, null, 2), 'application/json');
   });
 
   ui.exportMd.addEventListener('click', async () => {
-    download(`noted-gmgn-${stamp()}.md`, S.toMarkdown(await S.getAll()), 'text/markdown');
+    download(`research-noted-gmgn-${stamp()}.md`, S.toMarkdown(await S.getAll()), 'text/markdown');
   });
 
   ui.importJson.addEventListener('click', () => ui.importFile.click());

@@ -8,7 +8,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Title**
 
-    Noted for GMGN
+    Research-Noted-Gmgn
 
 **Summary (max 132 chars)**
 
@@ -16,7 +16,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Description**
 
-    Researching hundreds of tokens on gmgn.ai and can't remember what each project does? Noted adds a note button right next to every token.
+    Researching hundreds of tokens on gmgn.ai and can't remember what each project does? Research-Noted-Gmgn adds a note button right next to every token.
 
     • ✎ button next to the symbol in every list (watchlist, trending, meme…). Yellow = has a note, orange = pinned. Hover to see the summary.
     • Notes open in Chrome's Side Panel, so nothing covers the gmgn page.
@@ -37,7 +37,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Title**
 
-    Noted for GMGN
+    Research-Noted-Gmgn
 
 **Summary**
 
@@ -45,7 +45,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Description**
 
-    Bạn research hàng trăm token trên gmgn.ai và không còn nhớ dự án nào làm gì? Noted thêm một nút ghi chú ngay cạnh mỗi token.
+    Bạn research hàng trăm token trên gmgn.ai và không còn nhớ dự án nào làm gì? Research-Noted-Gmgn thêm một nút ghi chú ngay cạnh mỗi token.
 
     • Nút ✎ cạnh symbol trong mọi danh sách (theo dõi, trending, meme…). Vàng = đã ghi chú, cam = đã pin. Rê chuột là thấy tóm tắt.
     • Ghi chú mở trong Side Panel của Chrome, không che nội dung gmgn.
@@ -64,7 +64,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Title**
 
-    Noted for GMGN
+    Research-Noted-Gmgn
 
 **Summary**
 
@@ -72,7 +72,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Description**
 
-    在 gmgn.ai 研究了上百个代币，却记不住每个项目是做什么的？Noted 在每个代币旁边添加一个笔记按钮。
+    在 gmgn.ai 研究了上百个代币，却记不住每个项目是做什么的？Research-Noted-Gmgn 在每个代币旁边添加一个笔记按钮。
 
     • 每个列表（自选、热门、meme…）的代币符号旁都有 ✎ 按钮。黄色 = 已有笔记，橙色 = 已置顶。悬停即可查看摘要。
     • 笔记在 Chrome 侧边栏中打开，不会遮挡 gmgn 页面。
@@ -113,7 +113,7 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 | `activeTab` | When the user clicks the toolbar icon or presses Alt+N, reads the current tab's gmgn.ai URL to open the note for that token. |
 | `sidePanel` | Shows the note editor in Chrome's side panel so it does not cover the gmgn.ai page. |
 | Host permission `gmgn.ai` (content script) | Adds the note button next to each token link on gmgn.ai and shows the note indicator/tooltip inline. |
-| Host permissions `x.com/i/grok`, `twitter.com/i/grok`, `grok.com` (content script) | Adds a "Save to Noted" panel on Grok pages so the user can save Grok's research answer into the token's note. It only reads the answer text the user chooses to save; nothing is sent anywhere. |
+| Host permissions `x.com/i/grok`, `twitter.com/i/grok`, `grok.com` (content script) | Adds a "Save to Research-Noted-Gmgn" panel on Grok pages so the user can save Grok's research answer into the token's note. It only reads the answer text the user chooses to save; nothing is sent anywhere. |
 
 **Remote code**: No, I am not using remote code.
 

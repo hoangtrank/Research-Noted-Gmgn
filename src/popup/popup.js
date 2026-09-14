@@ -40,7 +40,7 @@
     const data = await S.exportJSON();
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
     const a = document.createElement('a');
-    a.href = url; a.download = `noted-gmgn-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+    a.href = url; a.download = `research-noted-gmgn-${new Date().toISOString().slice(0, 10)}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   });
 })();

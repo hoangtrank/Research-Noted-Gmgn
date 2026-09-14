@@ -1,4 +1,4 @@
-// Content script trên trang Grok (x.com/i/grok, grok.com): panel nổi "Save to Noted".
+// Content script trên trang Grok (x.com/i/grok, grok.com): panel nổi "Save to Research-Noted-Gmgn".
 // Bắt câu trả lời mới nhất (heuristic không phụ thuộc class của X) hoặc dùng phần người dùng bôi đen,
 // rồi gửi background lưu vào timeline của token đã gắn với tab này.
 (() => {
@@ -50,9 +50,9 @@ input{flex:1 1 160px}
     const linked = !!(ctxInfo && ctxInfo.token);
     shadow.innerHTML = `<style>${CSS}</style>
       <div class="g">
-        <button class="pill" type="button">✨ Noted${linked ? ` · <span class="sym">${I.t('grok_linked', { symbol: esc(ctxInfo.symbol || S.shortAddress(ctxInfo.token.address)) })}</span>` : ''}</button>
+        <button class="pill" type="button">✨ ${esc(t('app_name'))}${linked ? ` · <span class="sym">${I.t('grok_linked', { symbol: esc(ctxInfo.symbol || S.shortAddress(ctxInfo.token.address)) })}</span>` : ''}</button>
         <div class="box" ${linked ? '' : 'hidden'}>
-          <div class="head"><b>✨ Noted</b>${linked ? `<span class="sym">${esc(ctxInfo.symbol || S.shortAddress(ctxInfo.token.address))}</span><span class="hint">${esc(S.chainLabel(ctxInfo.token.chain))}</span>` : `<span class="hint">${esc(t('grok_unlinked'))}</span>`}<button class="x" type="button" title="${esc(t('close_plain'))}">×</button></div>
+          <div class="head"><b>✨ ${esc(t('app_name'))}</b>${linked ? `<span class="sym">${esc(ctxInfo.symbol || S.shortAddress(ctxInfo.token.address))}</span><span class="hint">${esc(S.chainLabel(ctxInfo.token.chain))}</span>` : `<span class="hint">${esc(t('grok_unlinked'))}</span>`}<button class="x" type="button" title="${esc(t('close_plain'))}">×</button></div>
           <div class="body">
             ${linked ? `<div class="hint">${esc(t('grok_hint'))}</div>` : `<div class="hint">${esc(t('grok_unlinked_hint'))}</div>
               <div class="row"><select class="recent"><option value="">${esc(t('grok_recent'))}</option></select></div>

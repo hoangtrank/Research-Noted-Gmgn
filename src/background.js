@@ -33,7 +33,7 @@ function openNote({ tabId, token, ctx, mode, fromContent }, sendResponse) {
   if ((mode || uiMode) === 'drawer' || !chrome.sidePanel) { drawer(); return; }
   chrome.sidePanel.open({ tabId })
     .then(async () => { await remember(tabId, token, ctx); sendResponse({ ok: true, mode: 'panel' }); })
-    .catch(err => { console.warn('[Noted] sidePanel.open thất bại, dùng drawer:', err && err.message); drawer(); });
+    .catch(err => { console.warn('[Research-Noted-Gmgn] sidePanel.open thất bại, dùng drawer:', err && err.message); drawer(); });
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

@@ -2,7 +2,7 @@
 """Đóng gói extension thành file ZIP để tải lên Chrome Web Store.
 
 Chỉ gồm những file cần để chạy (manifest.json, icons/, src/), manifest.json nằm ngay ở gốc ZIP
-như Web Store yêu cầu. Chạy: python3 scripts/pack.py  ->  dist/noted-for-gmgn-<version>.zip
+như Web Store yêu cầu. Chạy: python3 scripts/pack.py  ->  dist/research-noted-gmgn-<version>.zip
 """
 import json, os, sys, zipfile
 
@@ -35,7 +35,7 @@ def main():
 
     out_dir = os.path.join(ROOT, 'dist')
     os.makedirs(out_dir, exist_ok=True)
-    out = os.path.join(out_dir, f"noted-for-gmgn-{m['version']}.zip")
+    out = os.path.join(out_dir, f"research-noted-gmgn-{m['version']}.zip")
     count = 0
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
         for item in INCLUDE:

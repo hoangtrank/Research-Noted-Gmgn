@@ -166,13 +166,13 @@
   async function exportJSON() {
     const projects = await getAll();
     projects.sort((a, b) => b.updatedAt - a.updatedAt);
-    return { app: 'noted-for-gmgn', version: 1, exportedAt: new Date().toISOString(), projects };
+    return { app: 'research-noted-gmgn', version: 1, exportedAt: new Date().toISOString(), projects };
   }
 
   // Gộp dữ liệu import vào dữ liệu hiện có: bản mới hơn thắng, timeline được gộp theo id.
   async function importJSON(data) {
     const incoming = Array.isArray(data) ? data : (data && Array.isArray(data.projects) ? data.projects : null);
-    if (!incoming) throw new Error('Not a Noted export file.');
+    if (!incoming) throw new Error('Not a Research-Noted-Gmgn export file.');
     const existingList = await getAll();
     const existing = new Map(existingList.map(p => [p.key, p]));
     const toWrite = {};

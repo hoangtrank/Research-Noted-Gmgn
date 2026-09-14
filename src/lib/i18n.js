@@ -8,7 +8,7 @@
   const DEFAULT = 'en';
 
   const en = {
-    app_name: 'Noted for GMGN',
+    app_name: 'Research-Noted-Gmgn',
     dashboard: 'Dashboard', close: 'Close (Esc)', delete: 'Delete', add: 'Add',
     copy: 'copy', copied: 'copied', copy_failed: 'failed', saved: '✓ saved',
     pin_title: 'Pin this project', copy_addr: 'Copy address', mc_now: 'Current MC ≈ {mc}', mc_short: 'MC',
@@ -25,9 +25,9 @@
     just_now: 'just now', minutes_ago: '{n} min ago', hours_ago: '{n} h ago', days_ago: '{n} d ago', weeks_ago: '{n} w ago',
     st_watching: 'Watching', st_researching: 'Researching', st_holding: 'Holding', st_sold: 'Sold', st_passed: 'Passed', st_dead: 'Dead / Rug',
     et_note: 'Note', et_research: 'Research', et_news: 'News / Update', et_buy: 'Buy', et_sell: 'Sell', et_alert: 'Alert', et_link: 'Link',
-    badge_title: 'Add a note for this project (Noted)', tip_empty: 'No summary yet — click to add', entries_count: '{n} entries',
+    badge_title: 'Add a note for this project (Research-Noted-Gmgn)', tip_empty: 'No summary yet — click to add', entries_count: '{n} entries',
     fab_note: 'Note', fab_title: 'Open the note for this token (Alt+N)',
-    toast_open_token: 'Open a token page on gmgn, then press Alt+N or click the Noted button.',
+    toast_open_token: 'Open a token page on gmgn, then press Alt+N or click the Research-Noted-Gmgn button.',
     panel_empty_1: 'Click the ✎ button next to a token on gmgn.ai, the floating button on a token page, or press Alt+N.',
     panel_empty_2: 'This panel sits outside the page, so it never covers gmgn. Drag its edge to resize.',
     open_dashboard: '📚 Open Dashboard',
@@ -49,14 +49,14 @@
     grok_linked: 'Researching {symbol}', grok_unlinked: 'Not linked to a project',
     grok_unlinked_hint: 'Open Grok from a note\'s "Research with Grok" button, or link a project below.',
     grok_hint: 'Press Enter to send the prefilled prompt, then capture the answer here.',
-    grok_capture: 'Capture last answer', grok_selection: 'Use selected text', grok_save: 'Save to Noted', grok_saved: 'Saved to {symbol}',
+    grok_capture: 'Capture last answer', grok_selection: 'Use selected text', grok_save: 'Save to Research-Noted-Gmgn', grok_saved: 'Saved to {symbol}',
     grok_open_dashboard: 'Open in Dashboard', grok_link: 'Link', grok_link_ph: 'gmgn token URL', grok_recent: 'Recent projects…',
     grok_empty: 'Nothing captured yet. Click Capture, or select the answer text and click Use selected text.', grok_source: 'Source', grok_nothing: 'No text to save.',
-    md_title: 'Noted for GMGN — export {date}', md_address: 'Address', md_status: 'Status', md_conviction: 'Conviction', md_tags: 'Tags', md_summary: 'Summary', md_timeline: 'Timeline',
+    md_title: 'Research-Noted-Gmgn — export {date}', md_address: 'Address', md_status: 'Status', md_conviction: 'Conviction', md_tags: 'Tags', md_summary: 'Summary', md_timeline: 'Timeline',
   };
 
   const vi = {
-    app_name: 'Noted for GMGN',
+    app_name: 'Research-Noted-Gmgn',
     dashboard: 'Dashboard', close: 'Đóng (Esc)', delete: 'Xoá', add: 'Thêm',
     copy: 'copy', copied: 'đã copy', copy_failed: 'lỗi', saved: '✓ đã lưu',
     pin_title: 'Ghim dự án (pin)', copy_addr: 'Copy địa chỉ', mc_now: 'MC hiện tại ≈ {mc}', mc_short: 'MC',
@@ -73,9 +73,9 @@
     just_now: 'vừa xong', minutes_ago: '{n} phút trước', hours_ago: '{n} giờ trước', days_ago: '{n} ngày trước', weeks_ago: '{n} tuần trước',
     st_watching: 'Theo dõi', st_researching: 'Đang research', st_holding: 'Đang giữ', st_sold: 'Đã bán', st_passed: 'Bỏ qua', st_dead: 'Dead / Rug',
     et_note: 'Ghi chú', et_research: 'Research', et_news: 'Tin / Update', et_buy: 'Mua', et_sell: 'Bán', et_alert: 'Cảnh báo', et_link: 'Link',
-    badge_title: 'Ghi chú dự án này (Noted)', tip_empty: 'Chưa có tóm tắt — bấm để thêm', entries_count: '{n} mốc',
+    badge_title: 'Ghi chú dự án này (Research-Noted-Gmgn)', tip_empty: 'Chưa có tóm tắt — bấm để thêm', entries_count: '{n} mốc',
     fab_note: 'Ghi chú', fab_title: 'Mở ghi chú cho token này (Alt+N)',
-    toast_open_token: 'Hãy mở một trang token trên gmgn rồi bấm Alt+N hoặc nút Noted.',
+    toast_open_token: 'Hãy mở một trang token trên gmgn rồi bấm Alt+N hoặc nút Research-Noted-Gmgn.',
     panel_empty_1: 'Bấm nút ✎ cạnh một token trên gmgn.ai, nút nổi trên trang token, hoặc Alt+N.',
     panel_empty_2: 'Panel này nằm ngoài trang nên không che gmgn. Kéo mép để đổi độ rộng.',
     open_dashboard: '📚 Mở Dashboard',
@@ -97,14 +97,14 @@
     grok_linked: 'Đang research {symbol}', grok_unlinked: 'Chưa gắn với dự án nào',
     grok_unlinked_hint: 'Mở Grok từ nút "Research với Grok" trong ghi chú, hoặc gắn dự án bên dưới.',
     grok_hint: 'Nhấn Enter để gửi prompt đã điền sẵn, rồi bắt câu trả lời ở đây.',
-    grok_capture: 'Bắt câu trả lời mới nhất', grok_selection: 'Dùng phần đang bôi đen', grok_save: 'Lưu vào Noted', grok_saved: 'Đã lưu vào {symbol}',
+    grok_capture: 'Bắt câu trả lời mới nhất', grok_selection: 'Dùng phần đang bôi đen', grok_save: 'Lưu vào Research-Noted-Gmgn', grok_saved: 'Đã lưu vào {symbol}',
     grok_open_dashboard: 'Mở trong Dashboard', grok_link: 'Gắn', grok_link_ph: 'URL token gmgn', grok_recent: 'Dự án gần đây…',
     grok_empty: 'Chưa bắt được gì. Bấm Bắt, hoặc bôi đen câu trả lời rồi bấm Dùng phần đang bôi đen.', grok_source: 'Nguồn', grok_nothing: 'Không có nội dung để lưu.',
-    md_title: 'Noted for GMGN — export {date}', md_address: 'Địa chỉ', md_status: 'Trạng thái', md_conviction: 'Conviction', md_tags: 'Tags', md_summary: 'Tóm tắt', md_timeline: 'Timeline',
+    md_title: 'Research-Noted-Gmgn — export {date}', md_address: 'Địa chỉ', md_status: 'Trạng thái', md_conviction: 'Conviction', md_tags: 'Tags', md_summary: 'Tóm tắt', md_timeline: 'Timeline',
   };
 
   const zh = {
-    app_name: 'Noted for GMGN',
+    app_name: 'Research-Noted-Gmgn',
     dashboard: '仪表盘', close: '关闭 (Esc)', delete: '删除', add: '添加',
     copy: '复制', copied: '已复制', copy_failed: '失败', saved: '✓ 已保存',
     pin_title: '置顶该项目', copy_addr: '复制地址', mc_now: '当前市值 ≈ {mc}', mc_short: '市值',
@@ -121,9 +121,9 @@
     just_now: '刚刚', minutes_ago: '{n} 分钟前', hours_ago: '{n} 小时前', days_ago: '{n} 天前', weeks_ago: '{n} 周前',
     st_watching: '观察中', st_researching: '研究中', st_holding: '持有中', st_sold: '已卖出', st_passed: '已放弃', st_dead: '归零 / Rug',
     et_note: '笔记', et_research: '研究', et_news: '新闻 / 更新', et_buy: '买入', et_sell: '卖出', et_alert: '警告', et_link: '链接',
-    badge_title: '为该项目添加笔记 (Noted)', tip_empty: '暂无摘要 — 点击添加', entries_count: '{n} 条记录',
+    badge_title: '为该项目添加笔记 (Research-Noted-Gmgn)', tip_empty: '暂无摘要 — 点击添加', entries_count: '{n} 条记录',
     fab_note: '笔记', fab_title: '打开该代币的笔记 (Alt+N)',
-    toast_open_token: '请先在 gmgn 打开一个代币页面，再按 Alt+N 或点击 Noted 按钮。',
+    toast_open_token: '请先在 gmgn 打开一个代币页面，再按 Alt+N 或点击 Research-Noted-Gmgn 按钮。',
     panel_empty_1: '在 gmgn.ai 点击代币旁的 ✎ 按钮、代币页的悬浮按钮，或按 Alt+N。',
     panel_empty_2: '此面板位于页面之外，不会遮挡 gmgn。拖动边缘可调整宽度。',
     open_dashboard: '📚 打开仪表盘',
@@ -145,10 +145,10 @@
     grok_linked: '正在研究 {symbol}', grok_unlinked: '未关联任何项目',
     grok_unlinked_hint: '请从笔记中的“用 Grok 研究”按钮打开 Grok，或在下方关联项目。',
     grok_hint: '按 Enter 发送已填好的提示词，然后在这里捕获回答。',
-    grok_capture: '捕获最新回答', grok_selection: '使用选中文本', grok_save: '保存到 Noted', grok_saved: '已保存到 {symbol}',
+    grok_capture: '捕获最新回答', grok_selection: '使用选中文本', grok_save: '保存到 Research-Noted-Gmgn', grok_saved: '已保存到 {symbol}',
     grok_open_dashboard: '在仪表盘中打开', grok_link: '关联', grok_link_ph: 'gmgn 代币链接', grok_recent: '最近的项目…',
     grok_empty: '尚未捕获内容。点击“捕获”，或选中回答文本后点击“使用选中文本”。', grok_source: '来源', grok_nothing: '没有可保存的内容。',
-    md_title: 'Noted for GMGN — 导出 {date}', md_address: '地址', md_status: '状态', md_conviction: '信心', md_tags: '标签', md_summary: '摘要', md_timeline: '时间线',
+    md_title: 'Research-Noted-Gmgn — 导出 {date}', md_address: '地址', md_status: '状态', md_conviction: '信心', md_tags: '标签', md_summary: '摘要', md_timeline: '时间线',
   };
 
   const DICT = { en, vi, zh };

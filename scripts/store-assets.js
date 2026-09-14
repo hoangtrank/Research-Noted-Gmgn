@@ -45,7 +45,7 @@ const PROMO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="440" height="2
   <rect width="440" height="280" fill="url(#glow)"/>
   ${MARK(36, 78, 124)}
   <g font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" fill="#e6e8ec">
-    <text x="188" y="118" font-size="30" font-weight="700">Noted for GMGN</text>
+    <text x="188" y="118" font-size="24" font-weight="700">Research-Noted-Gmgn</text>
     <text x="188" y="150" font-size="15" fill="#9aa3b2">Research notes for every token</text>
     <text x="188" y="172" font-size="15" fill="#9aa3b2">you view on gmgn.ai</text>
     <g transform="translate(188 192)">

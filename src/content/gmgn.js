@@ -1,5 +1,5 @@
 // Content script cho gmgn.ai:
-//  - quét mọi link /{chain}/token/{address} (danh sách theo dõi, trending, meme...) và gắn nút Noted cạnh symbol
+//  - quét mọi link /{chain}/token/{address} (danh sách theo dõi, trending, meme...) và gắn nút Research-Noted-Gmgn cạnh symbol
 //  - trang token: hiện nút nổi (FAB) cho token đang xem
 //  - bấm nút: gửi background mở Chrome Side Panel (nằm ngoài trang, không che gmgn);
 //    nếu không mở được hoặc người dùng chọn "overlay" thì dùng drawer Shadow DOM trong trang

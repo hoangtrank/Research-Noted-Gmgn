@@ -1,5 +1,11 @@
 {
-  "appName": { "message": "Noted for GMGN" },
-  "appDesc": { "message": "为你在 gmgn.ai 查看的每个项目记录时间线研究笔记：项目做什么、标签、置顶、带日期的记录、X/AI 链接。" },
-  "cmdToggle": { "message": "打开/关闭当前代币的笔记" }
+  "appName": {
+    "message": "Research-Noted-Gmgn"
+  },
+  "appDesc": {
+    "message": "为你在 gmgn.ai 查看的每个项目记录时间线研究笔记：项目做什么、标签、置顶、带日期的记录、X/AI 链接。"
+  },
+  "cmdToggle": {
+    "message": "打开/关闭当前代币的笔记"
+  }
 }
