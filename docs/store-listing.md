@@ -82,6 +82,11 @@ The Store lets you add one listing per language. Fill **English** first (default
     数据只保存在你的设备上。没有服务器、没有跟踪、没有账号。
     支持 gmgn 的所有链：Solana、Ethereum、Base、BSC、Robinhood、X Layer、Blast、Tron…
 
+## Store icon and promo tile
+
+- **Store icon (128×128)**: `docs/store/store-icon-128.png` — 96×96 artwork centered with a 16 px transparent margin, as the Store recommends. Source: `docs/store/store-icon.svg`; regenerate with `node scripts/store-assets.js`.
+- **Small promo tile (440×280, optional)**: `docs/store/promo-small-440x280.png`.
+
 ## Screenshots
 
 At least 1, up to 5 images of 1280×800 (PNG/JPEG). Samples in `docs/store/` (English UI, generated from the mock page). Replace them with screenshots taken on the real gmgn.ai once you have a few notes.
