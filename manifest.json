@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "minimum_chrome_version": "116",
   "default_locale": "en",
   "description": "__MSG_appDesc__",
@@ -46,11 +46,25 @@
       "js": [
         "src/lib/storage.js",
         "src/lib/i18n.js",
+        "src/lib/research.js",
         "src/lib/editor.js",
         "src/content/gmgn.js"
       ],
       "css": [
         "src/content/gmgn.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://x.com/i/grok*",
+        "https://twitter.com/i/grok*",
+        "https://grok.com/*"
+      ],
+      "js": [
+        "src/lib/storage.js",
+        "src/lib/i18n.js",
+        "src/content/grok.js"
       ],
       "run_at": "document_idle"
     }

@@ -19,6 +19,7 @@ UI languages: **English** (default), Tiếng Việt, 中文 — switchable in th
 | Token page `/{chain}/token/{address}` | Floating button with symbol + summary; click it or press `Alt+N`. |
 | Extension icon → Dashboard | All noted projects: full-text search (symbol / name / summary / tag / address / entries), filter by status / tag / pinned, sort, edit in place, add by gmgn URL. |
 | Export / import | JSON (backup, manual sync between machines) and Markdown (feed your whole research to an AI). |
+| **Research with Grok** | One button in the note builds a research prompt from an editable template (symbol, chain, contract, market cap, gmgn link) and opens Grok on X (or grok.com) with it prefilled. On the Grok page, a small Noted panel captures the answer (last message, or your selection) and saves it into the token's timeline as a *Research* entry with a link back to the conversation. No API key, uses your own X account. |
 
 Works on every chain gmgn supports (`sol`, `eth`, `base`, `bsc`, `robinhood`, `xlayer`, `blast`, `tron`…): the storage key is `chain:address`, so the same token in the watchlist, trending or detail page points to one note.
 
@@ -51,6 +52,8 @@ src/lib/i18n.js          NotedI18n: UI strings for en/vi/zh, language setting, h
 src/lib/editor.js        NotedEditor: the note editor UI shared by the Side Panel, the in-page drawer and the dashboard
 src/content/gmgn.js      Content script: finds token links, injects buttons, tooltip, floating button; Shadow DOM drawer as fallback
 src/content/gmgn.css     Styles for the injected button (light DOM)
+src/content/grok.js      Content script on x.com/i/grok and grok.com: "Save to Noted" panel (capture / selection / link project)
+src/lib/research.js      NotedResearch: prompt template, placeholders, deep links to Grok on X and grok.com
 src/panel/               Side Panel page (editor for the active tab's token)
 src/dashboard/           Dashboard (options page)
 src/popup/               Toolbar popup: stats, note-this-token, view mode, language
@@ -68,6 +71,7 @@ Key decisions:
 - **One storage key per project** (`p:chain:address`) in `chrome.storage.local` instead of one giant object: fast writes, unlimited projects (`unlimitedStorage`). `storage.sync` is not used because its 100 KB quota cannot hold hundreds of timelines.
 - **Editor in Chrome's Side Panel** (Chrome ≥ 116) rather than an overlay: gmgn's viewport is genuinely narrowed, its fixed header and trade panels stay visible, and the panel persists while switching tokens. The content script sends a message, the background calls `sidePanel.open()` inside the user gesture and remembers the token per tab in `storage.session`. If the panel cannot open (or the user chooses "Overlay" in the popup) a Shadow DOM drawer inside the page is used, with CSS isolated from gmgn.
 - The injected button stops `click/mousedown` propagation so the row's own navigation is not triggered.
+- **Research via deep link, not an embedded Grok.** x.com forbids framing and its login cookies would not work inside an extension page, so the extension opens Grok in a tab with the prompt in the URL (`x.com/i/grok?text=…`, `grok.com/?q=…`), remembers which token that tab is researching (`storage.session`, keyed by tab id), and a content script on the Grok page offers to save the answer back. The capture heuristic is DOM-agnostic: it picks the last minimal text block before the composer that does not contain the prompt, and the user can always select text manually.
 - **Runtime i18n** (`settings.lang`) instead of relying only on `chrome.i18n`, so the UI language can be chosen independently of the browser language. Manifest strings still use `_locales/` as Chrome requires.
 
 ### Data model
@@ -111,11 +115,12 @@ gmgn.ai was blocked in the environment where this extension was developed, so bu
 | `activeTab` | Read the current tab's gmgn URL when the user clicks the icon or presses the shortcut, to open that token's note |
 | `sidePanel` | Show the note editor in Chrome's side panel so it does not cover gmgn |
 | Content script on `gmgn.ai` | Add the note button next to each token and show the note indicator inline |
+| Content script on `x.com/i/grok`, `grok.com` | Add the "Save to Noted" panel on Grok pages so the research answer can be saved into the note |
 
 ## Roadmap ideas
 
 - **Capture from X:** a content script on x.com with a "Save to Noted" button on each tweet.
-- **AI summary:** a "Summarize" button that sends the timeline + links to an API (key stored in options) and fills "What does this project do?".
+- **AI in the panel:** call the xAI / Claude / OpenAI API with the user's own key so the research answer appears inside the side panel without opening a tab.
 - **Multi-device sync:** a small backend (Supabase/Firebase) or JSON sync via Google Drive, keeping `chrome.storage.local` as cache.
 - **Reminders:** flag projects not reviewed for 14 days.
 - **Price snapshots:** record MC every time a note is opened and draw a mini chart against your entries.

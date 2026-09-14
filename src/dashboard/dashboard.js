@@ -168,6 +168,34 @@
 
   S.onChange(() => reload());
   I.onChange(async () => { if (editor) await editor.flush(); location.reload(); });
+  initSettings();
+
+  // ---- Settings modal: giao diện ghi chú, đích research, template prompt ----
+  async function initSettings() {
+    const R = globalThis.NotedResearch;
+    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved');
+    target.innerHTML = Object.entries(R.TARGETS).map(([k, v]) => `<option value="${k}">${E.esc(v.label)}</option>`).join('');
+    const load = async () => {
+      const st = (await chrome.storage.local.get('settings')).settings || {};
+      uiMode.value = st.ui || 'panel';
+      target.value = st.researchTarget || 'x';
+      tpl.value = st.researchTemplate || R.DEFAULT_TEMPLATE;
+    };
+    const patch = async (fields) => {
+      const st = (await chrome.storage.local.get('settings')).settings || {};
+      await chrome.storage.local.set({ settings: { ...st, ...fields } });
+      saved.textContent = t('saved');
+      setTimeout(() => (saved.textContent = ''), 1200);
+    };
+    $('#open-settings').addEventListener('click', async () => { await load(); modal.hidden = false; });
+    $('#settings-close').addEventListener('click', () => { modal.hidden = true; });
+    modal.addEventListener('click', ev => { if (ev.target === modal) modal.hidden = true; });
+    uiMode.addEventListener('change', () => patch({ ui: uiMode.value }));
+    target.addEventListener('change', () => patch({ researchTarget: target.value }));
+    let tplTimer = null;
+    tpl.addEventListener('input', () => { clearTimeout(tplTimer); tplTimer = setTimeout(() => patch({ researchTemplate: tpl.value }), 500); });
+    $('#template-reset').addEventListener('click', () => { tpl.value = R.DEFAULT_TEMPLATE; patch({ researchTemplate: '' }); });
+  }
 
   reload().then(() => {
     const open = new URLSearchParams(location.search).get('open');

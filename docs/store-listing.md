@@ -25,6 +25,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Token page: floating button with symbol + summary, shortcut Alt+N.
     • Dashboard: full-text search, filter by tag / status / pinned, sort, edit in place, add by gmgn URL.
     • Export/import JSON for backup, export Markdown to feed an AI.
+    • Research with Grok: one click opens Grok with a prompt built from your template (symbol, contract, market cap), and a Save button on the Grok page puts the answer into the token's timeline.
     • Interface in English, Vietnamese and Chinese.
 
     Your data stays on your device. No server, no tracking, no account.
@@ -53,6 +54,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Trang token: nút nổi hiện symbol + tóm tắt, phím tắt Alt+N.
     • Dashboard: tìm kiếm toàn văn, lọc theo tag / trạng thái / pin, sắp xếp, sửa tại chỗ, thêm từ URL gmgn.
     • Xuất/nhập JSON để backup, xuất Markdown để đưa cho AI tổng hợp.
+    • Research với Grok: một nút mở Grok với prompt dựng từ template của bạn (symbol, contract, market cap), và nút Lưu trên trang Grok đưa câu trả lời vào timeline của token.
     • Giao diện tiếng Anh, tiếng Việt, tiếng Trung.
 
     Dữ liệu chỉ lưu trên máy bạn. Không máy chủ, không theo dõi, không tài khoản.
@@ -79,6 +81,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • 代币页：悬浮按钮显示符号和摘要，快捷键 Alt+N。
     • 仪表盘：全文搜索，按标签 / 状态 / 置顶筛选，排序，就地编辑，通过 gmgn 链接添加。
     • 导出/导入 JSON 备份，导出 Markdown 交给 AI 汇总。
+    • 用 Grok 研究：一键打开 Grok 并预填由你的模板生成的提示词（符号、合约、市值），Grok 页面上的保存按钮可将回答存入该代币的时间线。
     • 界面支持英文、越南文、中文。
 
     数据只保存在你的设备上。没有服务器、没有跟踪、没有账号。
@@ -110,10 +113,11 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 | `activeTab` | When the user clicks the toolbar icon or presses Alt+N, reads the current tab's gmgn.ai URL to open the note for that token. |
 | `sidePanel` | Shows the note editor in Chrome's side panel so it does not cover the gmgn.ai page. |
 | Host permission `gmgn.ai` (content script) | Adds the note button next to each token link on gmgn.ai and shows the note indicator/tooltip inline. |
+| Host permissions `x.com/i/grok`, `twitter.com/i/grok`, `grok.com` (content script) | Adds a "Save to Noted" panel on Grok pages so the user can save Grok's research answer into the token's note. It only reads the answer text the user chooses to save; nothing is sent anywhere. |
 
 **Remote code**: No, I am not using remote code.
 
-**Data usage**: tick nothing in the "What user data do you collect?" list. Tick all three certifications:
+**Data usage** (with the Grok feature, keep "Website content" ticked: the extension reads the token symbol/address on gmgn.ai and the answer text on Grok pages; both stay on the device.) Otherwise tick nothing in the "What user data do you collect?" list. Tick all three certifications:
 - I do not sell or transfer user data to third parties, outside of the approved use cases
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose
 - I do not use or transfer user data to determine creditworthiness or for lending purposes

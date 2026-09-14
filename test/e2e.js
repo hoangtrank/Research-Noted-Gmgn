@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const mock = require('./mock-gmgn');
+const grokMock = require('./mock-grok');
 
 const EXT = process.env.EXT_DIR || path.resolve(__dirname, '..'); // EXT_DIR: kiểm tra một bản đã đóng gói
 const OUT = process.env.SHOT_DIR || path.join(__dirname, 'shots');
@@ -24,6 +25,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
     viewport: { width: 1100, height: 800 },
   });
   await ctx.route('https://gmgn.ai/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: mock.handle(route.request().url()) }));
+  for (const pat of ['https://x.com/**', 'https://grok.com/**']) await ctx.route(pat, route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: grokMock.page(route.request().url()) }));
 
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent('serviceworker');
@@ -219,6 +221,91 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await page.waitForTimeout(300);
   await page.hover('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]');
   assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === 'Add a note for this project (Noted)', 'đổi ngôn ngữ áp ngay cho nút mà không cần tải lại');
+
+  console.log('12) Research with Grok: deep link + Save to Noted');
+  await dash.waitForSelector('.card');
+  await dash.click('.card');
+  await dash.waitForSelector('#editor-mount:not([hidden]) .ne-grok');
+  const grokPromise = ctx.waitForEvent('page');
+  await dash.click('.ne-grok');
+  const grok = await grokPromise;
+  grok.on('pageerror', e => console.log('GROK ERROR', e.message));
+  // Tab do extension tạo điều hướng ra mạng thật trước khi route của Playwright kịp chặn (x.com bị chặn ở đây),
+  // nên lấy URL background đã dựng (lưu trong storage.session) và điều hướng lại qua route giả lập.
+  const grokUrlFor = async () => sw.evaluate(async () => {
+    const all = await chrome.storage.session.get(null);
+    const m = Object.entries(all).filter(([k]) => k.startsWith('grok:')).map(([, v]) => v).sort((a, b) => b.at - a.at)[0];
+    return { url: NotedResearch.urlFor(m.target || (await chrome.storage.local.get('settings')).settings?.researchTarget || 'x', m.prompt), m };
+  });
+  await grok.waitForTimeout(500);
+  const gurl = (await grokUrlFor()).url;
+  await grok.goto(gurl);
+  assert(gurl.startsWith('https://x.com/i/grok?text='), 'mở tab Grok trên X với prompt điền sẵn: ' + gurl.slice(0, 60));
+  const prompt = decodeURIComponent(gurl.split('text=')[1]);
+  assert(prompt.includes('$PROLOG') && prompt.includes('0xaa40e79e987517f7462bf79315b8a118799b04e3') && prompt.includes('Robinhood') && prompt.includes('gmgn.ai/robinhood/token/'), 'prompt có symbol, chain, contract, link gmgn');
+  assert((await grok.$eval('#composer', e => e.textContent)).includes('Research this crypto token'), 'ô nhập của Grok nhận prompt');
+  await grok.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
+  const gq = (sel, prop = 'textContent') => grok.evaluate(([s, p]) => { const el = document.getElementById('noted-grok-host').shadowRoot.querySelector(s); return el ? el[p] : null; }, [sel, prop]);
+  const gclick = sel => grok.evaluate(s => document.getElementById('noted-grok-host').shadowRoot.querySelector(s).click(), sel);
+  assert((await gq('.pill')).includes('PROLOG'), 'panel trên Grok biết đang research PROLOG');
+  await grok.click('#send');
+  await grok.waitForSelector('.msg.grok');
+  await gclick('.cap');
+  const captured = await gq('.text', 'value');
+  assert(captured.includes(grokMock.ANSWER_P1) && captured.includes(grokMock.ANSWER_LI), 'bắt được toàn bộ câu trả lời (nhiều đoạn + list)');
+  assert(!captured.includes('Research this crypto token') && !captured.includes('Trends for you') && !captured.includes('Terms of Service'), 'không lẫn prompt, sidebar hay footer');
+  await gclick('.save');
+  await grok.waitForFunction(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.status').classList.contains('ok'), null, { timeout: 5000 });
+  const saved = await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG);
+  const entry = saved.timeline[saved.timeline.length - 1];
+  assert(entry.type === 'research' && entry.source === 'grok' && entry.text.includes(grokMock.ANSWER_P2), 'câu trả lời lưu vào timeline PROLOG (loại research)');
+  assert(entry.text.includes('Source: https://x.com/i/grok?conversation=1234567890'), 'kèm link cuộc trò chuyện, không kèm prompt dài');
+  await grok.setViewportSize({ width: 1280, height: 800 });
+  await grok.screenshot({ path: path.join(OUT, '6-grok-save.png') });
+  await grok.close();
+
+  console.log('13) Grok mở tay (chưa gắn token): gắn dự án rồi lưu phần bôi đen');
+  const grok2 = await ctx.newPage();
+  await grok2.goto('https://x.com/i/grok');
+  await grok2.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.recent option[value^="sol:"]'), null, { timeout: 8000 });
+  const g2 = (sel, prop = 'textContent') => grok2.evaluate(([s, p]) => { const el = document.getElementById('noted-grok-host').shadowRoot.querySelector(s); return el ? el[p] : null; }, [sel, prop]);
+  assert((await g2('.head')).includes('Not linked'), 'panel báo chưa gắn dự án');
+  await grok2.evaluate(() => { const r = document.getElementById('noted-grok-host').shadowRoot; const sel = r.querySelector('.recent'); sel.value = 'sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump'; sel.dispatchEvent(new Event('change')); });
+  await grok2.waitForFunction(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.pill').textContent.includes('EXTENSION'), null, { timeout: 5000 });
+  assert(true, 'chọn dự án gần đây -> gắn EXTENSION');
+  await grok2.click('#send');
+  await grok2.waitForSelector('.msg.grok p');
+  await grok2.evaluate(() => { const p = document.querySelector('.msg.grok p'); const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+  await grok2.evaluate(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.sel').click());
+  assert((await g2('.text', 'value')) === grokMock.ANSWER_P1, 'Use selected text lấy đúng đoạn bôi đen');
+  await grok2.evaluate(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.save').click());
+  await grok2.waitForFunction(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.status').classList.contains('ok'), null, { timeout: 5000 });
+  const ext = await sw.evaluate(async () => (await chrome.storage.local.get('p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump'))['p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump']);
+  assert(ext.timeline.length === 1 && ext.timeline[0].source === 'grok', 'lưu vào timeline EXTENSION');
+  await grok2.close();
+
+  console.log('14) Settings: template và đích research');
+  await dash.click('#open-settings');
+  await dash.waitForSelector('#settings:not([hidden])');
+  assert((await dash.$eval('#research-template', e => e.value)).includes('Research this crypto token'), 'template mặc định hiện trong Settings');
+  await dash.fill('#research-template', 'Custom {symbol} {address} {mc}');
+  await dash.selectOption('#research-target', 'grok');
+  await dash.waitForTimeout(800);
+  const st = await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings);
+  assert(st.researchTemplate === 'Custom {symbol} {address} {mc}' && st.researchTarget === 'grok', 'template + đích được lưu');
+  await dash.click('#settings-close');
+  const grokPromise2 = ctx.waitForEvent('page');
+  await dash.click('.ne-grok');
+  const grok3 = await grokPromise2;
+  await grok3.waitForTimeout(500);
+  const gurl3 = (await grokUrlFor()).url;
+  assert(gurl3.startsWith('https://grok.com/?q=Custom%20PROLOG%200xaa40'), 'dùng template tuỳ chỉnh và mở grok.com: ' + gurl3);
+  await grok3.close();
+  await dash.click('#open-settings');
+  await dash.click('#template-reset');
+  await dash.selectOption('#research-target', 'x');
+  await dash.waitForTimeout(600);
+  await dash.screenshot({ path: path.join(OUT, '7-settings.png') });
 
   await ctx.close();
   console.log('\nALL PASSED');

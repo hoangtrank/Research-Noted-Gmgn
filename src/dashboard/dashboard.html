@@ -35,7 +35,7 @@
         <button id="export-md" data-i18n="export_md"></button>
         <button id="import-json" data-i18n="import_json"></button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
-        <label class="lang"><span data-i18n="language"></span> <select id="lang"></select></label>
+        <button id="open-settings">⚙ <span data-i18n="settings"></span></button>
       </footer>
     </aside>
     <main class="main">
@@ -47,8 +47,24 @@
       <div id="editor-mount" class="editor-mount" hidden></div>
     </main>
   </div>
+  <div class="modal" id="settings" hidden>
+    <div class="modal-box">
+      <div class="modal-head"><b>⚙ <span data-i18n="settings"></span></b><button class="ghost" id="settings-close" data-i18n-title="close_plain">×</button></div>
+      <label class="field"><span data-i18n="language"></span><select id="lang"></select></label>
+      <label class="field"><span data-i18n="ui_mode"></span>
+        <select id="ui-mode"><option value="panel" data-i18n="ui_panel"></option><option value="drawer" data-i18n="ui_drawer"></option></select>
+      </label>
+      <label class="field"><span data-i18n="research_target"></span><select id="research-target"></select></label>
+      <label class="field"><span data-i18n="research_template"></span>
+        <textarea id="research-template" rows="9" spellcheck="false"></textarea>
+        <small class="muted" data-i18n="template_help"></small>
+      </label>
+      <div class="modal-foot"><button id="template-reset" data-i18n="reset_default"></button><span class="muted" id="settings-saved"></span></div>
+    </div>
+  </div>
   <script src="../lib/storage.js"></script>
   <script src="../lib/i18n.js"></script>
+  <script src="../lib/research.js"></script>
   <script src="../lib/editor.js"></script>
   <script src="dashboard.js"></script>
 </body>

@@ -36,7 +36,9 @@
 .ne-addr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:12px;color:var(--ne-fg2)}
 .ne-addr code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ne-fg2)}
 .ne-addr .ne-copy{padding:1px 6px;font-size:11px}
-.ne-links{display:flex;gap:10px;margin-left:auto}
+.ne-links{display:flex;gap:10px;margin-left:auto;align-items:center}
+.ne-grok{padding:3px 9px;font-size:12px;font-weight:600;color:#ddd6fe;background:linear-gradient(180deg,rgba(139,92,246,.32),rgba(139,92,246,.18));border-color:rgba(167,139,250,.75)}
+.ne-grok:hover{background:#8b5cf6;color:#fff}
 .ne-body{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 16px 16px}
 .ne-sec{margin-bottom:14px}
 .ne-label{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ne-fg3);margin:0 0 6px}
@@ -158,6 +160,7 @@
             <a class="ne-l-gmgn" target="_blank" rel="noopener">GMGN</a>
             <a class="ne-l-x" target="_blank" rel="noopener">X</a>
             <a class="ne-l-dex" target="_blank" rel="noopener">DexScreener</a>
+            <button class="ne-grok" type="button" title="${esc(t('research_btn'))}">${esc(t('research_btn'))}</button>
           </span>
         </div>
       </div>
@@ -199,7 +202,7 @@
     const ui = {
       symbol: q('.ne-symbol'), chain: q('.ne-chain'), pin: q('.ne-pin'), close: q('.ne-close'),
       name: q('.ne-name'), addr: q('.ne-addrtext'), copy: q('.ne-copy'), mcnow: q('.ne-mcnow'),
-      lGmgn: q('.ne-l-gmgn'), lX: q('.ne-l-x'), lDex: q('.ne-l-dex'),
+      lGmgn: q('.ne-l-gmgn'), lX: q('.ne-l-x'), lDex: q('.ne-l-dex'), grok: q('.ne-grok'),
       status: q('.ne-status'), stars: q('.ne-stars'), summary: q('.ne-summary'),
       tags: q('.ne-tags'), tagInput: q('.ne-taginput'), tagList: q('#ne-taglist'),
       count: q('.ne-count'), newText: q('.ne-newtext'), newType: q('.ne-newtype'), hint: q('.ne-hint'), add: q('.ne-add'),
@@ -408,6 +411,19 @@
       opts.onClose && opts.onClose();
     });
     if (ui.close) ui.close.addEventListener('click', () => opts.onClose && opts.onClose());
+    // Research với Grok: dựng prompt từ template rồi nhờ background mở tab Grok và nhớ token cho tab đó.
+    ui.grok.addEventListener('click', async () => {
+      const R = globalThis.NotedResearch;
+      if (!R || !project) return;
+      await flush();
+      let settings = {};
+      try { settings = (await chrome.storage.local.get('settings')).settings || {}; } catch (_) {}
+      const prompt = R.buildPrompt(settings.researchTemplate || R.DEFAULT_TEMPLATE, R.vars(project, ctx));
+      chrome.runtime.sendMessage({
+        type: 'noted:open-grok', target: settings.researchTarget || 'x', prompt,
+        token: { chain: project.chain, address: project.address, key: project.key }, symbol: project.symbol || '',
+      });
+    });
     // Không để phím gõ trong editor lọt ra trang gmgn (gmgn có phím tắt riêng).
     for (const evName of ['keydown', 'keyup', 'keypress']) {
       root.addEventListener(evName, ev => { if (ev.key !== 'Escape') ev.stopPropagation(); });

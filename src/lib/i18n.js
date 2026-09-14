@@ -44,6 +44,14 @@
     prompt_url: 'Paste a gmgn.ai token URL (e.g. https://gmgn.ai/robinhood/token/0x...):',
     bad_url: 'Not a gmgn token URL. Expected: https://gmgn.ai/{chain}/token/{address}',
     imported: 'Imported: {added} new projects, {merged} merged.', import_failed: 'Import failed: {error}',
+    research_btn: '✨ Research with Grok', settings: 'Settings', research_target: 'Open research in', research_template: 'Research prompt template',
+    template_help: 'Placeholders: {symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}', reset_default: 'Reset to default', close_plain: 'Close',
+    grok_linked: 'Researching {symbol}', grok_unlinked: 'Not linked to a project',
+    grok_unlinked_hint: 'Open Grok from a note\'s "Research with Grok" button, or link a project below.',
+    grok_hint: 'Press Enter to send the prefilled prompt, then capture the answer here.',
+    grok_capture: 'Capture last answer', grok_selection: 'Use selected text', grok_save: 'Save to Noted', grok_saved: 'Saved to {symbol}',
+    grok_open_dashboard: 'Open in Dashboard', grok_link: 'Link', grok_link_ph: 'gmgn token URL', grok_recent: 'Recent projects…',
+    grok_empty: 'Nothing captured yet. Click Capture, or select the answer text and click Use selected text.', grok_source: 'Source', grok_nothing: 'No text to save.',
     md_title: 'Noted for GMGN — export {date}', md_address: 'Address', md_status: 'Status', md_conviction: 'Conviction', md_tags: 'Tags', md_summary: 'Summary', md_timeline: 'Timeline',
   };
 
@@ -84,6 +92,14 @@
     prompt_url: 'Dán URL token trên gmgn.ai (ví dụ https://gmgn.ai/robinhood/token/0x...):',
     bad_url: 'Không nhận ra URL token gmgn. Dạng đúng: https://gmgn.ai/{chain}/token/{address}',
     imported: 'Đã nhập: {added} dự án mới, {merged} dự án được gộp.', import_failed: 'Nhập thất bại: {error}',
+    research_btn: '✨ Research với Grok', settings: 'Cài đặt', research_target: 'Mở research ở', research_template: 'Mẫu prompt research',
+    template_help: 'Biến: {symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}', reset_default: 'Về mặc định', close_plain: 'Đóng',
+    grok_linked: 'Đang research {symbol}', grok_unlinked: 'Chưa gắn với dự án nào',
+    grok_unlinked_hint: 'Mở Grok từ nút "Research với Grok" trong ghi chú, hoặc gắn dự án bên dưới.',
+    grok_hint: 'Nhấn Enter để gửi prompt đã điền sẵn, rồi bắt câu trả lời ở đây.',
+    grok_capture: 'Bắt câu trả lời mới nhất', grok_selection: 'Dùng phần đang bôi đen', grok_save: 'Lưu vào Noted', grok_saved: 'Đã lưu vào {symbol}',
+    grok_open_dashboard: 'Mở trong Dashboard', grok_link: 'Gắn', grok_link_ph: 'URL token gmgn', grok_recent: 'Dự án gần đây…',
+    grok_empty: 'Chưa bắt được gì. Bấm Bắt, hoặc bôi đen câu trả lời rồi bấm Dùng phần đang bôi đen.', grok_source: 'Nguồn', grok_nothing: 'Không có nội dung để lưu.',
     md_title: 'Noted for GMGN — export {date}', md_address: 'Địa chỉ', md_status: 'Trạng thái', md_conviction: 'Conviction', md_tags: 'Tags', md_summary: 'Tóm tắt', md_timeline: 'Timeline',
   };
 
@@ -124,6 +140,14 @@
     prompt_url: '粘贴 gmgn.ai 代币链接（例如 https://gmgn.ai/robinhood/token/0x...）：',
     bad_url: '无法识别的 gmgn 代币链接。正确格式：https://gmgn.ai/{chain}/token/{address}',
     imported: '已导入：{added} 个新项目，{merged} 个已合并。', import_failed: '导入失败：{error}',
+    research_btn: '✨ 用 Grok 研究', settings: '设置', research_target: '在哪里打开研究', research_template: '研究提示词模板',
+    template_help: '占位符：{symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}', reset_default: '恢复默认', close_plain: '关闭',
+    grok_linked: '正在研究 {symbol}', grok_unlinked: '未关联任何项目',
+    grok_unlinked_hint: '请从笔记中的“用 Grok 研究”按钮打开 Grok，或在下方关联项目。',
+    grok_hint: '按 Enter 发送已填好的提示词，然后在这里捕获回答。',
+    grok_capture: '捕获最新回答', grok_selection: '使用选中文本', grok_save: '保存到 Noted', grok_saved: '已保存到 {symbol}',
+    grok_open_dashboard: '在仪表盘中打开', grok_link: '关联', grok_link_ph: 'gmgn 代币链接', grok_recent: '最近的项目…',
+    grok_empty: '尚未捕获内容。点击“捕获”，或选中回答文本后点击“使用选中文本”。', grok_source: '来源', grok_nothing: '没有可保存的内容。',
     md_title: 'Noted for GMGN — 导出 {date}', md_address: '地址', md_status: '状态', md_conviction: '信心', md_tags: '标签', md_summary: '摘要', md_timeline: '时间线',
   };
 
