@@ -39,15 +39,16 @@ const assert = (cond, msg) => { if (!cond) throw new Error('ASSERT: ' + msg); co
   assert(e && e.source === 'x' && /^img_/.test(e.image || ''), 'mốc có tham chiếu ảnh: ' + e.image);
   const img = await sw.evaluate(async id => (await chrome.storage.local.get('img:' + id))['img:' + id], e.image);
   assert(img.data.startsWith('data:image/jpeg;base64,') && img.w >= 400 && img.w <= 1000 && img.h > 100, `ảnh JPEG đã cắt/thu nhỏ: ${img.w}x${img.h}, ${Math.round(img.data.length / 1024)} KB (DPR 2)`);
-  // Ảnh phải là vùng bài đăng: có dải màu gradient của .media (xanh/tím), không phải nền đen toàn bộ
+  // Ảnh phải là đúng bài 1: khối media của bài 1 màu đỏ, bài 2 màu xanh dương -> nhiều pixel đỏ, gần như không có xanh dương
   const stats = await xp.evaluate(async data => {
     const im = new Image(); im.src = data; await im.decode();
     const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
-    const d = g.getImageData(0, 0, c.width, c.height).data; let colorful = 0, n = 0;
-    for (let i = 0; i < d.length; i += 16) { n++; const r = d[i], gg = d[i + 1], b = d[i + 2]; if (Math.max(r, gg, b) - Math.min(r, gg, b) > 60) colorful++; }
-    return { colorful, n };
+    const d = g.getImageData(0, 0, c.width, c.height).data; let red = 0, blue = 0, n = 0;
+    for (let i = 0; i < d.length; i += 16) { n++; const r = d[i], gg = d[i + 1], b = d[i + 2]; if (r > 150 && gg < 80 && b < 80) red++; if (b > 150 && r < 80 && gg < 120) blue++; }
+    return { red: red / n, blue: blue / n, w: im.width, h: im.height };
   }, img.data);
-  assert(stats.colorful / stats.n > 0.05, `ảnh chứa vùng media màu của bài (${Math.round(100 * stats.colorful / stats.n)}% pixel có màu)`);
+  assert(stats.red > 0.15 && stats.blue < 0.01, `ảnh cắt đúng bài 1 (đỏ ${Math.round(stats.red * 100)}%, xanh ${Math.round(stats.blue * 100)}%)`);
+  assert(Math.abs(img.w / img.h - 600 / 330) < 0.6, `tỉ lệ khung gần với khung bài (${img.w}x${img.h})`);
   fs.writeFileSync(path.join(process.env.SHOT_DIR || path.join(__dirname, 'shots'), 'x-capture.jpg'), Buffer.from(img.data.split(',')[1], 'base64'));
 
   const viewer = await ctx.newPage();

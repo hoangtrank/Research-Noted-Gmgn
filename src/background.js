@@ -273,9 +273,11 @@ const IMG_MAX_W = 1000;
 async function captureCrop(windowId, c) {
   const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
   const bmp = await createImageBitmap(await (await fetch(dataUrl)).blob());
-  const dpr = Math.max(1, Number(c.dpr) || 1);
-  const sx = Math.max(0, Math.round(c.x * dpr)), sy = Math.max(0, Math.round(c.y * dpr));
-  const sw = Math.max(1, Math.min(bmp.width - sx, Math.round(c.w * dpr))), sh = Math.max(1, Math.min(bmp.height - sy, Math.round(c.h * dpr)));
+  // Hệ số ảnh chụp / CSS px suy từ chiều ngang (ảnh có thể ở pixel CSS hoặc pixel thiết bị, và trong vài môi trường
+  // chỉ phủ phần trên viewport), áp cho cả hai trục rồi cắt trong giới hạn ảnh.
+  const k = bmp.width / Math.max(1, Number(c.vw) || bmp.width);
+  const sx = Math.max(0, Math.round(c.x * k)), sy = Math.max(0, Math.round(c.y * k));
+  const sw = Math.max(1, Math.min(bmp.width - sx, Math.round(c.w * k))), sh = Math.max(1, Math.min(bmp.height - sy, Math.round(c.h * k)));
   const outW = Math.min(sw, IMG_MAX_W), outH = Math.max(1, Math.round(sh * outW / sw));
   const canvas = new OffscreenCanvas(outW, outH);
   canvas.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, outW, outH);

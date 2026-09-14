@@ -215,8 +215,9 @@ button.save:disabled{opacity:.5;cursor:default}
       if (btn) btn.style.visibility = 'hidden';
       await new Promise(r => requestAnimationFrame(() => setTimeout(r, 60)));
       const r = article.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
       const x = Math.max(0, r.left), y = Math.max(0, r.top);
-      capture = { x, y, w: Math.min(r.right, window.innerWidth) - x, h: Math.min(r.bottom, window.innerHeight) - y, dpr: window.devicePixelRatio || 1 };
+      capture = { x, y, w: Math.min(r.right, vw) - x, h: Math.min(r.bottom, vh) - y, vw, vh };
       if (capture.w < 20 || capture.h < 20) capture = null;
     }
     const res = await new Promise(resolve => chrome.runtime.sendMessage({ type: 'noted:x-save', key: selectedKey, tweet, entryType, capture }, r => resolve(chrome.runtime.lastError ? null : r)));
