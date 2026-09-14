@@ -121,8 +121,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     case 'noted:dex-resolve': { // pair DexScreener -> token
       dexResolve(String(msg.chain || '').toLowerCase(), Array.isArray(msg.addresses) ? msg.addresses : [])
-        .then(results => sendResponse({ ok: true, results }))
-        .catch(err => sendResponse({ ok: false, error: String(err && err.message), results: {} }));
+        .then(r => sendResponse({ ok: true, results: r.results, reasons: r.reasons }))
+        .catch(err => sendResponse({ ok: false, error: String(err && err.message), results: {}, reasons: {} }));
       return true;
     }
     case 'noted:recent-projects': {
@@ -190,6 +190,7 @@ async function dexResolve(chain, addresses) {
   const cache = await loadDexCache();
   const base = await apiBase();
   const results = {};
+  const reasons = {};
   const need = [];
   for (const a of addresses) {
     const k = `${chain}:${String(a).toLowerCase()}`;
@@ -210,7 +211,7 @@ async function dexResolve(chain, addresses) {
         results[a] = { ...entry, mc: fmtMc(p.marketCap || p.fdv) };
         found.add(a);
       }
-    } catch (err) { console.warn('[Research-Noted-Gmgn] dexscreener pairs:', err && err.message); }
+    } catch (err) { console.warn('[Research-Noted-Gmgn] dexscreener pairs:', err && err.message); for (const a of chunk) reasons[a] = `error: ${err && err.message}`; }
   }
   // Địa chỉ không phải pair có thể là địa chỉ token (dexscreener.com/{chain}/{token} cũng mở được).
   const miss = need.filter(a => !found.has(a));
@@ -221,14 +222,34 @@ async function dexResolve(chain, addresses) {
       const pairs = (j && j.pairs) || [];
       for (const a of chunk) {
         const p = pairs.find(x => lower(x.chainId) === chain && (lower(x.baseToken && x.baseToken.address) === lower(a) || lower(x.quoteToken && x.quoteToken.address) === lower(a)));
-        if (!p) { results[a] = null; continue; }
+        if (!p) continue;
         const tok = lower(p.baseToken && p.baseToken.address) === lower(a) ? p.baseToken : p.quoteToken;
         const entry = { address: tok.address, symbol: tok.symbol || '', name: tok.name || '' };
         cache[`${chain}:${lower(a)}`] = entry;
         results[a] = { ...entry, mc: fmtMc(p.marketCap || p.fdv) };
+        found.add(a);
       }
-    } catch (err) { console.warn('[Research-Noted-Gmgn] dexscreener tokens:', err && err.message); for (const a of chunk) if (!(a in results)) results[a] = null; }
+    } catch (err) { console.warn('[Research-Noted-Gmgn] dexscreener tokens:', err && err.message); for (const a of chunk) reasons[a] = `error: ${err && err.message}`; }
   }
-  if (need.length) chrome.storage.local.set({ [DEX_CACHE_KEY]: cache }).catch(() => {});
-  return results;
+  // Dự phòng cuối: endpoint search tìm theo địa chỉ, không phụ thuộc slug chain trên URL (tối đa 20 địa chỉ/lượt).
+  const still = need.filter(a => !found.has(a)).slice(0, 20);
+  for (const a of still) {
+    try {
+      const j = await fetchJson(`${base}/latest/dex/search?q=${encodeURIComponent(a)}`);
+      const pairs = (j && j.pairs) || [];
+      const sameChain = x => lower(x.chainId) === chain;
+      const byPair = pairs.filter(x => lower(x.pairAddress) === lower(a));
+      const byToken = pairs.filter(x => lower(x.baseToken && x.baseToken.address) === lower(a) || lower(x.quoteToken && x.quoteToken.address) === lower(a));
+      const p = byPair.find(sameChain) || byPair[0] || byToken.find(sameChain) || byToken[0];
+      if (!p) { results[a] = null; reasons[a] = reasons[a] || 'not-found'; continue; }
+      const tok = byPair.includes(p) ? pickToken(p) : (lower(p.baseToken && p.baseToken.address) === lower(a) ? p.baseToken : p.quoteToken);
+      const entry = { address: tok.address, symbol: tok.symbol || '', name: tok.name || '' };
+      cache[`${chain}:${lower(a)}`] = entry;
+      results[a] = { ...entry, mc: fmtMc(p.marketCap || p.fdv) };
+      found.add(a);
+    } catch (err) { results[a] = null; reasons[a] = `error: ${err && err.message}`; }
+  }
+  for (const a of need) if (!(a in results)) { results[a] = null; reasons[a] = reasons[a] || 'not-found'; }
+  if (found.size) chrome.storage.local.set({ [DEX_CACHE_KEY]: cache }).catch(() => {});
+  return { results, reasons };
 }

@@ -10,12 +10,24 @@ const PAIR_A = 'PairAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA1';
 const PAIR_B = '0xPairB00000000000000000000000000000000B2'.toLowerCase().replace('0xpairb', '0x1a2b3c');
 const PAIR_D = 'PairDdddddddddddddddddddddddddddddddddddddD4';
 const PROLOG = '0xaa40e79e987517f7462bf79315b8a118799b04e3';
+// Chỉ tìm được qua /search: slug trên URL là "hyperevm" nhưng API ghi chainId "hyperliquid"
+const PAIR_E = '0xE5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5';
+const TOKEN_E = '0xF6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6';
+// Địa chỉ dạng Sui (0x + 64 hex)
+const PAIR_S = '0x' + 'ab'.repeat(32);
+const TOKEN_S = '0x' + 'cd'.repeat(32);
+const SEARCH = {
+  [PAIR_E.toLowerCase()]: { chainId: 'hyperliquid', pairAddress: PAIR_E, baseToken: { address: TOKEN_E, symbol: 'HYPEY', name: 'Hypey' }, quoteToken: { address: '0x5555555555555555555555555555555555555555', symbol: 'WHYPE', name: 'Wrapped HYPE' }, marketCap: 5500000, fdv: 5500000 },
+};
 
 const PAIRS = {
   [`solana:${PAIR_A.toLowerCase()}`]: { chainId: 'solana', pairAddress: PAIR_A, baseToken: { address: MINT_A, symbol: 'BONKZ', name: 'Bonkz Coin' }, quoteToken: { address: 'So11111111111111111111111111111111111111112', symbol: 'SOL', name: 'Wrapped SOL' }, marketCap: 2390000, fdv: 2390000 },
   [`robinhood:${PAIR_B.toLowerCase()}`]: { chainId: 'robinhood', pairAddress: '0x1A2B3C00000000000000000000000000000000B2', baseToken: { address: '0xAA40E79E987517F7462BF79315B8A118799B04E3', symbol: 'PROLOG', name: 'Prolog Agents' }, quoteToken: { address: '0x4200000000000000000000000000000000000006', symbol: 'WETH', name: 'Wrapped Ether' }, marketCap: 10640000, fdv: 12000000 },
   // cặp đảo: base là WSOL, quote mới là token
   [`solana:${PAIR_D.toLowerCase()}`]: { chainId: 'solana', pairAddress: PAIR_D, baseToken: { address: 'So11111111111111111111111111111111111111112', symbol: 'WSOL', name: 'Wrapped SOL' }, quoteToken: { address: MINT_D, symbol: 'DOGEY', name: 'Dogey' }, marketCap: 88100, fdv: 88100 },
+};
+const SUI_PAIRS = {
+  [`sui:${PAIR_S}`]: { chainId: 'sui', pairAddress: PAIR_S, baseToken: { address: TOKEN_S, symbol: 'SUIDOG', name: 'Sui Dog' }, quoteToken: { address: '0x2::sui::SUI', symbol: 'SUI', name: 'Sui' }, marketCap: 910000, fdv: 910000 },
 };
 const TOKENS = {
   [MINT_C.toLowerCase()]: { chainId: 'solana', pairAddress: 'PairCcccccccccccccccccccccccccccccccccccccC3', baseToken: { address: MINT_C, symbol: 'EXTENSION', name: 'Extension' }, quoteToken: { address: 'So11111111111111111111111111111111111111112', symbol: 'SOL', name: 'Wrapped SOL' }, marketCap: 420760, fdv: 420760 },
@@ -26,8 +38,13 @@ function api(req, res) {
   let m;
   const send = obj => { res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }); res.end(JSON.stringify(obj)); };
   if ((m = u.pathname.match(/^\/latest\/dex\/pairs\/([a-z0-9-]+)\/(.+)$/))) {
-    const pairs = m[2].split(',').map(a => PAIRS[`${m[1]}:${a.toLowerCase()}`]).filter(Boolean);
+    const pairs = m[2].split(',').map(a => PAIRS[`${m[1]}:${a.toLowerCase()}`] || SUI_PAIRS[`${m[1]}:${a.toLowerCase()}`]).filter(Boolean);
     return send({ schemaVersion: '1.0.0', pairs: pairs.length ? pairs : null });
+  }
+  if (u.pathname === '/latest/dex/search') {
+    const q = (u.searchParams.get('q') || '').toLowerCase();
+    const hit = SEARCH[q];
+    return send({ schemaVersion: '1.0.0', pairs: hit ? [hit] : [] });
   }
   if ((m = u.pathname.match(/^\/latest\/dex\/tokens\/(.+)$/))) {
     const pairs = m[1].split(',').map(a => TOKENS[a.toLowerCase()]).filter(Boolean);
@@ -64,6 +81,8 @@ function watchlist() {
   ${row('robinhood', '0x1A2B3C00000000000000000000000000000000B2', 'PROLOG', 'WETH', 'Prolog Agents', '$0.0068', '$52.9K', '$10.64M')}
   ${row('solana', MINT_C, 'EXTENSION', 'SOL', 'Extension', '$0.0004', '$8K', '$420.76K')}
   ${row('solana', PAIR_D, 'WSOL', 'DOGEY', 'Dogey', '$130', '$3K', '$88.10K')}
+  ${row('hyperevm', PAIR_E, 'HYPEY', 'WHYPE', 'Hypey', '$0.55', '$900K', '$5.5M')}
+  ${row('sui', PAIR_S, 'SUIDOG', 'SUI', 'Sui Dog', '$0.0009', '$40K', '$910K')}
   </body></html>`;
 }
 
@@ -83,4 +102,4 @@ function handle(url) {
   return watchlist();
 }
 
-module.exports = { handle, startApi, MINT_A, MINT_C, MINT_D, PAIR_A, PAIR_D, PROLOG };
+module.exports = { handle, startApi, MINT_A, MINT_C, MINT_D, PAIR_A, PAIR_D, PROLOG, PAIR_E, TOKEN_E, PAIR_S, TOKEN_S };

@@ -6,7 +6,9 @@
   const S = globalThis.NotedStore;
   if (!S) return;
 
-  const PAIR_RE = /^\/([a-z0-9-]+)\/([A-Za-z0-9]{20,64})(?:$|[/?#])/;
+  const PAIR_RE = /^\/([a-z0-9-]+)\/([A-Za-z0-9_.:-]{20,90})(?:$|[/?#])/;
+  const NOT_CHAIN = new Set(['watchlist', 'search', 'new-pairs', 'gainers', 'losers', 'trending', 'moonshot', 'portfolio', 'multicharts', 'ads', 'docs', 'api', 'boosts', 'orders', 'referral', 'settings']);
+  const DEBUG = () => !!window.__notedDebug;
   const cache = new Map();     // "chain:pair" -> token | null
   const negative = new Map();  // "chain:pair" -> ts (không tra lại trong 60s)
   const inflight = new Map();  // "chain:pair" -> Promise
@@ -17,7 +19,7 @@
     try { u = new URL(href, location.origin); } catch (_) { return null; }
     if (u.hostname !== location.hostname && u.hostname !== 'dexscreener.com') return null;
     const m = u.pathname.match(PAIR_RE);
-    if (!m) return null;
+    if (!m || NOT_CHAIN.has(m[1].toLowerCase())) return null;
     return { chain: m[1].toLowerCase(), address: m[2], id: `${m[1].toLowerCase()}:${m[2]}` };
   }
 
@@ -33,8 +35,14 @@
     if (!p) return null;
     if (cache.has(p.id)) { const t = cache.get(p.id); return t ? t : null; }
     const neg = negative.get(p.id);
-    if (neg && Date.now() - neg < 60000) return null;
+    if (neg && Date.now() < neg) return null;
     return { pending: p.id };
+  }
+
+  // Không tra lại ngay: 15s nếu API lỗi (tạm thời), 60s nếu API bảo không có.
+  function markNegative(id, reason) {
+    negative.set(id, Date.now() + (String(reason || '').startsWith('error') ? 15000 : 60000));
+    console.info(`[Research-Noted-Gmgn] DexScreener: could not resolve ${id} (${reason || 'not-found'}) — will retry`);
   }
 
   async function resolve(ids) {
@@ -52,15 +60,15 @@
     for (const [chain, addresses] of byChain) {
       const p = new Promise(res => {
         chrome.runtime.sendMessage({ type: 'noted:dex-resolve', chain, addresses }, r => {
-          if (chrome.runtime.lastError || !r || !r.results) { res({}); return; }
-          res(r.results);
+          if (chrome.runtime.lastError || !r || !r.results) { res({ results: {}, reasons: {}, error: chrome.runtime.lastError && chrome.runtime.lastError.message }); return; }
+          res(r);
         });
       });
       for (const a of addresses) {
         const id = `${chain}:${a}`;
-        const one = p.then(results => {
-          const t = toToken(chain, results[a]);
-          if (t) cache.set(id, t); else negative.set(id, Date.now());
+        const one = p.then(r => {
+          const t = toToken(chain, r.results[a]);
+          if (t) cache.set(id, t); else markNegative(id, r.error ? `error: ${r.error}` : (r.reasons && r.reasons[a]) || 'not-found');
           inflight.delete(id);
           if (t) out.set(id, t);
           return t;
@@ -72,6 +80,9 @@
     await Promise.all(waits);
     return out;
   }
+
+  // Tab quay lại foreground: xoá negative cache để tra lại ngay.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) negative.clear(); });
 
   window.__notedAdapter = {
     name: 'dexscreener',

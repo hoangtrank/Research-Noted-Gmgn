@@ -50,13 +50,17 @@
     return CHAIN_ALIAS[c] || c;
   }
 
-  // Chấp nhận địa chỉ EVM (0x + 40 hex), base58 (Solana, Tron) và bỏ tiền tố mã giới thiệu "abc_" nếu có.
+  // Chấp nhận địa chỉ EVM (0x + 40 hex, về chữ thường), base58 (Solana, Tron), 0x + 64 hex (Sui, Aptos, Starknet),
+  // TON (base64url 48 ký tự) và các chuỗi địa chỉ dài khác; bỏ tiền tố mã giới thiệu "abc_" của link gmgn nếu có.
   function normalizeAddress(raw) {
     let a = String(raw || '').trim();
-    if (a.includes('_')) a = a.slice(a.lastIndexOf('_') + 1);
-    a = a.replace(/[^A-Za-z0-9]/g, '');
     if (/^0x[0-9a-f]{40}$/i.test(a)) return a.toLowerCase();
+    if (/^0x[0-9a-f]{64}$/i.test(a)) return a.toLowerCase();
     if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) return a;
+    if (/^[A-Za-z0-9_-]{48}$/.test(a)) return a;                       // TON
+    if (/^[A-Za-z0-9]{2,12}_[A-Za-z0-9]{20,}$/.test(a)) a = a.slice(a.indexOf('_') + 1); // ref_address (gmgn)
+    if (/^0x[0-9a-f]{40}$/i.test(a)) return a.toLowerCase();
+    if (/^[A-Za-z0-9_.:-]{20,90}$/.test(a)) return a;                   // chain khác (Aptos "0x..::coin", ...)
     return null;
   }
 

@@ -325,10 +325,14 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   const dex = await ctx.newPage();
   dex.on('pageerror', e => console.log('DEX ERROR', e.message));
   await dex.goto('https://dexscreener.com/watchlist/abc12');
-  await dex.waitForFunction(() => document.querySelectorAll('.noted-badge').length >= 4, null, { timeout: 15000 });
+  await dex.waitForFunction(() => document.querySelectorAll('.noted-badge').length >= 6, null, { timeout: 15000 });
   const dbadges = await dex.$$eval('.noted-badge', els => els.map(b => ({ key: b.dataset.key, sym: b.dataset.symbol, prev: b.previousSibling && b.previousSibling.nodeValue && b.previousSibling.nodeValue.trim(), cls: b.className })));
   console.log('  dex badges:', dbadges.map(b => `${b.key} ${b.sym} after "${b.prev}"`).join(' | '));
-  assert(dbadges.length === 4, 'chỉ 4 link pair/token được gắn nút (bỏ qua /watchlist, /gainers, /new-pairs)');
+  assert(dbadges.length === 6, 'chỉ 6 link pair/token được gắn nút (bỏ qua /watchlist, /gainers, /new-pairs)');
+  const bE = dbadges.find(b => b.key === `hyperevm:${dexMock.TOKEN_E.toLowerCase()}`);
+  assert(bE && bE.sym === 'HYPEY', 'slug chain trên URL khác chainId API -> vẫn nhận diện qua endpoint search');
+  const bS = dbadges.find(b => b.key === `sui:${dexMock.TOKEN_S}`);
+  assert(bS && bS.sym === 'SUIDOG', 'địa chỉ dạng Sui (0x + 64 hex) được chấp nhận');
   const bA = dbadges.find(b => b.key === `sol:${dexMock.MINT_A}`);
   assert(bA && bA.sym === 'BONKZ' && bA.prev === 'BONKZ', 'pair Solana -> token base (BONKZ), nút đặt ngay sau symbol');
   const bB = dbadges.find(b => b.key === `robinhood:${dexMock.PROLOG}`);
@@ -355,7 +359,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   const pt = await sw.evaluate(async id => chrome.tabs.sendMessage(id, { type: 'noted:get-page-token' }), dexTabId);
   assert(pt && pt.token && pt.token.key === `robinhood:${dexMock.PROLOG}` && pt.symbol === 'PROLOG', 'popup/phím tắt lấy được token của trang pair');
   const cached = await sw.evaluate(async () => (await chrome.storage.local.get('dex:pairs'))['dex:pairs']);
-  assert(cached && Object.keys(cached).length >= 4, 'mapping pair -> token được cache trong storage.local');
+  assert(cached && Object.keys(cached).length >= 6, 'mapping pair -> token được cache trong storage.local');
   await dex.close();
   dexApi.server.close();
 

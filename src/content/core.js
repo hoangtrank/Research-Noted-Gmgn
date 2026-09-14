@@ -429,6 +429,7 @@
   new MutationObserver(scheduleScan).observe(document.documentElement, {
     childList: true, subtree: true, attributes: true, attributeFilter: ['href'],
   });
+  setInterval(scheduleScan, 20000); // quét lại định kỳ: lấp các hàng tra API hụt / phần tử vẽ muộn
   window.addEventListener('popstate', scheduleScan);
   window.addEventListener('hashchange', scheduleScan);
   if (globalThis.navigation && typeof navigation.addEventListener === 'function') {
