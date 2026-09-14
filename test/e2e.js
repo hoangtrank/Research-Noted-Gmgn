@@ -168,7 +168,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
 
   console.log('9) Export / import');
   const md = await dash.evaluate(async () => NotedStore.toMarkdown(await NotedStore.getAll()));
-  assert(md.includes('## PROLOG') && md.includes('[Mua]') && md.includes('MC $10.64M'), 'markdown export');
+  assert(md.includes('## PROLOG') && md.includes('[Buy]') && md.includes('MC $10.64M'), 'markdown export (English default)');
   const json = await dash.evaluate(async () => NotedStore.exportJSON());
   const r = await dash.evaluate(async (data) => {
     data.projects[0].timeline.push({ id: 'imp1', ts: Date.now() + 1000, type: 'news', text: 'imported entry' });
@@ -185,11 +185,40 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await pop.goto(`chrome-extension://${extId}/src/popup/popup.html`);
   await pop.waitForFunction(() => !document.querySelector('#stats').textContent.includes('…'));
   const stats = await pop.$eval('#stats', e => e.textContent);
-  assert(stats.startsWith('2 dự án'), 'popup thống kê: ' + stats);
+  assert(stats.startsWith('2 projects'), 'popup thống kê (English mặc định): ' + stats);
+  assert((await pop.$eval('#lang', e => e.value)) === 'en', 'popup: ngôn ngữ mặc định en');
   assert((await pop.$eval('#ui-mode', e => e.value)) === 'drawer', 'popup hiện đúng tuỳ chọn giao diện');
   await pop.selectOption('#ui-mode', 'panel');
   await pop.waitForTimeout(200);
   assert((await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings.ui)) === 'panel', 'đổi tuỳ chọn từ popup được lưu');
+
+  console.log('11) Đổi ngôn ngữ: vi và zh áp cho dashboard, popup và content script');
+  await pop.selectOption('#lang', 'vi');
+  await pop.waitForTimeout(400);
+  await dash.reload();
+  await dash.waitForSelector('.card');
+  assert((await dash.$eval('#f-status option[value=""]', e => e.textContent)) === 'Mọi trạng thái', 'dashboard tiếng Việt');
+  assert((await dash.$eval('#stats', e => e.textContent)).includes('dự án'), 'thống kê tiếng Việt');
+  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', lang: 'zh' } }));
+  await dash.waitForTimeout(400);
+  await dash.reload();
+  await dash.waitForSelector('.card');
+  assert((await dash.$eval('#f-status option[value=""]', e => e.textContent)) === '全部状态', 'dashboard tiếng Trung');
+  await dash.click('.card');
+  await dash.waitForSelector('#editor-mount:not([hidden]) .ne-symbol');
+  assert((await dash.$eval('.ne-label', e => e.textContent)) === '状态', 'editor tiếng Trung');
+  await page.bringToFront();
+  await page.goto('https://gmgn.ai/follow?chain=robinhood');
+  await page.waitForSelector(`.noted-badge[data-key="${PROLOG}"]`);
+  await page.waitForTimeout(500);
+  await page.hover(`.noted-badge[data-key="${PROLOG}"]`);
+  await page.waitForTimeout(250);
+  assert((await shadowQ(page, '.nd-tip')).includes('研究中'), 'tooltip trong trang gmgn dùng tiếng Trung');
+  assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === '为该项目添加笔记 (Noted)', 'title nút tiếng Trung');
+  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', lang: 'en' } }));
+  await page.waitForTimeout(300);
+  await page.hover('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]');
+  assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === 'Add a note for this project (Noted)', 'đổi ngôn ngữ áp ngay cho nút mà không cần tải lại');
 
   await ctx.close();
   console.log('\nALL PASSED');

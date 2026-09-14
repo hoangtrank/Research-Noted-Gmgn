@@ -4,6 +4,7 @@
   'use strict';
   if (globalThis.NotedEditor) return;
   const S = globalThis.NotedStore;
+  const t = (key, vars) => (globalThis.NotedI18n ? globalThis.NotedI18n.t(key, vars) : key);
 
   const CSS = `
 .ne{--ne-bg:#111318;--ne-bg2:#181b22;--ne-bg3:#20242d;--ne-line:#2b303a;--ne-fg:#e6e8ec;--ne-fg2:#9aa3b2;--ne-fg3:#6b7280;
@@ -116,13 +117,13 @@
   function relTime(ts) {
     const diff = Date.now() - ts;
     const m = Math.round(diff / 60000);
-    if (m < 1) return 'vừa xong';
-    if (m < 60) return `${m} phút trước`;
+    if (m < 1) return t('just_now');
+    if (m < 60) return t('minutes_ago', { n: m });
     const h = Math.round(m / 60);
-    if (h < 24) return `${h} giờ trước`;
+    if (h < 24) return t('hours_ago', { n: h });
     const d = Math.round(h / 24);
-    if (d < 7) return `${d} ngày trước`;
-    if (d < 30) return `${Math.round(d / 7)} tuần trước`;
+    if (d < 7) return t('days_ago', { n: d });
+    if (d < 30) return t('weeks_ago', { n: Math.round(d / 7) });
     return S.fmtDate(ts).slice(0, 10);
   }
 
@@ -143,15 +144,15 @@
     root.innerHTML = `
       <div class="ne-head">
         <div class="ne-titlerow">
-          <input class="ne-symbol" placeholder="SYMBOL" spellcheck="false" maxlength="32">
+          <input class="ne-symbol" placeholder="${esc(t('symbol_ph'))}" spellcheck="false" maxlength="32">
           <span class="ne-chain"></span>
-          <button class="ne-pin" type="button" title="Ghim dự án (pin)">📌</button>
-          ${opts.showClose === false ? '' : `<button class="ghost ne-close" type="button" title="Đóng (Esc)">${ICONS.close}</button>`}
+          <button class="ne-pin" type="button" title="${esc(t('pin_title'))}">📌</button>
+          ${opts.showClose === false ? '' : `<button class="ghost ne-close" type="button" title="${esc(t('close'))}">${ICONS.close}</button>`}
         </div>
-        <input class="ne-name" placeholder="Tên dự án / một dòng mô tả (ví dụ: AI agent launchpad trên Robinhood chain)" maxlength="140">
+        <input class="ne-name" placeholder="${esc(t('name_ph'))}" maxlength="140">
         <div class="ne-addr">
           <code class="ne-addrtext"></code>
-          <button class="ne-copy" type="button" title="Copy địa chỉ">copy</button>
+          <button class="ne-copy" type="button" title="${esc(t('copy_addr'))}">${esc(t('copy'))}</button>
           <span class="ne-mcnow" hidden></span>
           <span class="ne-links">
             <a class="ne-l-gmgn" target="_blank" rel="noopener">GMGN</a>
@@ -162,25 +163,25 @@
       </div>
       <div class="ne-body">
         <div class="ne-sec ne-meta">
-          <label><div class="ne-label">Trạng thái</div><select class="ne-status"></select></label>
-          <div><div class="ne-label">Conviction</div><div class="ne-stars" title="Mức tin tưởng 1–5 (bấm lại sao đang chọn để bỏ)"></div></div>
+          <label><div class="ne-label">${esc(t('status'))}</div><select class="ne-status"></select></label>
+          <div><div class="ne-label">${esc(t('conviction'))}</div><div class="ne-stars" title="${esc(t('conviction_title'))}"></div></div>
         </div>
         <div class="ne-sec">
-          <div class="ne-label">Dự án làm gì?</div>
-          <textarea class="ne-summary" placeholder="Tóm tắt 1–3 câu: narrative, sản phẩm, team, vì sao đáng chú ý, rủi ro chính…"></textarea>
+          <div class="ne-label">${esc(t('what_it_does'))}</div>
+          <textarea class="ne-summary" placeholder="${esc(t('summary_ph'))}"></textarea>
         </div>
         <div class="ne-sec">
-          <div class="ne-label">Tags</div>
-          <div class="ne-tags"><input class="ne-taginput" placeholder="thêm tag, Enter" list="ne-taglist"><datalist id="ne-taglist"></datalist></div>
+          <div class="ne-label">${esc(t('tags'))}</div>
+          <div class="ne-tags"><input class="ne-taginput" placeholder="${esc(t('tag_ph'))}" list="ne-taglist"><datalist id="ne-taglist"></datalist></div>
         </div>
         <div class="ne-sec">
-          <div class="ne-label">Timeline <span class="ne-count"></span></div>
+          <div class="ne-label">${esc(t('timeline'))} <span class="ne-count"></span></div>
           <div class="ne-compose">
-            <textarea class="ne-newtext" placeholder="Ghi chú mới… dán link X / kết quả AI research vào đây (Ctrl+Enter để thêm)"></textarea>
+            <textarea class="ne-newtext" placeholder="${esc(t('new_entry_ph'))}"></textarea>
             <div class="ne-compose-row">
               <select class="ne-newtype"></select>
               <span class="ne-hint"></span>
-              <button class="primary ne-add" type="button">Thêm</button>
+              <button class="primary ne-add" type="button">${esc(t('add'))}</button>
             </div>
           </div>
           <ol class="ne-entries"></ol>
@@ -188,10 +189,10 @@
       </div>
       <div class="ne-foot">
         <span class="ne-times"></span>
-        <span class="ne-saved">✓ đã lưu</span>
+        <span class="ne-saved">${esc(t('saved'))}</span>
         <span class="ne-spacer"></span>
-        ${opts.showDashboardLink === false ? '' : '<a class="ne-dash" href="#">Dashboard</a>'}
-        <button class="danger ne-delete" type="button">Xoá</button>
+        ${opts.showDashboardLink === false ? '' : `<a class="ne-dash" href="#">${esc(t('dashboard'))}</a>`}
+        <button class="danger ne-delete" type="button">${esc(t('delete'))}</button>
       </div>`;
 
     const q = sel => root.querySelector(sel);
@@ -205,8 +206,8 @@
       entries: q('.ne-entries'), times: q('.ne-times'), saved: q('.ne-saved'), dash: q('.ne-dash'), del: q('.ne-delete'),
     };
 
-    ui.status.innerHTML = S.STATUSES.map(s => `<option value="${s.id}">${s.icon} ${s.label}</option>`).join('');
-    ui.newType.innerHTML = S.ENTRY_TYPES.map(t => `<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
+    ui.status.innerHTML = S.STATUSES.map(s => `<option value="${s.id}">${s.icon} ${esc(S.statusLabel(s.id))}</option>`).join('');
+    ui.newType.innerHTML = S.ENTRY_TYPES.map(x => `<option value="${x.id}">${x.icon} ${esc(S.entryLabel(x.id))}</option>`).join('');
     ui.stars.innerHTML = [1, 2, 3, 4, 5].map(n => `<span data-n="${n}">★</span>`).join('');
 
     let project = null;   // dự án đang mở (có thể chưa được lưu)
@@ -239,7 +240,7 @@
       ui.pin.classList.toggle('on', !!project.pinned);
       ui.status.value = project.status;
       ui.summary.value = project.summary || '';
-      if (ctx.mc) { ui.mcnow.textContent = `MC hiện tại ≈ ${ctx.mc}`; ui.mcnow.hidden = false; } else ui.mcnow.hidden = true;
+      if (ctx.mc) { ui.mcnow.textContent = t('mc_now', { mc: ctx.mc }); ui.mcnow.hidden = false; } else ui.mcnow.hidden = true;
       renderStars();
       renderTags();
       renderTimeline();
@@ -257,10 +258,11 @@
 
     function renderTags() {
       for (const c of [...ui.tags.querySelectorAll('.ne-chip')]) c.remove();
-      for (const t of project.tags) {
-        const chip = el('span', 'ne-chip', `<b>${esc(t)}</b><button type="button" title="Bỏ tag">×</button>`);
+      for (const t_ of project.tags) {
+        const tag = t_;
+        const chip = el('span', 'ne-chip', `<b>${esc(tag)}</b><button type="button" title="${esc(t('remove_tag'))}">×</button>`);
         chip.querySelector('button').addEventListener('click', () => {
-          project.tags = project.tags.filter(x => x !== t);
+          project.tags = project.tags.filter(x => x !== tag);
           renderTags(); commit();
         });
         ui.tags.insertBefore(chip, ui.tagInput);
@@ -272,21 +274,21 @@
       ui.count.textContent = list.length ? `(${list.length})` : '';
       ui.entries.innerHTML = '';
       if (!list.length) {
-        ui.entries.appendChild(el('li', 'ne-empty', 'Chưa có mốc nào. Thêm ghi chú đầu tiên ở trên.'));
+        ui.entries.appendChild(el('li', 'ne-empty', esc(t('no_entries'))));
         return;
       }
       for (const e of list) {
-        const t = S.ENTRY_TYPES.find(x => x.id === e.type) || S.ENTRY_TYPES[0];
+        const et = S.ENTRY_TYPES.find(x => x.id === e.type) || S.ENTRY_TYPES[0];
         const li = el('li', 'ne-entry');
         li.dataset.type = e.type;
         li.innerHTML = `
           <div class="ne-ehead">
-            <span class="ne-etype">${t.icon} ${esc(t.label)}</span>
+            <span class="ne-etype">${et.icon} ${esc(S.entryLabel(e.type))}</span>
             <time title="${esc(S.fmtDate(e.ts))}">${esc(relTime(e.ts))}</time>
-            ${e.mc ? `<span class="ne-mc">MC ${esc(e.mc)}</span>` : ''}
+            ${e.mc ? `<span class="ne-mc">${esc(t('mc_short'))} ${esc(e.mc)}</span>` : ''}
             <span class="ne-eactions">
-              <button class="ghost ne-eedit" type="button" title="Sửa">✎</button>
-              <button class="ghost ne-edel" type="button" title="Xoá mốc này">×</button>
+              <button class="ghost ne-eedit" type="button" title="${esc(t('edit'))}">✎</button>
+              <button class="ghost ne-edel" type="button" title="${esc(t('delete_entry'))}">×</button>
             </span>
           </div>
           <div class="ne-etext">${linkify(e.text)}</div>`;
@@ -318,8 +320,8 @@
     }
 
     function renderTimes() {
-      ui.times.textContent = persisted ? `Sửa ${relTime(project.updatedAt)}` : 'Chưa lưu — tự lưu khi bạn nhập';
-      ui.times.title = persisted ? `Tạo ${S.fmtDate(project.createdAt)} · Sửa ${S.fmtDate(project.updatedAt)}` : '';
+      ui.times.textContent = persisted ? t('edited', { time: relTime(project.updatedAt) }) : t('not_saved');
+      ui.times.title = persisted ? t('created_edited', { a: S.fmtDate(project.createdAt), b: S.fmtDate(project.updatedAt) }) : '';
     }
 
     function flashSaved() {
@@ -380,9 +382,9 @@
       renderStars(); commit();
     });
     ui.copy.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(project.address); ui.copy.textContent = 'đã copy'; }
-      catch (_) { ui.copy.textContent = 'lỗi'; }
-      setTimeout(() => (ui.copy.textContent = 'copy'), 1200);
+      try { await navigator.clipboard.writeText(project.address); ui.copy.textContent = t('copied'); }
+      catch (_) { ui.copy.textContent = t('copy_failed'); }
+      setTimeout(() => (ui.copy.textContent = t('copy')), 1200);
     });
     ui.tagInput.addEventListener('keydown', ev => {
       if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); addTagsFromInput(); }
@@ -392,13 +394,13 @@
     ui.add.addEventListener('click', addEntry);
     ui.newText.addEventListener('keydown', ev => { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); addEntry(); } });
     ui.newType.addEventListener('change', () => {
-      const t = S.ENTRY_TYPES.find(x => x.id === ui.newType.value);
-      ui.hint.textContent = t && (t.id === 'buy' || t.id === 'sell') ? 'Ghi giá/MC và lý do để sau này đối chiếu' : '';
+      const v = ui.newType.value;
+      ui.hint.textContent = (v === 'buy' || v === 'sell') ? t('trade_hint') : '';
     });
     if (ui.dash) ui.dash.addEventListener('click', ev => { ev.preventDefault(); opts.onOpenDashboard && opts.onOpenDashboard(); });
     ui.del.addEventListener('click', async () => {
       if (!persisted) { opts.onClose && opts.onClose(); return; }
-      if (!confirm(`Xoá toàn bộ ghi chú của ${project.symbol || project.address}?`)) return;
+      if (!confirm(t('confirm_delete', { name: project.symbol || project.address }))) return;
       clearTimeout(saveTimer);
       await S.remove(project.key);
       persisted = false;

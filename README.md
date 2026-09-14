@@ -1,127 +1,130 @@
 # Noted for GMGN
 
-Extension Chrome (Manifest V3) thêm nút **✎ Noted** cạnh mỗi token trên [gmgn.ai](https://gmgn.ai) để bạn ghi chú research theo **timeline** cho từng dự án: dự án làm gì, tag, pin, trạng thái, mức tin tưởng, các mốc (research, tin tức, mua, bán, cảnh báo) kèm link X / kết quả AI.
+Chrome extension (Manifest V3) that adds a **✎ Noted** button next to every token on [gmgn.ai](https://gmgn.ai) so you can keep **timeline research notes** per project: what it does, tags, pin, status, conviction, and dated entries (research, news, buy, sell, alerts) with X / AI links.
 
-Mục tiêu: khi research hàng trăm dự án, chỉ cần rê chuột vào nút cạnh symbol là nhớ lại ngay "dự án này làm gì, mình đã thấy gì, đã mua ở MC nào".
+The goal: when you research hundreds of projects, hovering the button next to a symbol instantly reminds you "what this does, what I found, at what market cap I bought".
 
-![Danh sách theo dõi với nút Noted; tooltip khi rê chuột](docs/2-list-tooltip.png)
+UI languages: **English** (default), Tiếng Việt, 中文 — switchable in the popup.
 
-![Side Panel ghi chú, nằm ngoài trang gmgn](docs/5-side-panel.png)
+![Watchlist with Noted buttons and hover tooltip](docs/2-list-tooltip.png)
 
-## Tính năng
+![Side Panel note editor, outside the gmgn page](docs/5-side-panel.png)
 
-| Ở đâu | Có gì |
+## Features
+
+| Where | What |
 |---|---|
-| Mọi danh sách token trên gmgn (theo dõi, trending, meme, ví…) | Nút ✎ ngay sau symbol. Vàng = đã có ghi chú, cam 📌 = đã pin, số = số mốc timeline. Rê chuột hiện tóm tắt + tag + mốc mới nhất. |
-| Bấm nút | Mở **Side Panel** của Chrome bên phải (nằm ngoài trang, trình duyệt tự thu hẹp gmgn nên không che gì; kéo mép để đổi độ rộng): symbol, tên/mô tả một dòng, trạng thái, conviction 1–5, **Dự án làm gì?**, tags, timeline. Tự lưu. MC trong hàng được lưu kèm mỗi mốc ("Mua ở MC $10.6M"). Popup có tuỳ chọn đổi sang overlay trong trang. |
-| Trang token `/{chain}/token/{address}` | Nút nổi góc dưới phải hiện symbol + tóm tắt; bấm hoặc `Alt+N` để mở ghi chú. |
-| Icon extension → Dashboard | Danh sách mọi dự án đã ghi chú: tìm theo symbol/tên/tóm tắt/tag/địa chỉ/nội dung mốc, lọc trạng thái/tag/pin, sắp xếp; sửa ngay tại chỗ; thêm từ URL gmgn. |
-| Xuất / nhập | JSON (backup, đồng bộ tay giữa máy) và Markdown (đưa cho AI tổng hợp lại toàn bộ research). |
+| Every token list on gmgn (watchlist, trending, meme, wallets…) | ✎ button right after the symbol. Violet = no note yet, yellow = has a note, orange 📌 = pinned; the number is the timeline length. Hover shows summary, tags and the latest entry. |
+| Click the button | Opens Chrome's **Side Panel** on the right (outside the page: the browser shrinks gmgn instead of covering it; drag the edge to resize): symbol, one-line name, status, conviction 1–5, **What does this project do?**, tags, timeline. Autosaves. The market cap shown in the row is stored with each entry ("bought at MC $10.6M"). The popup can switch to an in-page overlay instead. |
+| Token page `/{chain}/token/{address}` | Floating button with symbol + summary; click it or press `Alt+N`. |
+| Extension icon → Dashboard | All noted projects: full-text search (symbol / name / summary / tag / address / entries), filter by status / tag / pinned, sort, edit in place, add by gmgn URL. |
+| Export / import | JSON (backup, manual sync between machines) and Markdown (feed your whole research to an AI). |
 
-Hỗ trợ mọi chain gmgn có (`sol`, `eth`, `base`, `bsc`, `robinhood`, `xlayer`, `blast`, `tron`…): khóa dữ liệu là `chain:address`, nên cùng một token ở watchlist, trending hay trang chi tiết đều trỏ về một ghi chú.
+Works on every chain gmgn supports (`sol`, `eth`, `base`, `bsc`, `robinhood`, `xlayer`, `blast`, `tron`…): the storage key is `chain:address`, so the same token in the watchlist, trending or detail page points to one note.
 
-![Dashboard tổng hợp mọi dự án đã ghi chú](docs/4-dashboard.png)
+## Install (load unpacked)
 
-## Cài đặt (load unpacked)
+Requires Chrome / Brave / Edge 116 or newer (Side Panel API).
 
-Yêu cầu Chrome/Brave/Edge phiên bản 116 trở lên (có Side Panel API).
+1. Download the source (clone or Download ZIP and extract).
+2. Open `chrome://extensions`, enable **Developer mode**.
+3. **Load unpacked** → pick the repo folder (the one containing `manifest.json`).
+4. Reload your gmgn.ai tab. The ✎ button appears next to each symbol.
 
-1. Tải mã nguồn (clone repo hoặc Download ZIP rồi giải nén).
-2. Chrome/Brave/Edge: mở `chrome://extensions`, bật **Developer mode**.
-3. **Load unpacked** → chọn thư mục repo (chứa `manifest.json`).
-4. Tải lại tab gmgn.ai. Nút ✎ sẽ xuất hiện cạnh symbol trong danh sách.
+Icons are included in `icons/`; to change them, edit `scripts/make_icons.py` and run `npm run icons` (it also rewrites the `icons` entries in `manifest.json`). The shortcut `Alt+N` can be changed at `chrome://extensions/shortcuts`.
 
-Icon đã có sẵn trong `icons/`; muốn đổi thì sửa `scripts/make_icons.py` rồi chạy `npm run icons` (script tự khai báo lại vào `manifest.json`).
+## Suggested research workflow
 
-Phím tắt `Alt+N` (mở ghi chú token đang xem) có thể đổi ở `chrome://extensions/shortcuts`.
+1. See a new token on gmgn → click ✎ → write 1–3 sentences in **What does this project do?**, add tags (`ai`, `launchpad`, `robinhood`, `narrative-x`…).
+2. Research on X / with an AI → paste the thread link or the AI conclusion into **Timeline** as a *Research* entry. Each entry records the time and the market cap at that moment.
+3. Decide → change **Status** (Watching → Researching → Holding → Sold / Passed / Dead), set **Conviction**, **📌 pin** the projects you are actively following.
+4. Periodically open the Dashboard, filter `📌 pinned only` or by tag, export Markdown and ask an AI "which of the projects I researched deserve a second look?".
+5. Export JSON for backup (data lives in the browser's `chrome.storage.local`; uninstalling the extension deletes it).
 
-## Cách dùng gợi ý cho quy trình research
-
-1. Thấy token mới trên gmgn → bấm ✎ → gõ 1–3 câu vào **Dự án làm gì?**, gắn tag (`ai`, `launchpad`, `robinhood`, `narrative-x`…).
-2. Research trên X / AI → dán link thread, kết luận của AI vào **Timeline** với loại *Research*. Mỗi mốc tự gắn thời gian và MC lúc ghi.
-3. Quyết định → đổi **Trạng thái** (Theo dõi → Đang research → Đang giữ → Đã bán / Bỏ qua / Dead), chấm **Conviction**, **📌 pin** những dự án đang bám.
-4. Định kỳ mở Dashboard, lọc `📌 chỉ pin` hoặc theo tag, xuất Markdown đưa cho AI hỏi "trong các dự án tôi đã research, cái nào đáng xem lại?".
-5. Xuất JSON để backup (dữ liệu nằm trong `chrome.storage.local` của trình duyệt, xóa extension là mất).
-
-## Kiến trúc (đề xuất và lý do)
+## Architecture
 
 ```
-manifest.json            MV3, chỉ cần quyền storage + unlimitedStorage + activeTab
-src/lib/storage.js       NotedStore: model dữ liệu, đọc/ghi chrome.storage.local, export/import, Markdown
-src/lib/editor.js        NotedEditor: UI ghi chú dùng chung (drawer trên gmgn và panel trong dashboard)
-src/content/gmgn.js      Content script: quét link token, gắn nút, tooltip, FAB; drawer Shadow DOM làm dự phòng
-src/panel/               Trang Side Panel (editor cho token của tab đang xem)
-src/content/gmgn.css     Style cho nút gắn trong trang (light DOM)
-src/dashboard/           Trang tổng hợp (options page)
-src/popup/               Popup icon extension
-src/background.js        Service worker: mở Side Panel, nhớ token theo tab (storage.session), phím tắt
-scripts/make_icons.py    Sinh icon PNG, không cần thư viện ngoài
-test/                    Trang gmgn giả lập + test Playwright nạp extension thật
+manifest.json            MV3; permissions: storage, unlimitedStorage, activeTab, sidePanel; localized name via _locales/
+_locales/                en (default), vi, zh_CN: extension name, description, command label
+src/lib/storage.js       NotedStore: data model, chrome.storage.local access, export/import, Markdown
+src/lib/i18n.js          NotedI18n: UI strings for en/vi/zh, language setting, helpers for static HTML
+src/lib/editor.js        NotedEditor: the note editor UI shared by the Side Panel, the in-page drawer and the dashboard
+src/content/gmgn.js      Content script: finds token links, injects buttons, tooltip, floating button; Shadow DOM drawer as fallback
+src/content/gmgn.css     Styles for the injected button (light DOM)
+src/panel/               Side Panel page (editor for the active tab's token)
+src/dashboard/           Dashboard (options page)
+src/popup/               Toolbar popup: stats, note-this-token, view mode, language
+src/background.js        Service worker: opens the Side Panel, remembers the token per tab (storage.session), keyboard shortcut
+scripts/make_icons.py    Dependency-free icon generator
+scripts/pack.py          Builds the Web Store ZIP (runtime files only)
+test/                    Mock gmgn pages + Playwright e2e test that loads the real extension
 ```
 
-Các lựa chọn chính:
+Key decisions:
 
-- **Không cần build, không framework.** Vanilla JS, nạp thẳng bằng Load unpacked; sửa file là F5 thấy ngay. Đủ cho một tool cá nhân và dễ tự chỉnh.
-- **Nhận diện token qua URL, không qua class CSS.** gmgn là app Next.js, class bị băm và đổi thường xuyên; nhưng mọi hàng token đều link tới `/{chain}/token/{address}`. Content script quét `a[href*="/token/"]`, chèn nút ngay sau text node symbol, và dùng `MutationObserver` để bắt hàng mới khi cuộn (danh sách ảo). Dự phòng thêm cho bảng `g-table` có `data-row-key` là địa chỉ token.
-- **Khóa `chain:address`**, địa chỉ EVM về chữ thường, bỏ tiền tố mã giới thiệu `abc_` nếu có trong link chia sẻ.
-- **Mỗi dự án một key riêng** trong `chrome.storage.local` (`p:chain:address`) thay vì một object khổng lồ: ghi nhanh, không giới hạn số dự án (`unlimitedStorage`). Không dùng `storage.sync` vì giới hạn 100 KB, không đủ cho timeline hàng trăm dự án.
-- **UI trong Shadow DOM** để CSS của gmgn và của extension không đè lên nhau; nút chèn trong trang thì chặn `click/mousedown` để không kích hoạt điều hướng của hàng.
-- **Editor dùng chung** giữa drawer và dashboard nên sửa một chỗ là cả hai nơi đổi.
+- **No build step, no framework.** Vanilla JS loaded straight with Load unpacked; edit a file, press reload. Enough for a personal tool and easy to tweak.
+- **Tokens are detected by URL, not by CSS class.** gmgn is a Next.js app with hashed, frequently changing class names, but every token row links to `/{chain}/token/{address}`. The content script scans `a[href*="/token/"]`, inserts the button right after the symbol text node, and uses a `MutationObserver` to catch rows added while scrolling (virtualized lists). A fallback handles gmgn's `g-table` rows whose `data-row-key` is the token address.
+- **Key `chain:address`**, EVM addresses lower-cased, referral prefixes (`abc_`) in shared links stripped.
+- **One storage key per project** (`p:chain:address`) in `chrome.storage.local` instead of one giant object: fast writes, unlimited projects (`unlimitedStorage`). `storage.sync` is not used because its 100 KB quota cannot hold hundreds of timelines.
+- **Editor in Chrome's Side Panel** (Chrome ≥ 116) rather than an overlay: gmgn's viewport is genuinely narrowed, its fixed header and trade panels stay visible, and the panel persists while switching tokens. The content script sends a message, the background calls `sidePanel.open()` inside the user gesture and remembers the token per tab in `storage.session`. If the panel cannot open (or the user chooses "Overlay" in the popup) a Shadow DOM drawer inside the page is used, with CSS isolated from gmgn.
+- The injected button stops `click/mousedown` propagation so the row's own navigation is not triggered.
+- **Runtime i18n** (`settings.lang`) instead of relying only on `chrome.i18n`, so the UI language can be chosen independently of the browser language. Manifest strings still use `_locales/` as Chrome requires.
 
-### Model dữ liệu
+### Data model
 
 ```js
 {
   key: "robinhood:0xaa40…04e3", chain: "robinhood", address: "0xaa40…04e3",
-  symbol: "PROLOG", name: "AI agent launchpad trên Robinhood chain",
-  summary: "Dự án làm gì, vì sao đáng chú ý, rủi ro…",
+  symbol: "PROLOG", name: "AI agent launchpad on Robinhood chain",
+  summary: "What it does, why it matters, risks…",
   tags: ["ai", "launchpad"], pinned: true, status: "researching", rating: 4,
   timeline: [
-    { id, ts, type: "research", text: "Thread founder: https://x.com/…", mc: "$10.64M" },
-    { id, ts, type: "buy", text: "Mua thử 0.1 ETH", mc: "$10.64M" }
+    { id, ts, type: "research", text: "Founder thread: https://x.com/…", mc: "$10.64M" },
+    { id, ts, type: "buy", text: "Bought 0.1 ETH", mc: "$10.64M" }
   ],
   createdAt, updatedAt
 }
 ```
 
-Loại mốc: `note`, `research`, `news`, `buy`, `sell`, `alert`, `link`. Trạng thái: `watching`, `researching`, `holding`, `sold`, `passed`, `dead`.
+Entry types: `note`, `research`, `news`, `buy`, `sell`, `alert`, `link`. Statuses: `watching`, `researching`, `holding`, `sold`, `passed`, `dead`.
 
-## Nếu nút không xuất hiện trên gmgn
+## If the button does not appear on gmgn
 
-gmgn bị chặn trong môi trường phát triển extension này nên phần gắn nút được kiểm thử trên trang giả lập có cấu trúc giống watchlist (hàng là `<a href="/{chain}/token/…">`) và bảng `g-table` có `data-row-key`. Nếu trên gmgn thật nút không hiện ở một danh sách nào đó:
+gmgn.ai was blocked in the environment where this extension was developed, so button injection was verified against a mock page that mirrors the watchlist structure (rows are `<a href="/{chain}/token/…">`) plus a `g-table` with `data-row-key`. If a list on the real site shows no button:
 
-1. Mở DevTools trên gmgn, chọn context **Noted for GMGN** trong dropdown của Console, gõ `document.querySelectorAll('a[href*="/token/"]').length`. Nếu ra 0 thì hàng đó không phải link; xem hàng dùng thuộc tính gì (ví dụ `data-row-key`) và bổ sung vào hàm `scan()` trong `src/content/gmgn.js`.
-2. Trang token luôn có nút nổi và `Alt+N` vì dựa vào URL, không phụ thuộc DOM.
-3. Dashboard có **Thêm từ URL gmgn** để ghi chú bất kỳ token nào chỉ bằng link.
+1. Open DevTools on gmgn, pick the **Noted for GMGN** context in the Console dropdown and run `document.querySelectorAll('a[href*="/token/"]').length`. If it is 0 the rows are not links; inspect what attribute they use (e.g. `data-row-key`) and extend `scan()` in `src/content/gmgn.js`.
+2. Token pages always have the floating button and `Alt+N` because they rely on the URL, not the DOM.
+3. The Dashboard has **Add from gmgn URL** to note any token from its link.
 
-## Roadmap gợi ý
+## Publishing to the Chrome Web Store
 
-- **Bắt link từ X:** content script trên x.com thêm nút "Lưu vào Noted" ở mỗi tweet, chọn dự án rồi đẩy vào timeline.
-- **Tóm tắt bằng AI:** nút "Tóm tắt" trong drawer gửi các mốc + link tới API (Claude/OpenAI, key lưu ở options) và điền vào "Dự án làm gì?".
-- **Đồng bộ nhiều máy:** thêm backend nhỏ (Supabase/Firebase) hoặc đồng bộ file JSON qua Google Drive; giữ `chrome.storage.local` làm cache.
-- **Nhắc lại:** tự động thêm mốc "chưa xem lại 14 ngày" hoặc badge màu khác cho dự án lâu không cập nhật.
-- **Snapshot giá:** lưu MC mỗi lần mở ghi chú để vẽ mini-chart MC theo các mốc bạn đã ghi.
+1. Package: `python3 scripts/pack.py` (or `npm run zip`) creates `dist/noted-for-gmgn-<version>.zip` containing only `manifest.json`, `icons/`, `src/`, `_locales/` with the manifest at the ZIP root.
+2. Go to https://chrome.google.com/webstore/devconsole, register a developer account (one-time 5 USD fee) → **New item** → upload the ZIP.
+3. **Store listing**: title, description (copy-paste texts in `docs/store-listing.md`, in English, Vietnamese and Chinese), at least one 1280×800 screenshot (samples in `docs/store/`), category Productivity.
+4. **Privacy practices**: single purpose "personal research notes for tokens on gmgn.ai", per-permission justifications (table below), "does not collect user data" (everything stays in `chrome.storage.local`), no remote code. Privacy policy: `PRIVACY.md`.
+5. **Distribution** → **Unlisted** for personal use (hidden from search, installable by link, auto-updates) or Public.
+6. **Submit for review** (usually 1–3 days). For updates: bump `version` in `manifest.json`, repackage, upload under the Package tab.
 
-## Đưa lên Chrome Web Store
-
-1. Đóng gói: `python3 scripts/pack.py` (hoặc `npm run zip`) tạo `dist/noted-for-gmgn-<version>.zip`. ZIP chỉ chứa `manifest.json`, `icons/`, `src/`; manifest nằm ngay ở gốc ZIP.
-2. Vào https://chrome.google.com/webstore/devconsole, đăng ký tài khoản developer (phí một lần 5 USD) → **New item** → tải ZIP lên.
-3. Điền **Store listing**: tên, mô tả, ít nhất 1 ảnh chụp 1280×800 (hoặc 640×400), danh mục Productivity, ngôn ngữ Tiếng Việt.
-4. **Privacy practices**: mục đích duy nhất là "ghi chú research cho token trên gmgn.ai"; khai báo lý do từng quyền (xem bảng dưới); chọn "không thu thập dữ liệu người dùng" vì mọi ghi chú chỉ lưu trong `chrome.storage.local`, không gửi đi đâu; không dùng remote code.
-5. **Distribution** → chọn **Unlisted** nếu chỉ mình bạn dùng: không hiện trên tìm kiếm, ai có link mới cài được, vẫn được tự cập nhật. Chọn Public nếu muốn chia sẻ.
-6. **Submit for review**. Lần đầu thường 1–3 ngày. Bản cập nhật sau: tăng `version` trong `manifest.json`, đóng gói lại, tải lên ở tab Package.
-
-| Quyền | Lý do khai báo |
+| Permission | Justification |
 |---|---|
-| `storage`, `unlimitedStorage` | Lưu ghi chú của người dùng ngay trên máy, không giới hạn số dự án |
-| `activeTab` | Đọc URL tab đang mở khi người dùng bấm icon hoặc phím tắt để mở đúng ghi chú của token đó |
-| `sidePanel` | Hiển thị editor ghi chú trong Side Panel của Chrome, không che nội dung gmgn |
-| Content script trên `gmgn.ai` | Gắn nút ghi chú cạnh mỗi token và hiển thị ghi chú ngay trong trang |
+| `storage`, `unlimitedStorage` | Store the user's notes locally, without a project limit |
+| `activeTab` | Read the current tab's gmgn URL when the user clicks the icon or presses the shortcut, to open that token's note |
+| `sidePanel` | Show the note editor in Chrome's side panel so it does not cover gmgn |
+| Content script on `gmgn.ai` | Add the note button next to each token and show the note indicator inline |
 
-## Phát triển
+## Roadmap ideas
+
+- **Capture from X:** a content script on x.com with a "Save to Noted" button on each tweet.
+- **AI summary:** a "Summarize" button that sends the timeline + links to an API (key stored in options) and fills "What does this project do?".
+- **Multi-device sync:** a small backend (Supabase/Firebase) or JSON sync via Google Drive, keeping `chrome.storage.local` as cache.
+- **Reminders:** flag projects not reviewed for 14 days.
+- **Price snapshots:** record MC every time a note is opened and draw a mini chart against your entries.
+
+## Development
 
 ```bash
-npm test            # chạy test Playwright (dùng Chromium của Playwright, không cần gmgn thật)
-npm run icons       # sinh lại icon
-npm run zip         # đóng gói ZIP để tải lên Chrome Web Store (dist/)
+npm test            # Playwright e2e (uses Playwright's Chromium, no real gmgn needed)
+npm run icons       # regenerate icons
+npm run zip         # build the Web Store ZIP into dist/
+node test/store-shots.js   # regenerate 1280×800 store screenshots into docs/store/
 ```

@@ -1,8 +1,13 @@
 // Dashboard: liệt kê, tìm kiếm, lọc mọi dự án đã ghi chú; xuất/nhập dữ liệu.
-(() => {
+(async () => {
   'use strict';
   const S = globalThis.NotedStore;
   const E = globalThis.NotedEditor;
+  const I = globalThis.NotedI18n;
+  const t = (k, v) => I.t(k, v);
+  await I.init();
+  I.apply();
+  I.bindSelect(document.querySelector('#lang'));
 
   const $ = sel => document.querySelector(sel);
   const ui = {
@@ -20,7 +25,7 @@
   style.textContent = E.CSS;
   document.head.appendChild(style);
 
-  ui.status.insertAdjacentHTML('beforeend', S.STATUSES.map(s => `<option value="${s.id}">${s.icon} ${s.label}</option>`).join(''));
+  ui.status.insertAdjacentHTML('beforeend', S.STATUSES.map(s => `<option value="${s.id}">${s.icon} ${E.esc(S.statusLabel(s.id))}</option>`).join(''));
 
   async function reload() {
     projects = await S.getAll();
@@ -52,7 +57,7 @@
   function render() {
     const pinned = projects.filter(p => p.pinned).length;
     const entries = projects.reduce((n, p) => n + p.timeline.length, 0);
-    ui.stats.textContent = `${projects.length} dự án · ${pinned} pin · ${entries} mốc`;
+    ui.stats.textContent = t('stats', { n: projects.length, p: pinned, e: entries });
 
     const tagCount = new Map();
     for (const p of projects) for (const t of p.tags) tagCount.set(t, (tagCount.get(t) || 0) + 1);
@@ -62,7 +67,7 @@
     const list = filtered();
     ui.list.innerHTML = '';
     if (!list.length) {
-      ui.list.innerHTML = `<li class="list-empty">${projects.length ? 'Không có dự án nào khớp bộ lọc.' : 'Chưa có ghi chú nào. Vào gmgn.ai và bấm nút ✎ cạnh một token.'}</li>`;
+      ui.list.innerHTML = `<li class="list-empty">${E.esc(projects.length ? t('no_match') : t('no_projects'))}</li>`;
     }
     for (const p of list) {
       const st = S.STATUSES.find(s => s.id === p.status) || S.STATUSES[0];
@@ -71,17 +76,17 @@
       li.dataset.key = p.key;
       li.innerHTML = `
         <div class="card-top">
-          ${p.pinned ? '<span title="Đã pin">📌</span>' : ''}
+          ${p.pinned ? `<span title="${E.esc(t('pinned_title'))}">📌</span>` : ''}
           <span class="card-sym">${E.esc(p.symbol || S.shortAddress(p.address))}</span>
           <span class="card-name">${E.esc(p.name || '')}</span>
           <span class="chain">${E.esc(S.chainLabel(p.chain))}</span>
         </div>
-        <div class="card-sum${p.summary ? '' : ' empty'}">${E.esc(p.summary || 'Chưa có tóm tắt')}</div>
+        <div class="card-sum${p.summary ? '' : ' empty'}">${E.esc(p.summary || t('no_summary'))}</div>
         <div class="card-meta">
-          <span>${st.icon} ${st.label}</span>
+          <span>${st.icon} ${E.esc(S.statusLabel(p.status))}</span>
           ${p.rating ? `<span class="stars">${'★'.repeat(p.rating)}</span>` : ''}
           ${p.tags.length ? `<span class="tags">${p.tags.slice(0, 5).map(t => '#' + E.esc(t)).join(' ')}</span>` : ''}
-          <span class="right">${p.timeline.length} mốc · ${E.esc(E.relTime(p.updatedAt))}</span>
+          <span class="right">${E.esc(t('entries_count', { n: p.timeline.length }))} · ${E.esc(E.relTime(p.updatedAt))}</span>
         </div>`;
       li.addEventListener('click', () => select(p));
       ui.list.appendChild(li);
@@ -131,11 +136,11 @@
   });
 
   ui.addUrl.addEventListener('click', () => {
-    const url = prompt('Dán URL token trên gmgn.ai (ví dụ https://gmgn.ai/robinhood/token/0x...):');
+    const url = prompt(t('prompt_url'));
     if (!url) return;
-    const t = S.parseTokenUrl(url.trim());
-    if (!t) { alert('Không nhận ra URL token gmgn. Dạng đúng: https://gmgn.ai/{chain}/token/{address}'); return; }
-    select(t);
+    const token = S.parseTokenUrl(url.trim());
+    if (!token) { alert(t('bad_url')); return; }
+    select(token);
   });
 
   ui.exportJson.addEventListener('click', async () => {
@@ -155,13 +160,14 @@
     try {
       const r = await S.importJSON(JSON.parse(await f.text()));
       await reload();
-      alert(`Đã nhập: ${r.added} dự án mới, ${r.merged} dự án được gộp.`);
+      alert(t('imported', { added: r.added, merged: r.merged }));
     } catch (e) {
-      alert('Nhập thất bại: ' + (e && e.message ? e.message : e));
+      alert(t('import_failed', { error: e && e.message ? e.message : e }));
     }
   });
 
   S.onChange(() => reload());
+  I.onChange(async () => { if (editor) await editor.flush(); location.reload(); });
 
   reload().then(() => {
     const open = new URLSearchParams(location.search).get('open');

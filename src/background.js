@@ -56,7 +56,7 @@ chrome.commands.onCommand.addListener((command, tab) => {
   if (command !== 'toggle-note' || !tab || !tab.id) return;
   const token = NotedStore.parseTokenUrl(tab.url || '');
   if (!token) {
-    chrome.tabs.sendMessage(tab.id, { type: 'noted:toast', text: 'Hãy mở một trang token trên gmgn rồi bấm Alt+N.' }).catch(() => {});
+    chrome.tabs.sendMessage(tab.id, { type: 'noted:toast', key: 'toast_open_token' }).catch(() => {});
     return;
   }
   openNote({ tabId: tab.id, token, ctx: {}, mode: uiMode, fromContent: false }, () => {});

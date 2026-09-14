@@ -1,0 +1,5 @@
+{
+  "appName": { "message": "Noted for GMGN" },
+  "appDesc": { "message": "Timeline research notes for every project you view on gmgn.ai: what it does, tags, pins, dated entries, X/AI links." },
+  "cmdToggle": { "message": "Open/close the note for the current token" }
+}

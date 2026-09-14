@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Noted</title>
@@ -23,18 +23,22 @@
   <div class="wrap">
     <h1>📝 Noted for GMGN</h1>
     <div class="stats" id="stats">…</div>
-    <button id="note-this" class="primary" hidden>📝 Ghi chú token đang xem</button>
-    <button id="open-dash">📚 Mở Dashboard</button>
-    <button id="export">⬇ Xuất JSON (backup)</button>
-    <label class="setting">Giao diện ghi chú
+    <button id="note-this" class="primary" hidden data-i18n="note_this"></button>
+    <button id="open-dash" data-i18n="open_dashboard"></button>
+    <button id="export" data-i18n="export_json"></button>
+    <label class="setting"><span data-i18n="ui_mode"></span>
       <select id="ui-mode">
-        <option value="panel">Side panel (không che trang)</option>
-        <option value="drawer">Overlay trong trang</option>
+        <option value="panel" data-i18n="ui_panel"></option>
+        <option value="drawer" data-i18n="ui_drawer"></option>
       </select>
     </label>
-    <div class="hint">Trên gmgn.ai: bấm nút ✎ cạnh symbol, hoặc <kbd>Alt</kbd>+<kbd>N</kbd> trên trang token.</div>
+    <label class="setting"><span data-i18n="language"></span>
+      <select id="lang"></select>
+    </label>
+    <div class="hint" data-i18n="popup_hint"></div>
   </div>
   <script src="../lib/storage.js"></script>
+  <script src="../lib/i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

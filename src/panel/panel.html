@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,12 +10,13 @@
   <div class="empty" id="empty">
     <div class="empty-icon">📝</div>
     <p><b>Noted for GMGN</b></p>
-    <p>Bấm nút ✎ cạnh một token trên gmgn.ai, bấm nút nổi trên trang token, hoặc <kbd>Alt</kbd>+<kbd>N</kbd>.</p>
-    <p class="muted">Panel này nằm ngoài trang nên không che gmgn. Kéo mép trái để đổi độ rộng.</p>
-    <button id="open-dash">📚 Mở Dashboard</button>
+    <p data-i18n="panel_empty_1"></p>
+    <p class="muted" data-i18n="panel_empty_2"></p>
+    <button id="open-dash" data-i18n="open_dashboard"></button>
   </div>
   <div id="mount" class="mount" hidden></div>
   <script src="../lib/storage.js"></script>
+  <script src="../lib/i18n.js"></script>
   <script src="../lib/editor.js"></script>
   <script src="panel.js"></script>
 </body>

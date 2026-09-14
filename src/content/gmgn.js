@@ -10,7 +10,9 @@
 
   const S = globalThis.NotedStore;
   const E = globalThis.NotedEditor;
-  if (!S || !E) return;
+  const I = globalThis.NotedI18n;
+  if (!S || !E || !I) return;
+  const t = (k, v) => I.t(k, v);
 
   const ATTR = 'data-noted-key';
   const cache = new Map(); // key -> project
@@ -59,14 +61,7 @@
 
     drawer = document.createElement('div');
     drawer.className = 'nd-drawer';
-    editor = E.create({
-      onClose: closeDrawer,
-      onOpenDashboard: openDashboard,
-      allTags: () => [...new Set([...cache.values()].flatMap(p => p.tags))].sort(),
-      onChange: p => { cache.set(p.key, p); refreshBadges(); refreshFab(); },
-      onDelete: p => { cache.delete(p.key); refreshBadges(); refreshFab(); },
-    });
-    drawer.appendChild(editor.el);
+    createEditor();
     shadow.appendChild(drawer);
 
     tip = document.createElement('div');
@@ -93,7 +88,28 @@
     window.addEventListener('scroll', hideTip, { passive: true, capture: true });
   }
 
+  function createEditor() {
+    if (editor) editor.destroy();
+    editor = E.create({
+      onClose: closeDrawer,
+      onOpenDashboard: openDashboard,
+      allTags: () => [...new Set([...cache.values()].flatMap(p => p.tags))].sort(),
+      onChange: p => { cache.set(p.key, p); refreshBadges(); refreshFab(); },
+      onDelete: p => { cache.delete(p.key); refreshBadges(); refreshFab(); },
+    });
+    drawer.appendChild(editor.el);
+  }
+
+  // Đổi ngôn ngữ: vẽ lại nút, FAB và tạo lại editor (drawer đang mở sẽ đóng).
+  I.onChange(() => {
+    if (openKey) { drawer.classList.remove('open'); openKey = null; }
+    createEditor();
+    refreshBadges();
+    refreshFab();
+  });
+
   function toast(msg) {
+    if (!toastEl) return;
     toastEl.textContent = msg;
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
@@ -194,7 +210,7 @@
     const b = document.createElement('span');
     b.className = 'noted-badge';
     b.setAttribute('role', 'button');
-    b.setAttribute('aria-label', 'Noted: ghi chú dự án');
+    b.setAttribute('aria-label', t('badge_title'));
     for (const ev of ['pointerdown', 'mouseup', 'auxclick', 'dblclick', 'touchend']) b.addEventListener(ev, stop);
     b.addEventListener('mousedown', ev => { stop(ev); ev.preventDefault(); });
     b.addEventListener('click', ev => { stop(ev); ev.preventDefault(); onBadgeClick(b); });
@@ -235,7 +251,7 @@
     if (badge.__html !== html) { badge.innerHTML = html; badge.__html = html; }
     badge.classList.toggle('noted-badge--has', has);
     badge.classList.toggle('noted-badge--pin', pin);
-    badge.title = has ? '' : 'Ghi chú dự án này (Noted)';
+    badge.title = has ? '' : t('badge_title');
   }
 
   function refreshBadges() {
@@ -287,12 +303,12 @@
   // ---------------- tooltip ----------------
   function showTip(b) {
     const p = cache.get(b.dataset.key);
-    if (!p) return;
+    if (!p || !tip) return;
     const st = S.STATUSES.find(s => s.id === p.status) || S.STATUSES[0];
     const last = [...p.timeline].sort((x, y) => y.ts - x.ts)[0];
     tip.innerHTML = `
-      <div class="t-head">${p.pinned ? '📌 ' : ''}${E.esc(p.symbol || S.shortAddress(p.address))}${p.name ? `<span class="t-name">${E.esc(p.name)}</span>` : ''}<span class="t-st">${st.icon} ${st.label}</span>${p.rating ? `<span class="t-rate">${'★'.repeat(p.rating)}</span>` : ''}</div>
-      <div class="t-sum">${p.summary ? E.esc(p.summary.slice(0, 280)) : '<span class="t-empty">Chưa có tóm tắt — bấm để thêm</span>'}</div>
+      <div class="t-head">${p.pinned ? '📌 ' : ''}${E.esc(p.symbol || S.shortAddress(p.address))}${p.name ? `<span class="t-name">${E.esc(p.name)}</span>` : ''}<span class="t-st">${st.icon} ${E.esc(S.statusLabel(p.status))}</span>${p.rating ? `<span class="t-rate">${'★'.repeat(p.rating)}</span>` : ''}</div>
+      <div class="t-sum">${p.summary ? E.esc(p.summary.slice(0, 280)) : `<span class="t-empty">${E.esc(t('tip_empty'))}</span>`}</div>
       ${p.tags.length ? `<div class="t-tags">${p.tags.map(x => '#' + E.esc(x)).join(' ')}</div>` : ''}
       ${last ? `<div class="t-last">${E.esc(E.relTime(last.ts))} · ${E.esc(last.text.slice(0, 140))}</div>` : ''}`;
     tip.hidden = false;
@@ -309,6 +325,7 @@
 
   // ---------------- drawer ----------------
   async function openDrawer(token, ctx = {}) {
+    if (!editor) { await I.init(); mount(); }
     if (openKey && openKey !== token.key) await editor.flush();
     openKey = token.key;
     await editor.load({ ...token, symbol: ctx.symbol || '' }, { mc: ctx.mc || null });
@@ -338,7 +355,7 @@
 
   function toggleForPage() {
     const t = S.parseTokenUrl(location.href);
-    if (!t) { toast('Hãy mở một trang token trên gmgn rồi bấm Alt+N hoặc nút Noted.'); return; }
+    if (!t) { toast(I.t('toast_open_token')); return; }
     if (openKey === t.key) closeDrawer();
     else openNote(t, { symbol: pageSymbol(), mc: null });
   }
@@ -353,16 +370,16 @@
 
   function refreshFab() {
     if (!fab) return;
-    const t = S.parseTokenUrl(location.href);
-    if (!t) { fab.hidden = true; return; }
-    const p = cache.get(t.key);
+    const tok = S.parseTokenUrl(location.href);
+    if (!tok) { fab.hidden = true; return; }
+    const p = cache.get(tok.key);
     const sym = (p && p.symbol) || pageSymbol();
     fab.hidden = false;
     fab.classList.toggle('has', !!p);
     fab.innerHTML = p
-      ? `${p.pinned ? '📌' : '📝'} <b>${E.esc(sym || 'Ghi chú')}</b>${p.summary ? `<span class="f-sum">${E.esc(p.summary.slice(0, 90))}</span>` : `<span class="f-sum">${p.timeline.length} mốc</span>`}`
-      : `📝 Ghi chú${sym ? ' ' + E.esc(sym) : ''}`;
-    fab.title = 'Mở ghi chú cho token này (Alt+N)';
+      ? `${p.pinned ? '📌' : '📝'} <b>${E.esc(sym || t('fab_note'))}</b>${p.summary ? `<span class="f-sum">${E.esc(p.summary.slice(0, 90))}</span>` : `<span class="f-sum">${E.esc(t('entries_count', { n: p.timeline.length }))}</span>`}`
+      : `📝 ${E.esc(t('fab_note'))}${sym ? ' ' + E.esc(sym) : ''}`;
+    fab.title = t('fab_title');
   }
 
   // ---------------- khởi động ----------------
@@ -380,12 +397,12 @@
       case 'noted:page-info':
         sendResponse(pageInfoFor(msg.key)); break;
       case 'noted:toast':
-        toast(msg.text || ''); sendResponse({ ok: true }); break;
+        toast(msg.key ? t(msg.key) : (msg.text || '')); sendResponse({ ok: true }); break;
     }
   });
 
-  mount();
-  loadAll().then(scan);
+  // Nạp ngôn ngữ trước khi dựng UI có chữ; việc quét/gắn nút không cần chờ.
+  I.init().then(() => { mount(); return loadAll(); }).then(scan);
   scan();
   new MutationObserver(scheduleScan).observe(document.documentElement, {
     childList: true, subtree: true, attributes: true, attributeFilter: ['href'],

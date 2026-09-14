@@ -20,26 +20,30 @@
   };
 
   const STATUSES = [
-    { id: 'watching',    icon: '👀', label: 'Theo dõi' },
-    { id: 'researching', icon: '🔬', label: 'Đang research' },
-    { id: 'holding',     icon: '💼', label: 'Đang giữ' },
-    { id: 'sold',        icon: '✅', label: 'Đã bán' },
-    { id: 'passed',      icon: '⛔', label: 'Bỏ qua' },
+    { id: 'watching',    icon: '👀', label: 'Watching' },
+    { id: 'researching', icon: '🔬', label: 'Researching' },
+    { id: 'holding',     icon: '💼', label: 'Holding' },
+    { id: 'sold',        icon: '✅', label: 'Sold' },
+    { id: 'passed',      icon: '⛔', label: 'Passed' },
     { id: 'dead',        icon: '💀', label: 'Dead / Rug' },
   ];
 
   const ENTRY_TYPES = [
-    { id: 'note',     icon: '📝', label: 'Ghi chú' },
+    { id: 'note',     icon: '📝', label: 'Note' },
     { id: 'research', icon: '🔎', label: 'Research' },
-    { id: 'news',     icon: '📰', label: 'Tin / Update' },
-    { id: 'buy',      icon: '🟢', label: 'Mua' },
-    { id: 'sell',     icon: '🔴', label: 'Bán' },
-    { id: 'alert',    icon: '⚠️', label: 'Cảnh báo' },
+    { id: 'news',     icon: '📰', label: 'News / Update' },
+    { id: 'buy',      icon: '🟢', label: 'Buy' },
+    { id: 'sell',     icon: '🔴', label: 'Sell' },
+    { id: 'alert',    icon: '⚠️', label: 'Alert' },
     { id: 'link',     icon: '🔗', label: 'Link' },
   ];
 
   const now = () => Date.now();
   const uid = () => Math.random().toString(36).slice(2, 10) + now().toString(36);
+  // Nhãn hiển thị theo ngôn ngữ (NotedI18n nếu đã nạp, không thì tiếng Anh trong bảng trên).
+  const tr = (key, fallback) => (globalThis.NotedI18n ? globalThis.NotedI18n.t(key) : fallback);
+  const statusLabel = id => { const s = STATUSES.find(x => x.id === id) || STATUSES[0]; return tr('st_' + s.id, s.label); };
+  const entryLabel = id => { const e = ENTRY_TYPES.find(x => x.id === id) || ENTRY_TYPES[0]; return tr('et_' + e.id, e.label); };
 
   function normalizeChain(raw) {
     const c = String(raw || '').trim().toLowerCase();
@@ -168,7 +172,7 @@
   // Gộp dữ liệu import vào dữ liệu hiện có: bản mới hơn thắng, timeline được gộp theo id.
   async function importJSON(data) {
     const incoming = Array.isArray(data) ? data : (data && Array.isArray(data.projects) ? data.projects : null);
-    if (!incoming) throw new Error('File không đúng định dạng export của Noted.');
+    if (!incoming) throw new Error('Not a Noted export file.');
     const existingList = await getAll();
     const existing = new Map(existingList.map(p => [p.key, p]));
     const toWrite = {};
@@ -203,19 +207,21 @@
 
   // Xuất Markdown để đọc lại hoặc đưa cho AI tổng hợp.
   function toMarkdown(projects) {
-    const lines = [`# Noted for GMGN — export ${fmtDate(now())}`, ''];
+    const T = key => (globalThis.NotedI18n ? globalThis.NotedI18n.t(key) : key);
+    const title = globalThis.NotedI18n ? globalThis.NotedI18n.t('md_title', { date: fmtDate(now()) }) : `Noted for GMGN — export ${fmtDate(now())}`;
+    const lines = [`# ${title}`, ''];
     const sorted = [...projects].sort((a, b) => (b.pinned - a.pinned) || (b.updatedAt - a.updatedAt));
     for (const p of sorted) {
       const st = STATUSES.find(s => s.id === p.status) || STATUSES[0];
       lines.push(`## ${p.symbol || shortAddress(p.address)}${p.name ? ` — ${p.name}` : ''} (${chainLabel(p.chain)})${p.pinned ? ' 📌' : ''}`);
-      lines.push(`- Address: \`${p.address}\` — ${tokenUrl(p)}`);
-      lines.push(`- Trạng thái: ${st.icon} ${st.label} · Conviction: ${'★'.repeat(p.rating)}${'☆'.repeat(5 - p.rating)}${p.tags.length ? ` · Tags: ${p.tags.join(', ')}` : ''}`);
-      if (p.summary) lines.push(`- Tóm tắt: ${p.summary.replace(/\s*\n\s*/g, ' ')}`);
+      lines.push(`- ${T('md_address')}: \`${p.address}\` — ${tokenUrl(p)}`);
+      lines.push(`- ${T('md_status')}: ${st.icon} ${statusLabel(p.status)} · ${T('md_conviction')}: ${'★'.repeat(p.rating)}${'☆'.repeat(5 - p.rating)}${p.tags.length ? ` · ${T('md_tags')}: ${p.tags.join(', ')}` : ''}`);
+      if (p.summary) lines.push(`- ${T('md_summary')}: ${p.summary.replace(/\s*\n\s*/g, ' ')}`);
       if (p.timeline.length) {
-        lines.push('', '### Timeline');
+        lines.push('', `### ${T('md_timeline')}`);
         for (const e of [...p.timeline].sort((a, b) => a.ts - b.ts)) {
           const et = ENTRY_TYPES.find(t => t.id === e.type) || ENTRY_TYPES[0];
-          lines.push(`- ${fmtDate(e.ts)} ${et.icon} [${et.label}]${e.mc ? ` (MC ${e.mc})` : ''}: ${e.text.replace(/\s*\n\s*/g, ' ')}`);
+          lines.push(`- ${fmtDate(e.ts)} ${et.icon} [${entryLabel(e.type)}]${e.mc ? ` (MC ${e.mc})` : ''}: ${e.text.replace(/\s*\n\s*/g, ' ')}`);
         }
       }
       lines.push('');
@@ -225,7 +231,7 @@
 
   globalThis.NotedStore = {
     PREFIX, STATUSES, ENTRY_TYPES, CHAIN_LABELS,
-    keyOf, normalizeChain, normalizeAddress, parseTokenUrl, tokenUrl, chainLabel, shortAddress,
+    keyOf, normalizeChain, normalizeAddress, parseTokenUrl, tokenUrl, chainLabel, shortAddress, statusLabel, entryLabel,
     emptyProject, sanitize, newEntry, uid,
     get, getAll, save, remove, onChange,
     exportJSON, importJSON, toMarkdown, fmtDate,

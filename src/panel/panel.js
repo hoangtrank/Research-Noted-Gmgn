@@ -4,8 +4,11 @@
   'use strict';
   const S = globalThis.NotedStore;
   const E = globalThis.NotedEditor;
+  const I = globalThis.NotedI18n;
   const SESSION_PREFIX = 'tab:';
   const $ = sel => document.querySelector(sel);
+  await I.init();
+  I.apply();
 
   const style = document.createElement('style');
   style.textContent = E.CSS;
@@ -84,5 +87,6 @@
     refresh();
   });
 
+  I.onChange(async () => { await editor.flush(); location.reload(); });
   refresh();
 })();

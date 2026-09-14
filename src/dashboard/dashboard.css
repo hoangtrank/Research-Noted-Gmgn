@@ -52,3 +52,5 @@ kbd{font:11px ui-monospace,Menlo,monospace;background:var(--bg3);border:1px soli
   .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
   .side{border-right:0;border-bottom:1px solid var(--line);max-height:50vh}
 }
+.lang{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--fg3);margin-left:auto}
+.lang select{padding:4px 6px;font-size:12px}

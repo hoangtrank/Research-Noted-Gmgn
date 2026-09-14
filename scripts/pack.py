@@ -7,17 +7,25 @@ như Web Store yêu cầu. Chạy: python3 scripts/pack.py  ->  dist/noted-for-g
 import json, os, sys, zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INCLUDE = ['manifest.json', 'icons', 'src']
+INCLUDE = ['manifest.json', 'icons', 'src', '_locales']
 SKIP = {'.DS_Store', 'Thumbs.db'}
 
 def main():
     with open(os.path.join(ROOT, 'manifest.json'), encoding='utf-8') as f:
         m = json.load(f)
     problems = []
-    if len(m.get('name', '')) > 45:
+    # Tên/mô tả có thể là __MSG_key__ -> lấy từ _locales/<default_locale>/messages.json
+    def resolve(v):
+        if isinstance(v, str) and v.startswith('__MSG_') and v.endswith('__'):
+            loc = m.get('default_locale', 'en')
+            with open(os.path.join(ROOT, '_locales', loc, 'messages.json'), encoding='utf-8') as f:
+                return json.load(f)[v[6:-2]]['message']
+        return v
+    name, desc = resolve(m.get('name', '')), resolve(m.get('description', ''))
+    if len(name) > 45:
         problems.append('name dài quá 45 ký tự')
-    if len(m.get('description', '')) > 132:
-        problems.append(f"description dài {len(m['description'])} ký tự, Web Store cho tối đa 132")
+    if len(desc) > 132:
+        problems.append(f"description dài {len(desc)} ký tự, Web Store cho tối đa 132")
     for size, path in (m.get('icons') or {}).items():
         if not os.path.exists(os.path.join(ROOT, path)):
             problems.append(f'thiếu icon {path} (chạy python3 scripts/make_icons.py)')
