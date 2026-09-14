@@ -36,13 +36,18 @@ button.save:disabled{opacity:.5;cursor:default}
 .status.ok{color:#22c55e}.status.err{color:#f87171}.status.warn{color:#fbbf24}
 .status a{color:#60a5fa;text-decoration:none}
 .empty{color:#9aa3b2;font-size:12px}
+.note{color:#fbbf24;font-size:12px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);border-radius:8px;padding:6px 8px}
+.ob{position:fixed;right:16px;bottom:16px;z-index:2147483000;width:min(380px,calc(100vw - 32px));font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#e9e5ff;background:linear-gradient(180deg,#2a1f4d,#1c1730);border:1px solid rgba(167,139,250,.7);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.55);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.ob b{font-size:13px}
+.ob .row{justify-content:flex-end}
+.ob button{font:inherit;cursor:pointer;border:1px solid rgba(167,139,250,.7);background:#8b5cf6;color:#fff;border-radius:8px;padding:6px 12px;font-weight:600}
 `;
   const BTN_CSS = `
-.noted-x-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;margin-left:4px;border-radius:999px;border:1px solid transparent;color:#71767b;cursor:pointer;flex:0 0 auto;transition:background .12s,color .12s}
-.noted-x-btn svg{width:18px;height:18px}
-.noted-x-btn:hover{background:rgba(139,92,246,.18);color:#a78bfa}
-.noted-x-btn--saved{color:#facc15}
-.noted-x-btn--saved:hover{background:rgba(250,204,21,.18);color:#fde047}
+.noted-x-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;margin-left:4px;border-radius:999px;border:1px solid rgba(167,139,250,.55);background:rgba(139,92,246,.16);color:#c4b5fd;cursor:pointer;flex:0 0 auto;transition:background .12s,color .12s,transform .12s}
+.noted-x-btn svg{width:17px;height:17px}
+.noted-x-btn:hover{background:#8b5cf6;color:#fff;transform:scale(1.08)}
+.noted-x-btn--saved{border-color:#fde047;background:rgba(250,204,21,.18);color:#fde047}
+.noted-x-btn--saved:hover{background:#facc15;color:#111}
 .noted-x-btn--abs{position:absolute;right:8px;top:8px;z-index:5;background:rgba(0,0,0,.4)}
 `;
   const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
@@ -71,7 +76,8 @@ button.save:disabled{opacity:.5;cursor:default}
   });
 
   // ---------- nhận diện bài ----------
-  function articles() { return document.querySelectorAll('article[data-testid="tweet"], article[role="article"]'); }
+  // Mọi <article> trên X đều là bài đăng; data-testid="tweet" là dạng thường gặp nhưng không bắt buộc.
+  function articles() { return document.querySelectorAll('article'); }
 
   function extractTweet(article) {
     let url = '', id = '', author = '';
@@ -135,8 +141,24 @@ button.save:disabled{opacity:.5;cursor:default}
 
   function paintAll() { for (const a of articles()) paint(a); }
 
+  let onboarded = null; // null = chưa đọc setting
+  async function maybeOnboard() {
+    if (onboarded !== null) return;
+    onboarded = true;
+    try { const r = await chrome.storage.local.get('settings'); if (r.settings && r.settings.xOnboarded) return; } catch (_) { return; }
+    mount();
+    const ob = document.createElement('div');
+    ob.className = 'ob';
+    ob.innerHTML = `<style>${CSS}</style><b>✎ Research-Noted-Gmgn</b><div>${esc(t('x_onboard'))}</div><div class="row"><button type="button">${esc(t('got_it'))}</button></div>`;
+    ob.querySelector('button').addEventListener('click', async () => {
+      ob.remove();
+      try { const r = await chrome.storage.local.get('settings'); await chrome.storage.local.set({ settings: { ...(r.settings || {}), xOnboarded: true } }); } catch (_) {}
+    });
+    shadow.appendChild(ob);
+  }
+
   let scanTimer = 0;
-  function scan() { ensureButtonStyle(); for (const a of articles()) decorate(a); }
+  function scan() { ensureButtonStyle(); const list = articles(); for (const a of list) decorate(a); if (list.length) maybeOnboard(); }
   function scheduleScan() { if (scanTimer) return; scanTimer = setTimeout(() => { scanTimer = 0; scan(); }, 150); }
 
   // ---------- picker ----------
@@ -170,7 +192,7 @@ button.save:disabled{opacity:.5;cursor:default}
         <div class="row"><select class="type">${S.ENTRY_TYPES.map(x => `<option value="${x.id}" ${x.id === 'news' ? 'selected' : ''}>${x.icon} ${esc(S.entryLabel(x.id))}</option>`).join('')}</select>
           <label class="chk"><input type="checkbox" class="shot" ${shotDefault ? 'checked' : ''}> ${esc(t('x_screenshot'))}</label></div>
         <div class="row"><button class="save" type="button" disabled>${esc(t('grok_save'))}</button><span class="status"></span></div>
-        ${armed ? '' : `<div class="empty">${esc(t('x_shot_hint'))}</div>`}
+        ${armed ? '' : `<div class="note">${esc(t('x_shot_hint'))}</div>`}
       </div>`;
     shadow.appendChild(picker);
     const q = sel => picker.querySelector(sel);
@@ -257,6 +279,12 @@ button.save:disabled{opacity:.5;cursor:default}
   });
 
   // ---------- khởi động ----------
+  const VERSION = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '?';
+  console.info(`[Research-Noted-Gmgn] X content script loaded (v${VERSION}) on ${location.pathname}`);
+  setTimeout(() => {
+    const n = articles().length, b = document.querySelectorAll('.noted-x-btn').length;
+    console.info(`[Research-Noted-Gmgn] X: ${n} posts detected, ${b} buttons injected${n && !b ? ' — please report this line' : ''}`);
+  }, 5000);
   I.init().then(loadData).then(() => { scan(); });
   new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true });
   setInterval(scheduleScan, 15000);

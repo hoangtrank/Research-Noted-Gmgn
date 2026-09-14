@@ -410,6 +410,14 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await xp.goto('https://x.com/home');
   await xp.waitForFunction(() => document.querySelectorAll('.noted-x-btn').length === 3, null, { timeout: 10000 });
   assert(await xp.$eval('article', a => a.querySelector('[role="group"] .noted-x-btn') !== null), 'nút ✎ nằm trong thanh hành động của bài');
+  await xp.waitForFunction(() => document.getElementById('noted-x-host')?.shadowRoot.querySelector('.ob'), null, { timeout: 5000 });
+  assert((await xp.evaluate(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.ob').textContent)).includes('Alt+S'), 'lần đầu vào X hiện hướng dẫn (✎ để lưu, chuột phải/Alt+S để kèm ảnh)');
+  await xp.evaluate(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.ob button').click());
+  await xp.waitForTimeout(300);
+  await xp.reload();
+  await xp.waitForFunction(() => document.querySelectorAll('.noted-x-btn').length === 3, null, { timeout: 10000 });
+  await xp.waitForTimeout(500);
+  assert(!(await xp.evaluate(() => !!document.getElementById('noted-x-host')?.shadowRoot.querySelector('.ob'))), 'bấm "Got it" thì không hiện lại');
   await xp.click('article:nth-of-type(1) .noted-x-btn');
   const xq = (sel, prop = 'textContent') => xp.evaluate(([s, p]) => { const el = document.getElementById('noted-x-host').shadowRoot.querySelector(s); return el ? el[p] : null; }, [sel, prop]);
   const xclick = sel => xp.evaluate(s => document.getElementById('noted-x-host').shadowRoot.querySelector(s).click(), sel);
