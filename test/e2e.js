@@ -8,6 +8,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const mock = require('./mock-gmgn');
 const grokMock = require('./mock-grok');
 const dexMock = require('./mock-dexscreener');
+const xMock = require('./mock-x');
 
 const EXT = process.env.EXT_DIR || path.resolve(__dirname, '..'); // EXT_DIR: kiểm tra một bản đã đóng gói
 const OUT = process.env.SHOT_DIR || path.join(__dirname, 'shots');
@@ -26,7 +27,11 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
     viewport: { width: 1100, height: 800 },
   });
   await ctx.route('https://gmgn.ai/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: mock.handle(route.request().url()) }));
-  for (const pat of ['https://x.com/**', 'https://grok.com/**']) await ctx.route(pat, route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: grokMock.page(route.request().url()) }));
+  for (const pat of ['https://x.com/**', 'https://grok.com/**']) await ctx.route(pat, route => {
+    const u = new URL(route.request().url());
+    const body = u.hostname === 'x.com' && !u.pathname.startsWith('/i/grok') ? xMock.page() : grokMock.page(route.request().url());
+    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body });
+  });
   await ctx.route('https://dexscreener.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: dexMock.handle(route.request().url()) }));
   const dexApi = await dexMock.startApi();
 
@@ -398,6 +403,80 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(cached && Object.keys(cached).length >= 6, 'mapping pair -> token được cache trong storage.local');
   await dex.close();
   dexApi.server.close();
+
+  console.log('16) Lưu bài trên X: nút trên bài, gợi ý dự án, lưu chữ + link, ảnh chụp qua Alt+S, Undo, viewer, export ảnh');
+  const xp = await ctx.newPage();
+  xp.on('pageerror', e => console.log('X ERROR', e.message));
+  await xp.goto('https://x.com/home');
+  await xp.waitForFunction(() => document.querySelectorAll('.noted-x-btn').length === 3, null, { timeout: 10000 });
+  assert(await xp.$eval('article', a => a.querySelector('[role="group"] .noted-x-btn') !== null), 'nút ✎ nằm trong thanh hành động của bài');
+  await xp.click('article:nth-of-type(1) .noted-x-btn');
+  const xq = (sel, prop = 'textContent') => xp.evaluate(([s, p]) => { const el = document.getElementById('noted-x-host').shadowRoot.querySelector(s); return el ? el[p] : null; }, [sel, prop]);
+  const xclick = sel => xp.evaluate(s => document.getElementById('noted-x-host').shadowRoot.querySelector(s).click(), sel);
+  await xp.waitForFunction(() => document.getElementById('noted-x-host')?.shadowRoot.querySelector('.pk'), null, { timeout: 5000 });
+  assert((await xq('.chips')).includes('PROLOG'), 'bài có $PROLOG -> gợi ý dự án PROLOG');
+  assert((await xq('.save', 'disabled')) === false, 'gợi ý duy nhất được chọn sẵn');
+  await xp.evaluate(() => { const r = document.getElementById('noted-x-host').shadowRoot; r.querySelector('.shot').checked = false; });
+  await xclick('.save');
+  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').classList.contains('ok'), null, { timeout: 8000 });
+  let xe = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x');
+  assert(xe.length === 1 && xe[0].type === 'news' && xe[0].tweetId === '1900000000000000001' && xe[0].text.includes('@alpha_caller (Alpha Caller)') && xe[0].text.includes('https://x.com/alpha_caller/status/1900000000000000001') && xe[0].text.includes('partnered with Virtuals'), 'mốc lưu tác giả, thời gian, nội dung, link bài');
+  assert(!xe[0].image, 'bỏ tick ảnh -> không có ảnh');
+  assert(await xp.$eval('article:nth-of-type(1) .noted-x-btn', b => b.classList.contains('noted-x-btn--saved')), 'nút bài đã lưu đổi màu');
+  await xclick('.save');
+  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').textContent.includes('Already saved'), null, { timeout: 5000 });
+  assert(true, 'lưu lại cùng bài vào cùng dự án bị chặn');
+  await xclick('.undo');
+  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').textContent.includes('Removed'), null, { timeout: 5000 });
+  xe = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x');
+  assert(xe.length === 0 && !(await xp.$eval('article:nth-of-type(1) .noted-x-btn', b => b.classList.contains('noted-x-btn--saved'))), 'Undo gỡ mốc và trả màu nút');
+  await xp.keyboard.press('Escape');
+
+  // Bài không có ticker: tìm dự án bằng ô tìm kiếm, kèm ảnh; Alt+S (phím tắt cấp activeTab) nếu headless chuyển được lệnh
+  await xp.hover('article:nth-of-type(2)');
+  await xp.keyboard.press('Alt+S');
+  await xp.waitForTimeout(600);
+  let armed = await xp.evaluate(() => !!document.getElementById('noted-x-host')?.shadowRoot.querySelector('.pk'));
+  console.log('  Alt+S mở picker trong headless:', armed);
+  if (!armed) await xp.click('article:nth-of-type(2) .noted-x-btn');
+  await xp.waitForFunction(() => document.getElementById('noted-x-host')?.shadowRoot.querySelector('.pk .q'), null, { timeout: 5000 });
+  await xp.evaluate(() => { const r = document.getElementById('noted-x-host').shadowRoot; const q = r.querySelector('.q'); q.value = 'exten'; q.dispatchEvent(new Event('input')); });
+  await xp.waitForTimeout(100);
+  assert((await xq('.list')).includes('EXTENSION') && !(await xq('.list')).includes('PROLOG'), 'ô tìm kiếm lọc dự án');
+  await xp.evaluate(() => { const r = document.getElementById('noted-x-host').shadowRoot; r.querySelector('.list .item[data-key]').click(); r.querySelector('.type').value = 'link'; r.querySelector('.shot').checked = true; });
+  await xclick('.save');
+  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').classList.contains('ok'), null, { timeout: 15000 });
+  const ext2 = await sw.evaluate(async () => (await chrome.storage.local.get('p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump'))['p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump']);
+  const xe2 = ext2.timeline.filter(e => e.source === 'x');
+  assert(xe2.length === 1 && xe2[0].type === 'link' && xe2[0].tweetId === '1900000000000000002', 'lưu vào dự án chọn từ tìm kiếm với loại mốc đã chọn');
+  const statusText = await xq('.status');
+  if (xe2[0].image) {
+    const img = await sw.evaluate(async id => (await chrome.storage.local.get('img:' + id))['img:' + id], xe2[0].image);
+    assert(img && img.data.startsWith('data:image/jpeg;base64,') && img.w > 100 && img.h > 50, `ảnh chụp được cắt và lưu (${img.w}x${img.h}, ${Math.round(img.data.length / 1024)} KB)`);
+    const viewer = await ctx.newPage();
+    await viewer.goto(`chrome-extension://${extId}/src/viewer/viewer.html?img=${xe2[0].image}`);
+    await viewer.waitForFunction(() => { const i = document.getElementById('img'); return i && !i.hidden && i.naturalWidth > 0; }, null, { timeout: 5000 });
+    assert(true, 'trang viewer hiện ảnh');
+    await viewer.close();
+    await dash.reload();
+    await dash.waitForSelector('.card');
+    await dash.evaluate(() => [...document.querySelectorAll('.card')].find(c => c.textContent.includes('EXTENSION')).click());
+    await dash.waitForFunction(() => document.querySelector('.ne-eimg img') && document.querySelector('.ne-eimg img').naturalWidth > 0, null, { timeout: 8000 });
+    assert(true, 'timeline trong dashboard hiện thumbnail ảnh');
+    const exp = await dash.evaluate(async () => NotedStore.exportJSON({ images: true }));
+    assert(exp.images && exp.images[xe2[0].image] && exp.images[xe2[0].image].data.length > 1000, 'export JSON kèm ảnh');
+    const expNo = await dash.evaluate(async () => NotedStore.exportJSON({ images: false }));
+    assert(!expNo.images, 'export JSON không kèm ảnh khi tắt');
+    await sw.evaluate(async id => chrome.storage.local.remove('img:' + id), xe2[0].image);
+    const imp = await dash.evaluate(async data => NotedStore.importJSON(data), exp);
+    assert(imp.images === 1 && !!(await sw.evaluate(async id => (await chrome.storage.local.get('img:' + id))['img:' + id], xe2[0].image)), 'import khôi phục ảnh');
+  } else {
+    console.log('  (headless không cấp activeTab: chỉ kiểm tra đường lưu chữ; trạng thái:', statusText.trim(), ')');
+    assert(statusText.includes('Saved to EXTENSION'), 'không chụp được thì vẫn lưu chữ và báo rõ');
+  }
+  await xp.setViewportSize({ width: 1280, height: 800 });
+  await xp.screenshot({ path: path.join(OUT, '9-x-save.png') });
+  await xp.close();
 
   await ctx.close();
   console.log('\nALL PASSED');

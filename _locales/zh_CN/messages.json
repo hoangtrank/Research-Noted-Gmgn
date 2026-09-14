@@ -7,5 +7,8 @@
   },
   "cmdToggle": {
     "message": "打开/关闭当前代币的笔记"
+  },
+  "cmdSavePost": {
+    "message": "保存鼠标所指的 X 帖子（带截图）"
   }
 }

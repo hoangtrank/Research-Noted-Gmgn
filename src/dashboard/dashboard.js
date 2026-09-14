@@ -144,7 +144,8 @@
   });
 
   ui.exportJson.addEventListener('click', async () => {
-    const data = await S.exportJSON();
+    const st = (await chrome.storage.local.get('settings')).settings || {};
+    const data = await S.exportJSON({ images: st.exportImages !== false });
     download(`research-noted-gmgn-${stamp()}.json`, JSON.stringify(data, null, 2), 'application/json');
   });
 
@@ -160,7 +161,7 @@
     try {
       const r = await S.importJSON(JSON.parse(await f.text()));
       await reload();
-      alert(t('imported', { added: r.added, merged: r.merged }));
+      alert(t('imported', { added: r.added, merged: r.merged }) + (r.images ? ` (+${r.images} img)` : ''));
     } catch (e) {
       alert(t('import_failed', { error: e && e.message ? e.message : e }));
     }
@@ -173,13 +174,15 @@
   // ---- Settings modal: giao diện ghi chú, đích research, template prompt ----
   async function initSettings() {
     const R = globalThis.NotedResearch;
-    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved'), follow = $('#follow'), grokAuto = $('#grok-auto');
+    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved'), follow = $('#follow'), grokAuto = $('#grok-auto'), xShot = $('#x-shot'), exportImages = $('#export-images');
     target.innerHTML = Object.entries(R.TARGETS).map(([k, v]) => `<option value="${k}">${E.esc(v.label)}</option>`).join('');
     const load = async () => {
       const st = (await chrome.storage.local.get('settings')).settings || {};
       uiMode.value = st.ui || 'panel';
       follow.checked = st.follow !== false;
       grokAuto.checked = st.grokAutoSave !== false;
+      xShot.checked = st.xScreenshot !== false;
+      exportImages.checked = st.exportImages !== false;
       target.value = st.researchTarget || 'x';
       tpl.value = st.researchTemplate || R.DEFAULT_TEMPLATE;
     };
@@ -195,6 +198,8 @@
     uiMode.addEventListener('change', () => patch({ ui: uiMode.value }));
     follow.addEventListener('change', () => patch({ follow: follow.checked }));
     grokAuto.addEventListener('change', () => patch({ grokAutoSave: grokAuto.checked }));
+    xShot.addEventListener('change', () => patch({ xScreenshot: xShot.checked }));
+    exportImages.addEventListener('change', () => patch({ exportImages: exportImages.checked }));
     target.addEventListener('change', () => patch({ researchTarget: target.value }));
     let tplTimer = null;
     tpl.addEventListener('input', () => { clearTimeout(tplTimer); tplTimer = setTimeout(() => patch({ researchTemplate: tpl.value }), 500); });

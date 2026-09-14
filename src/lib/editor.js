@@ -80,6 +80,8 @@
 .ne-etext{margin-top:3px;white-space:pre-wrap;word-break:break-word}
 .ne-etext a{word-break:break-all}
 .ne-entry textarea{margin-top:4px}
+.ne-eimg{margin-top:6px}
+.ne-eimg img{display:block;max-width:100%;max-height:260px;border:1px solid var(--ne-line);border-radius:8px;cursor:zoom-in;background:#000}
 .ne-empty{color:var(--ne-fg3);font-size:12px;padding:8px 0 4px 30px}
 .ne-foot{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--ne-line);font-size:11px;color:var(--ne-fg3);background:var(--ne-bg2);white-space:nowrap}
 .ne-foot .ne-spacer{flex:1}
@@ -294,9 +296,16 @@
               <button class="ghost ne-edel" type="button" title="${esc(t('delete_entry'))}">×</button>
             </span>
           </div>
-          <div class="ne-etext">${linkify(e.text)}</div>`;
+          <div class="ne-etext">${linkify(e.text)}</div>
+          ${e.image ? `<div class="ne-eimg"><img alt="${esc(t('image_alt'))}" title="${esc(t('open_image'))}" loading="lazy"></div>` : ''}`;
+        if (e.image) {
+          const img = li.querySelector('.ne-eimg img');
+          S.getImage(e.image).then(rec => { if (rec && rec.data) img.src = rec.data; else img.parentElement.remove(); }).catch(() => img.parentElement.remove());
+          img.addEventListener('click', () => { try { chrome.runtime.sendMessage({ type: 'noted:open-viewer', id: e.image }); } catch (_) {} });
+        }
         li.querySelector('.ne-edel').addEventListener('click', () => {
           project.timeline = project.timeline.filter(x => x.id !== e.id);
+          if (e.image) S.removeImages([e.image]).catch(() => {});
           renderTimeline(); commit();
         });
         li.querySelector('.ne-eedit').addEventListener('click', () => beginEdit(li, e));
@@ -405,6 +414,7 @@
       if (!persisted) { opts.onClose && opts.onClose(); return; }
       if (!confirm(t('confirm_delete', { name: project.symbol || project.address }))) return;
       clearTimeout(saveTimer);
+      await S.removeImages(project.timeline.map(e => e.image).filter(Boolean)).catch(() => {});
       await S.remove(project.key);
       persisted = false;
       opts.onDelete && opts.onDelete(project);

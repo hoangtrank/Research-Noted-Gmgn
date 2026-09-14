@@ -28,6 +28,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Dashboard: full-text search, filter by tag / status / pinned, sort, edit in place, add by gmgn URL.
     • Export/import JSON for backup, export Markdown to feed an AI.
     • Research with Grok: one click opens Grok with a prompt built from your template (symbol, contract, market cap); the answer is saved into the token's timeline automatically (with Undo), or manually.
+    • Save X posts: a ✎ button on every post saves text, author and link into a project's timeline; right-click or Alt+S also captures a screenshot of the post.
     • Interface in English, Vietnamese and Chinese.
 
     Your data stays on your device. No server, no tracking, no account.
@@ -121,7 +122,9 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 | Host permission `gmgn.ai` (content script) | Adds the note button next to each token link on gmgn.ai and shows the note indicator/tooltip inline. |
 | Host permission `dexscreener.com` (content script) | Adds the note button next to each pair link on DexScreener and shows the note indicator/tooltip inline. |
 | Host permission `api.dexscreener.com` | DexScreener links identify trading pairs, not tokens. The extension calls DexScreener's public API to resolve a pair address to its token (symbol, address, market cap) so the note uses the same key as on gmgn.ai. No user data is sent; results are cached locally. |
-| Host permissions `x.com/i/grok`, `twitter.com/i/grok`, `grok.com` (content script) | Adds a "Save to Research-Noted-Gmgn" panel on Grok pages so the user can save Grok's research answer into the token's note. It only reads the answer text the user chooses to save; nothing is sent anywhere. |
+| Host permissions `x.com`, `twitter.com`, `grok.com` (content scripts) | On Grok pages: a "Save to Research-Noted-Gmgn" panel so the user can save Grok's research answer into the token's note. On the X feed: a ✎ button on each post to save the post's text, author and link into a note. Only content the user chooses to save is read; nothing is sent anywhere. |
+| `contextMenus` | Adds a "Save post with screenshot" item to the right-click menu on X posts. Selecting it grants activeTab so the visible post can be captured. |
+| `activeTab` (also) | Used with the context-menu item / Alt+S to capture the visible area of the tab once, crop it to the post and store it locally as the note's screenshot. |
 
 **Remote code**: No, I am not using remote code.
 

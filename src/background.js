@@ -10,6 +10,8 @@ const DEX_CACHE_KEY = 'dex:pairs';
 const DEX_API = 'https://api.dexscreener.com';
 const pageTokens = new Map(); // tabId -> token đang xem (content script báo), dùng cho phím tắt trên site không có token trong URL
 const GROK_HOSTS = ['x.com', 'twitter.com', 'grok.com'];
+const X_HOSTS = ['x.com', 'twitter.com'];
+const X_MENU_ID = 'noted-save-post';
 
 // Token gửi qua message phải hợp lệ (chain/address chuẩn hoá được) trước khi dùng làm khoá.
 function validToken(t) {
@@ -171,6 +173,43 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
     }
+    // ---- Lưu bài trên X (chữ + link, tuỳ chọn ảnh chụp) ----
+    case 'noted:x-saved-ids': { // tweetId -> {key, entryId, symbol} suy từ timeline (không cần chỉ mục riêng)
+      NotedStore.getAll().then(all => {
+        const map = {};
+        for (const p of all) for (const e of p.timeline) if (e.source === 'x' && e.tweetId) map[e.tweetId] = { key: p.key, entryId: e.id, symbol: p.symbol };
+        sendResponse(map);
+      });
+      return true;
+    }
+    case 'noted:x-save': {
+      if (!fromHost(sender, X_HOSTS)) { sendResponse({ ok: false, reason: 'host' }); return; }
+      xSave(msg, sender).then(sendResponse).catch(err => sendResponse({ ok: false, reason: String(err && err.message) }));
+      return true;
+    }
+    case 'noted:x-unsave': {
+      if (!fromHost(sender, X_HOSTS)) { sendResponse({ ok: false }); return; }
+      (async () => {
+        const token = validToken(parseKey(msg.key));
+        const id = String(msg.entryId || '');
+        if (!token || !id) { sendResponse({ ok: false }); return; }
+        const p = await NotedStore.get(token.key);
+        if (!p) { sendResponse({ ok: false }); return; }
+        const entry = p.timeline.find(e => e.id === id && e.source === 'x');
+        if (!entry) { sendResponse({ ok: true, removed: 0 }); return; }
+        p.timeline = p.timeline.filter(e => e !== entry);
+        if (entry.image) await NotedStore.removeImages([entry.image]);
+        await NotedStore.save(p);
+        sendResponse({ ok: true, removed: 1 });
+      })();
+      return true;
+    }
+    case 'noted:open-viewer': {
+      const id = String(msg.id || '');
+      if (NotedStore.IMG_RE.test(id)) chrome.tabs.create({ url: chrome.runtime.getURL(`src/viewer/viewer.html?img=${encodeURIComponent(id)}`) });
+      sendResponse({ ok: true });
+      return;
+    }
     case 'noted:recent-projects': {
       NotedStore.getAll().then(all => {
         all.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -181,8 +220,33 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
+// Menu chuột phải trên X: chọn menu = "gọi" extension nên Chrome cấp activeTab -> được phép chụp màn hình tab này.
+function installMenu() {
+  try {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: X_MENU_ID, title: 'Save post with screenshot to Research-Noted-Gmgn',
+        contexts: ['page', 'link', 'image', 'selection', 'video'],
+        documentUrlPatterns: ['https://x.com/*', 'https://twitter.com/*'],
+      }, () => void chrome.runtime.lastError);
+    });
+  } catch (_) {}
+}
+chrome.runtime.onInstalled.addListener(installMenu);
+chrome.runtime.onStartup.addListener(installMenu);
+installMenu();
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== X_MENU_ID || !tab || !tab.id) return;
+  chrome.tabs.sendMessage(tab.id, { type: 'noted:x-context', reason: 'menu' }).catch(() => {});
+});
+
 // Alt+N: tab được truyền sẵn nên không cần tabs.query (giữ được user gesture cho sidePanel.open).
 chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === 'save-post' && tab && tab.id) { // Alt+S trên X: lưu bài đang rê chuột, kèm ảnh (phím tắt cấp activeTab)
+    chrome.tabs.sendMessage(tab.id, { type: 'noted:x-context', reason: 'shortcut' }).catch(() => {});
+    return;
+  }
   if (command !== 'toggle-note' || !tab || !tab.id) return;
   const token = NotedStore.parseTokenUrl(tab.url || '') || pageTokens.get(tab.id) || null;
   if (!token) {
@@ -196,6 +260,60 @@ chrome.tabs.onRemoved.addListener(tabId => {
   pageTokens.delete(tabId);
   chrome.storage.session.remove([SESSION_PREFIX + tabId, GROK_PREFIX + tabId]).catch(() => {});
 });
+
+// ---- Lưu bài X: kiểm tra, chụp màn hình (cần activeTab), cắt và thu nhỏ bằng OffscreenCanvas, lưu ảnh + mốc ----
+function parseKey(key) {
+  const s = String(key || '');
+  const i = s.indexOf(':');
+  return i > 0 ? { chain: s.slice(0, i), address: s.slice(i + 1) } : null;
+}
+
+const IMG_MAX_W = 1000;
+
+async function captureCrop(windowId, c) {
+  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+  const bmp = await createImageBitmap(await (await fetch(dataUrl)).blob());
+  const dpr = Math.max(1, Number(c.dpr) || 1);
+  const sx = Math.max(0, Math.round(c.x * dpr)), sy = Math.max(0, Math.round(c.y * dpr));
+  const sw = Math.max(1, Math.min(bmp.width - sx, Math.round(c.w * dpr))), sh = Math.max(1, Math.min(bmp.height - sy, Math.round(c.h * dpr)));
+  const outW = Math.min(sw, IMG_MAX_W), outH = Math.max(1, Math.round(sh * outW / sw));
+  const canvas = new OffscreenCanvas(outW, outH);
+  canvas.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, outW, outH);
+  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return { data: `data:image/jpeg;base64,${btoa(bin)}`, w: outW, h: outH, bytes: bytes.length };
+}
+
+async function xSave(msg, sender) {
+  const token = validToken(parseKey(msg.key));
+  if (!token) return { ok: false, reason: 'key' };
+  const tw = msg.tweet || {};
+  const tweetId = /^\d{1,30}$/.test(String(tw.id || '')) ? String(tw.id) : '';
+  const text = String(tw.text || '').slice(0, 20000);
+  const url = /^https:\/\/(x|twitter)\.com\/[A-Za-z0-9_]{1,20}\/status\/\d{1,30}$/.test(String(tw.url || '')) ? String(tw.url) : '';
+  const author = String(tw.author || '').slice(0, 80);
+  const when = String(tw.time || '').slice(0, 40);
+  const type = NotedStore.ENTRY_TYPES.some(x => x.id === msg.entryType) ? msg.entryType : 'news';
+  let p = await NotedStore.get(token.key);
+  if (!p) return { ok: false, reason: 'project' };
+  const existing = tweetId ? p.timeline.find(e => e.source === 'x' && e.tweetId === tweetId) : null;
+  if (existing) return { ok: true, duplicate: true, key: p.key, symbol: p.symbol, entryId: existing.id };
+  let image = null, imageError = '';
+  if (msg.capture && sender.tab) {
+    try {
+      const shot = await captureCrop(sender.tab.windowId, msg.capture);
+      image = `img_${NotedStore.uid()}`;
+      await chrome.storage.local.set({ [`img:${image}`]: { data: shot.data, w: shot.w, h: shot.h, ts: Date.now() } });
+    } catch (err) { imageError = String(err && err.message || err); image = null; }
+  }
+  const body = [`${author}${when ? ` · ${when}` : ''}`.trim(), text, url].filter(Boolean).join('\n\n');
+  const entry = NotedStore.newEntry(type, body, { source: 'x', ...(tweetId ? { tweetId } : {}), ...(image ? { image } : {}) });
+  p.timeline.push(entry);
+  p = await NotedStore.save(p);
+  return { ok: true, key: p.key, symbol: p.symbol, entryId: entry.id, image, imageError };
+}
 
 // ---- DexScreener: đổi địa chỉ pair -> token qua API công khai (không cần key), cache vĩnh viễn trong storage.local ----
 const QUOTE_SYMBOLS = new Set(['SOL', 'WSOL', 'USDC', 'USDT', 'USDC.E', 'USDBC', 'WETH', 'ETH', 'WBNB', 'BNB', 'DAI', 'WAVAX', 'AVAX', 'WMATIC', 'MATIC', 'POL', 'WBTC', 'BTC', 'WHYPE', 'HYPE', 'SUI', 'WTRX', 'TRX', 'FDUSD', 'USD1', 'CBBTC', 'WOKB', 'OKB', 'WBLAST', 'WMON', 'MON']);

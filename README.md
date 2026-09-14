@@ -31,7 +31,13 @@ Works on every chain gmgn supports (`sol`, `eth`, `base`, `bsc`, `robinhood`, `x
 3. On the Grok page a small **Research-Noted-Gmgn** panel appears at the bottom right. Once Grok finishes answering (the text has stopped changing for ~3 s), the answer is **saved automatically** into the token's timeline; the panel shows "Auto-saved" with an **Undo** link. Follow-up answers in the same conversation are saved as new entries; identical content is never saved twice. You can still **Capture last answer** or select text and **Use selected text** to save something specific.
 4. Entries are of type *Research* and carry a link back to the Grok conversation. If you opened Grok by hand, the panel lets you pick a recent project or paste a gmgn token URL to link it; auto-save only applies to tabs opened from a note (so it never guesses on an unrelated page).
 
-The template, the target (Grok on X / grok.com), auto-save and the follow-the-page toggle live in **Dashboard → ⚙ Settings** (auto-save can also be toggled on the Grok panel itself). Placeholders: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}`. No API key is needed; Grok runs in your own X account, and only the answer text you choose to save is stored, locally.
+The template, the target (Grok on X / grok.com), auto-save and the follow-the-page toggle live in **Dashboard → ⚙ Settings** (auto-save can also be toggled on the Grok panel itself).
+
+## Save X posts (with screenshot)
+
+Every post on x.com gets a small **✎** button in its action bar. Click it, pick the project (posts mentioning a `$SYMBOL` or a contract address you have noted are suggested first), choose the entry type, and save. The entry stores author, time, text and the post link.
+
+Screenshots need a user gesture that Chrome recognises as "invoking the extension", so for a screenshot use **right-click on the post → "Save post with screenshot to Research-Noted-Gmgn"** or press **Alt+S** while hovering the post. After one such gesture on a tab, the ✎ button can capture too until you navigate away. The screenshot is the visible part of the post (Chrome captures the viewport), scaled to at most 1000 px wide as JPEG (~60–150 KB), stored locally under its own key and shown as a thumbnail in the timeline; click it to open the viewer. JSON export includes screenshots by default (toggle in Settings). Placeholders: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}`. No API key is needed; Grok runs in your own X account, and only the answer text you choose to save is stored, locally.
 
 ## Install (load unpacked)
 
@@ -64,7 +70,9 @@ src/content/core.js      Shared content-script core: injects buttons, tooltip, f
 src/content/sites/gmgn.js        Site adapter: tokens from /{chain}/token/{address} links (+ g-table data-row-key fallback)
 src/content/sites/dexscreener.js Site adapter: pair links /{chain}/{pair}, resolved to tokens via the background (DexScreener API, cached)
 src/content/badge.css    Styles for the injected button (light DOM)
-src/content/grok.js      Content script on x.com/i/grok and grok.com: "Save to Research-Noted-Gmgn" panel (capture / selection / link project)
+src/content/grok.js      Content script on x.com/i/grok and grok.com: "Save to Research-Noted-Gmgn" panel (auto-save, capture / selection / link project)
+src/content/x.js         Content script on x.com feed: ✎ button per post, project picker, save text/link (+ screenshot via right-click menu or Alt+S)
+src/viewer/              Screenshot viewer page
 src/lib/research.js      NotedResearch: prompt template, placeholders, deep links to Grok on X and grok.com
 src/panel/               Side Panel page (editor for the active tab's token)
 src/dashboard/           Dashboard (options page)
@@ -132,6 +140,8 @@ gmgn.ai and dexscreener.com were blocked in the environment where this extension
 | Content script on `dexscreener.com` | Add the note button next to each pair and show the note indicator inline |
 | Host permission `api.dexscreener.com` | Resolve a DexScreener pair address to its token (symbol, address, market cap) so notes share one key with gmgn |
 | Content script on `x.com/i/grok`, `grok.com` | Add the "Save to Research-Noted-Gmgn" panel on Grok pages so the research answer can be saved into the note |
+| Content script on `x.com`, `twitter.com` | Add the ✎ button to posts so a post can be saved into a note |
+| `contextMenus` | "Save post with screenshot" item on X posts; selecting it grants `activeTab` so the visible post can be captured with `captureVisibleTab` |
 
 ## Security
 
@@ -139,7 +149,6 @@ Threat model, mitigations and what leaves the device are documented in [SECURITY
 
 ## Roadmap ideas
 
-- **Capture from X:** a content script on x.com with a "Save to Research-Noted-Gmgn" button on each tweet.
 - **AI in the panel:** call the xAI / Claude / OpenAI API with the user's own key so the research answer appears inside the side panel without opening a tab.
 - **Multi-device sync:** a small backend (Supabase/Firebase) or JSON sync via Google Drive, keeping `chrome.storage.local` as cache.
 - **Reminders:** flag projects not reviewed for 14 days.
@@ -149,6 +158,7 @@ Threat model, mitigations and what leaves the device are documented in [SECURITY
 
 ```bash
 npm test            # Playwright e2e (uses Playwright's Chromium, no real gmgn needed)
+npm run test:capture   # screenshot pipeline (test-only copy of the extension with <all_urls>, since headless cannot grant activeTab)
 npm run icons       # regenerate icons
 npm run zip         # build the Web Store ZIP into dist/
 node test/store-shots.js   # regenerate 1280×800 store screenshots into docs/store/

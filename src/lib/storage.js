@@ -149,6 +149,8 @@
       };
       if (e.mc) entry.mc = str(e.mc, LIMITS.mc);
       if (e.source) entry.source = str(e.source, 20);
+      if (typeof e.image === 'string' && /^img_[A-Za-z0-9]{1,40}$/.test(e.image)) entry.image = e.image;
+      if (e.tweetId != null && /^\d{1,30}$/.test(String(e.tweetId))) entry.tweetId = String(e.tweetId);
       if (seen.has(entry.id)) entry.id = uid();
       seen.add(entry.id);
       out.timeline.push(entry);
@@ -194,10 +196,35 @@
     });
   }
 
-  async function exportJSON() {
+  const IMG_PREFIX = 'img:';
+  const IMG_RE = /^img_[A-Za-z0-9]{1,40}$/;
+  const IMG_DATA_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+  const IMG_MAX_BYTES = 2 * 1024 * 1024;
+
+  async function getImage(id) {
+    if (!IMG_RE.test(String(id || ''))) return null;
+    const r = await store.get(IMG_PREFIX + id);
+    return r[IMG_PREFIX + id] || null;
+  }
+
+  async function removeImages(ids) {
+    const keys = (ids || []).filter(id => IMG_RE.test(String(id || ''))).map(id => IMG_PREFIX + id);
+    if (keys.length) await store.remove(keys);
+  }
+
+  async function exportJSON(opts = {}) {
     const projects = await getAll();
     projects.sort((a, b) => b.updatedAt - a.updatedAt);
-    return { app: 'research-noted-gmgn', version: 1, exportedAt: new Date().toISOString(), projects };
+    const out = { app: 'research-noted-gmgn', version: 2, exportedAt: new Date().toISOString(), projects };
+    if (opts.images !== false) {
+      const ids = projects.flatMap(p => p.timeline.map(e => e.image).filter(Boolean));
+      if (ids.length) {
+        const r = await store.get(ids.map(id => IMG_PREFIX + id));
+        out.images = {};
+        for (const id of ids) if (r[IMG_PREFIX + id]) out.images[id] = r[IMG_PREFIX + id];
+      }
+    }
+    return out;
   }
 
   // Gộp dữ liệu import vào dữ liệu hiện có: bản mới hơn thắng, timeline được gộp theo id.
@@ -226,8 +253,17 @@
       }
       toWrite[PREFIX + result.key] = result;
     }
+    // Ảnh chụp kèm (nếu file export có): kiểm tra id, định dạng data URL và kích thước.
+    let images = 0;
+    if (data && data.images && typeof data.images === 'object') {
+      for (const [id, img] of Object.entries(data.images)) {
+        if (!IMG_RE.test(id) || !img || typeof img.data !== 'string' || img.data.length > IMG_MAX_BYTES * 1.4 || !IMG_DATA_RE.test(img.data)) continue;
+        toWrite[IMG_PREFIX + id] = { data: img.data, w: Number(img.w) || 0, h: Number(img.h) || 0, ts: Number(img.ts) || now() };
+        images++;
+      }
+    }
     if (Object.keys(toWrite).length) await store.set(toWrite);
-    return { added, merged, skipped };
+    return { added, merged, skipped, images };
   }
 
   function fmtDate(ts) {
@@ -264,7 +300,7 @@
     PREFIX, STATUSES, ENTRY_TYPES, CHAIN_LABELS,
     keyOf, normalizeChain, normalizeAddress, parseTokenUrl, tokenUrl, chainLabel, shortAddress, statusLabel, entryLabel,
     emptyProject, sanitize, newEntry, uid,
-    get, getAll, save, remove, onChange,
+    get, getAll, save, remove, onChange, getImage, removeImages, IMG_RE,
     exportJSON, importJSON, toMarkdown, fmtDate,
   };
 })();
