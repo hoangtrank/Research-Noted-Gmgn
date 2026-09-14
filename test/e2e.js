@@ -192,6 +192,18 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
     return NotedStore.importJSON(data);
   }, json);
   assert(r.added === 1 && r.merged === 1, `import gộp: ${JSON.stringify(r)}`);
+  const bad = await dash.evaluate(async () => NotedStore.importJSON({ projects: [
+    { chain: '<img onerror=x>', address: '0xaa40e79e987517f7462bf79315b8a118799b04e3', symbol: 'EVIL' },
+    { chain: 'sol', address: 'not-an-address', symbol: 'EVIL2' },
+    { chain: 'base', address: '0x9999999999999999999999999999999999999999', symbol: 'x'.repeat(500), name: { a: 1 }, tags: ['<b>t</b>', 42], rating: 99, status: 'hacked', timeline: [{ text: 'ok', type: 'weird', id: '<script>' }, { text: 123 }, 'junk'], __proto__: { polluted: true } },
+  ] }));
+  assert(bad.added === 1 && bad.skipped === 2, 'import: bản ghi chain/address hỏng bị bỏ, bản ghi lạ được chuẩn hoá: ' + JSON.stringify(bad));
+  const norm = await dash.evaluate(async () => NotedStore.get('base:0x9999999999999999999999999999999999999999'));
+  assert(norm.symbol.length === 32 && norm.name === '[object Object]' && norm.tags.join(',') === '<b>t</b>,42' && norm.rating === 5 && norm.status === 'watching' && norm.timeline.length === 1 && norm.timeline[0].type === 'note' && norm.timeline[0].id !== '<script>', 'sanitize ép kiểu, giới hạn độ dài, id/type/status hợp lệ');
+  assert(({}).polluted === undefined, 'không bị prototype pollution qua import');
+  await dash.evaluate(async () => NotedStore.remove('base:0x9999999999999999999999999999999999999999'));
+  const cardHtml = await dash.evaluate(async () => { await new Promise(r => setTimeout(r, 300)); return document.querySelector('#list').innerHTML; });
+  assert(!cardHtml.includes('<b>t</b>') , 'tag chứa HTML được escape khi hiển thị');
   const after = await dash.evaluate(async k => (await NotedStore.get(k)).timeline.length, PROLOG);
   assert(after === 4, 'timeline sau import gộp = 4');
 
@@ -275,6 +287,12 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(entry.text.includes('Source: https://x.com/i/grok?conversation=1234567890'), 'kèm link cuộc trò chuyện, không kèm prompt dài');
   await grok.setViewportSize({ width: 1280, height: 800 });
   await grok.screenshot({ path: path.join(OUT, '6-grok-save.png') });
+  const dashPromise = ctx.waitForEvent('page');
+  await gclick('.opendash');
+  const dash2 = await dashPromise;
+  await dash2.waitForTimeout(600);
+  assert(dash2.url().includes('/src/dashboard/dashboard.html?open=robinhood%3A0xaa40'), '"Open in Dashboard" mở qua background: ' + dash2.url());
+  await dash2.close();
   await grok.close();
 
   console.log('13) Grok mở tay (chưa gắn token): gắn dự án rồi lưu phần bôi đen');

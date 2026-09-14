@@ -113,21 +113,46 @@
     };
   }
 
+  const LIMITS = { symbol: 32, name: 200, summary: 20000, tag: 40, tags: 50, entryText: 20000, entries: 5000, mc: 24 };
+  const str = (v, max) => (v == null ? '' : String(v)).slice(0, max);
+  const num = (v, fallback) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : fallback; };
+
+  // Chuẩn hoá một bản ghi (từ storage hoặc file import): chain/address phải hợp lệ, mọi trường ép về đúng kiểu
+  // và giới hạn độ dài. Trả về null nếu bản ghi không dùng được (khoá không hợp lệ).
   function sanitize(p) {
-    // Đảm bảo dữ liệu import/cũ luôn có đủ trường.
-    const base = emptyProject(p.chain, p.address);
-    const out = { ...base, ...p };
-    out.key = keyOf(out.chain, out.address);
-    out.tags = Array.isArray(out.tags) ? out.tags.map(t => String(t).trim().toLowerCase()).filter(Boolean) : [];
-    out.timeline = Array.isArray(out.timeline) ? out.timeline.filter(e => e && typeof e.text === 'string') : [];
-    for (const e of out.timeline) {
-      if (!e.id) e.id = uid();
-      if (!e.ts) e.ts = out.updatedAt || now();
-      if (!e.type) e.type = 'note';
+    if (!p || typeof p !== 'object') return null;
+    const chain = normalizeChain(p.chain);
+    const address = normalizeAddress(p.address);
+    if (!/^[a-z0-9-]{2,20}$/.test(chain) || !address) return null;
+    const base = emptyProject(chain, address);
+    const out = {
+      key: keyOf(chain, address), chain, address,
+      symbol: str(p.symbol, LIMITS.symbol).trim(),
+      name: str(p.name, LIMITS.name).trim(),
+      summary: str(p.summary, LIMITS.summary),
+      tags: (Array.isArray(p.tags) ? p.tags : []).map(t => str(t, LIMITS.tag).trim().toLowerCase()).filter(Boolean).slice(0, LIMITS.tags),
+      pinned: !!p.pinned,
+      status: STATUSES.some(s => s.id === p.status) ? p.status : 'watching',
+      rating: Math.max(0, Math.min(5, Math.round(Number(p.rating) || 0))),
+      timeline: [],
+      createdAt: num(p.createdAt, base.createdAt),
+      updatedAt: num(p.updatedAt, base.updatedAt),
+    };
+    const seen = new Set();
+    for (const e of (Array.isArray(p.timeline) ? p.timeline : []).slice(0, LIMITS.entries)) {
+      if (!e || typeof e !== 'object' || typeof e.text !== 'string') continue;
+      const entry = {
+        id: /^[A-Za-z0-9_-]{1,40}$/.test(String(e.id || '')) ? String(e.id) : uid(),
+        ts: num(e.ts, out.updatedAt),
+        type: ENTRY_TYPES.some(x => x.id === e.type) ? e.type : 'note',
+        text: str(e.text, LIMITS.entryText),
+      };
+      if (e.mc) entry.mc = str(e.mc, LIMITS.mc);
+      if (e.source) entry.source = str(e.source, 20);
+      if (seen.has(entry.id)) entry.id = uid();
+      seen.add(entry.id);
+      out.timeline.push(entry);
     }
-    out.rating = Math.max(0, Math.min(5, Number(out.rating) || 0));
-    out.pinned = !!out.pinned;
-    if (!STATUSES.some(s => s.id === out.status)) out.status = 'watching';
     return out;
   }
 
@@ -141,11 +166,13 @@
     const r = await store.get(null);
     return Object.keys(r)
       .filter(k => k.startsWith(PREFIX))
-      .map(k => sanitize(r[k]));
+      .map(k => sanitize(r[k]))
+      .filter(Boolean);
   }
 
   async function save(project) {
     const p = sanitize(project);
+    if (!p) throw new Error('Invalid project (chain/address).');
     p.updatedAt = now();
     await store.set({ [PREFIX + p.key]: p });
     return p;
@@ -180,10 +207,10 @@
     const existingList = await getAll();
     const existing = new Map(existingList.map(p => [p.key, p]));
     const toWrite = {};
-    let added = 0, merged = 0;
+    let added = 0, merged = 0, skipped = 0;
     for (const raw of incoming) {
-      if (!raw || !raw.chain || !raw.address) continue;
-      const inc = sanitize({ ...raw, chain: normalizeChain(raw.chain), address: normalizeAddress(raw.address) || raw.address });
+      const inc = sanitize(raw);
+      if (!inc) { skipped++; continue; }
       const cur = existing.get(inc.key);
       let result;
       if (!cur) { result = inc; added++; }
@@ -200,7 +227,7 @@
       toWrite[PREFIX + result.key] = result;
     }
     if (Object.keys(toWrite).length) await store.set(toWrite);
-    return { added, merged };
+    return { added, merged, skipped };
   }
 
   function fmtDate(ts) {

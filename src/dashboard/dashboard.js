@@ -200,10 +200,11 @@
   }
 
   reload().then(() => {
-    const open = new URLSearchParams(location.search).get('open');
-    if (open) {
-      const [chain, address] = open.split(':');
-      if (chain && address) select({ chain, address, key: S.keyOf(chain, address) });
+    const open = new URLSearchParams(location.search).get('open') || '';
+    const i = open.indexOf(':');
+    if (i > 0) {
+      const chain = S.normalizeChain(open.slice(0, i)), address = S.normalizeAddress(open.slice(i + 1));
+      if (/^[a-z0-9-]{2,20}$/.test(chain) && address) select({ chain, address, key: S.keyOf(chain, address) });
     }
   });
 })();

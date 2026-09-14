@@ -9,6 +9,16 @@ const GROK_PREFIX = 'grok:';
 const DEX_CACHE_KEY = 'dex:pairs';
 const DEX_API = 'https://api.dexscreener.com';
 const pageTokens = new Map(); // tabId -> token đang xem (content script báo), dùng cho phím tắt trên site không có token trong URL
+const GROK_HOSTS = ['x.com', 'twitter.com', 'grok.com'];
+
+// Token gửi qua message phải hợp lệ (chain/address chuẩn hoá được) trước khi dùng làm khoá.
+function validToken(t) {
+  if (!t || typeof t !== 'object') return null;
+  const chain = NotedStore.normalizeChain(t.chain);
+  const address = NotedStore.normalizeAddress(t.address);
+  if (!/^[a-z0-9-]{2,20}$/.test(chain) || !address) return null;
+  return { chain, address, key: NotedStore.keyOf(chain, address) };
+}
 let uiMode = 'panel';  // 'panel' | 'drawer' (cache của settings.ui, vì handler phím tắt không được await trước sidePanel.open)
 let follow = true;     // settings.follow: Side Panel tự chuyển sang token của trang đang xem
 
@@ -21,6 +31,12 @@ chrome.storage.local.get('settings').then(r => applySettings(r.settings));
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) applySettings(changes.settings.newValue);
 });
+
+// Content script chỉ được gửi message "đúng vai": kiểm tra host của trang gửi.
+function fromHost(sender, hosts) {
+  if (!sender || !sender.tab) return false;
+  try { const h = new URL(sender.url || sender.origin || '').hostname; return hosts.some(x => h === x || h.endsWith('.' + x)); } catch (_) { return false; }
+}
 
 function notifyPanels(payload) {
   chrome.runtime.sendMessage(payload).catch(() => {});
@@ -49,15 +65,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg.type !== 'string') return;
   switch (msg.type) {
     case 'noted:open': {
-      const tabId = msg.tabId || (sender.tab && sender.tab.id);
-      if (!tabId || !msg.token) { sendResponse({ ok: false }); return; }
-      openNote({ tabId, token: msg.token, ctx: msg.ctx || {}, mode: msg.mode, fromContent: !!sender.tab }, sendResponse);
+      // Message từ content script: luôn dùng tab của chính nó (không cho chỉ định tab khác); từ popup/panel: dùng msg.tabId.
+      const tabId = sender.tab ? sender.tab.id : Number(msg.tabId) || null;
+      const token = validToken(msg.token);
+      if (!tabId || !token) { sendResponse({ ok: false }); return; }
+      const c = msg.ctx || {};
+      openNote({ tabId, token, ctx: { symbol: String(c.symbol || '').slice(0, 32), mc: c.mc ? String(c.mc).slice(0, 24) : null }, mode: msg.mode, fromContent: !!sender.tab }, sendResponse);
       return true; // trả lời bất đồng bộ
     }
-    case 'noted:open-dashboard':
-      chrome.runtime.openOptionsPage();
+    case 'noted:open-dashboard': {
+      // Trang web không được mở URL chrome-extension:// nên content script nhờ background mở (có thể kèm ?open=key).
+      const key = typeof msg.key === 'string' && /^[a-z0-9-]{2,20}:[A-Za-z0-9_.:-]{20,90}$/.test(msg.key) ? msg.key : '';
+      if (key) chrome.tabs.create({ url: chrome.runtime.getURL(`src/dashboard/dashboard.html?open=${encodeURIComponent(key)}`) });
+      else chrome.runtime.openOptionsPage();
       sendResponse({ ok: true });
       return;
+    }
     // ---- Research với Grok ----
     case 'noted:open-grok': { // mở tab Grok với prompt điền sẵn, nhớ token cho tab đó
       const url = NotedResearch.urlFor(msg.target, msg.prompt || '');
@@ -68,14 +91,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
     }
     case 'noted:grok-context': { // content script trên Grok hỏi tab này đang research token nào
-      const tabId = sender.tab && sender.tab.id;
+      const tabId = fromHost(sender, GROK_HOSTS) ? sender.tab.id : null;
       if (!tabId) { sendResponse(null); return; }
       chrome.storage.session.get(GROK_PREFIX + tabId).then(r => sendResponse(r[GROK_PREFIX + tabId] || null));
       return true;
     }
     case 'noted:grok-link': { // gắn tay tab Grok với một dự án
-      const tabId = sender.tab && sender.tab.id;
-      const token = msg.token;
+      const tabId = fromHost(sender, GROK_HOSTS) ? sender.tab.id : null;
+      const token = validToken(msg.token);
       if (!tabId || !token) { sendResponse({ ok: false }); return; }
       (async () => {
         const p = await NotedStore.get(token.key);
@@ -86,7 +109,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
     }
     case 'noted:grok-save': { // lưu câu trả lời vào timeline của token gắn với tab
-      const tabId = sender.tab && sender.tab.id;
+      const tabId = fromHost(sender, GROK_HOSTS) ? sender.tab.id : null;
       (async () => {
         const r = tabId ? await chrome.storage.session.get(GROK_PREFIX + tabId) : {};
         const m = r[GROK_PREFIX + tabId];
@@ -105,21 +128,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'noted:page-token': { // content script báo token của trang hiện tại
       const tabId = sender.tab && sender.tab.id;
       if (!tabId) { sendResponse({ ok: false }); return; }
-      if (msg.token) pageTokens.set(tabId, msg.token); else pageTokens.delete(tabId);
+      const token = validToken(msg.token);
+      if (token) pageTokens.set(tabId, token); else pageTokens.delete(tabId);
       // Theo dõi trang: nếu panel của tab này đã từng mở thì chuyển sang token mới (không tự mở panel).
-      if (follow && msg.token) {
+      if (follow && token) {
         chrome.storage.session.get(SESSION_PREFIX + tabId).then(async r => {
           const cur = r[SESSION_PREFIX + tabId];
           if (!cur) return;
-          const ctx = { ...(cur.token && cur.token.key === msg.token.key ? cur.ctx : {}), ...(msg.ctx || {}) };
-          if (!ctx.symbol && cur.token && cur.token.key === msg.token.key && cur.ctx) ctx.symbol = cur.ctx.symbol || '';
-          await remember(tabId, msg.token, ctx);
+          const c = msg.ctx || {};
+          const ctx = { ...(cur.token && cur.token.key === token.key ? cur.ctx : {}), symbol: String(c.symbol || '').slice(0, 32), mc: c.mc ? String(c.mc).slice(0, 24) : null };
+          if (!ctx.symbol && cur.token && cur.token.key === token.key && cur.ctx) ctx.symbol = cur.ctx.symbol || '';
+          await remember(tabId, token, ctx);
         }).catch(() => {});
       }
       sendResponse({ ok: true });
       return;
     }
-    case 'noted:dex-resolve': { // pair DexScreener -> token
+    case 'noted:dex-resolve': { // pair DexScreener -> token (chỉ nhận từ content script trên dexscreener.com)
+      if (!fromHost(sender, ['dexscreener.com'])) { sendResponse({ ok: false, results: {}, reasons: {} }); return; }
       dexResolve(String(msg.chain || '').toLowerCase(), Array.isArray(msg.addresses) ? msg.addresses : [])
         .then(r => sendResponse({ ok: true, results: r.results, reasons: r.reasons }))
         .catch(err => sendResponse({ ok: false, error: String(err && err.message), results: {}, reasons: {} }));

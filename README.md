@@ -133,6 +133,10 @@ gmgn.ai and dexscreener.com were blocked in the environment where this extension
 | Host permission `api.dexscreener.com` | Resolve a DexScreener pair address to its token (symbol, address, market cap) so notes share one key with gmgn |
 | Content script on `x.com/i/grok`, `grok.com` | Add the "Save to Research-Noted-Gmgn" panel on Grok pages so the research answer can be saved into the note |
 
+## Security
+
+Threat model, mitigations and what leaves the device are documented in [SECURITY.md](SECURITY.md). Short version: every value from a page or API is escaped before rendering, messages are validated and tab-scoped, imported JSON is sanitized, extension pages have a strict CSP, and notes never leave `chrome.storage.local`.
+
 ## Roadmap ideas
 
 - **Capture from X:** a content script on x.com with a "Save to Research-Noted-Gmgn" button on each tweet.

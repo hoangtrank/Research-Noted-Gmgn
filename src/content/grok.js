@@ -111,10 +111,11 @@ input{flex:1 1 160px}
     u.searchParams.delete('text'); u.searchParams.delete('q');
     chrome.runtime.sendMessage({ type: 'noted:grok-save', text, url: u.toString(), sourceLabel: t('grok_source') }, res => {
       if (chrome.runtime.lastError || !res || !res.ok) { render.setStatus(t('grok_unlinked'), 'err'); return; }
-      const dash = chrome.runtime.getURL(`src/dashboard/dashboard.html?open=${encodeURIComponent(res.key)}`);
       const st = shadow.querySelector('.status');
       st.className = 'status ok';
-      st.innerHTML = `${esc(t('grok_saved', { symbol: res.symbol || S.shortAddress(ctxInfo.token.address) }))} · <a href="${dash}" target="_blank" rel="noopener">${esc(t('grok_open_dashboard'))}</a>`;
+      st.innerHTML = `${esc(t('grok_saved', { symbol: res.symbol || S.shortAddress(ctxInfo.token.address) }))} · <a href="#" class="opendash">${esc(t('grok_open_dashboard'))}</a>`;
+      // Trang web không được điều hướng tới chrome-extension://, nên nhờ background mở tab dashboard.
+      st.querySelector('.opendash').addEventListener('click', ev => { ev.preventDefault(); chrome.runtime.sendMessage({ type: 'noted:open-dashboard', key: res.key }); });
     });
   }
 

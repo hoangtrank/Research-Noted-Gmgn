@@ -305,6 +305,9 @@
   function onBadgeClick(b) {
     const container = b.closest(`[${ATTR}]`) || b.parentElement;
     const token = tokenOf(b);
+    const chain = S.normalizeChain(token.chain), address = S.normalizeAddress(token.address);
+    if (!/^[a-z0-9-]{2,20}$/.test(chain) || !address) return; // thuộc tính bị trang sửa -> bỏ qua
+    token.chain = chain; token.address = address; token.key = S.keyOf(chain, address);
     const p = cache.get(token.key);
     const ctx = A.clickContext ? A.clickContext(container, token) : { symbol: symbolFor(container), mc: captureMc(container) };
     if (!ctx.symbol) ctx.symbol = (p && p.symbol) || token.symbol || '';

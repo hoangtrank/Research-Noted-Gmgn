@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "minimum_chrome_version": "116",
   "default_locale": "en",
   "description": "__MSG_appDesc__",
@@ -20,6 +20,9 @@
   "host_permissions": [
     "https://api.dexscreener.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+  },
   "action": {
     "default_title": "__MSG_appName__",
     "default_popup": "src/popup/popup.html",
