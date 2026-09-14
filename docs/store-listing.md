@@ -1,5 +1,7 @@
 # Chrome Web Store listing — copy-paste texts
 
+> Review note: do not list chain names (Solana, Ethereum, BSC…) or other keyword lists in the description. The Store rejected a submission for "keyword stuffing" because of such a line.
+
 The Store lets you add one listing per language. Fill **English** first (default), then add Vietnamese and Chinese (Simplified) under "Store listing → Language".
 
 ## English (default)
@@ -26,7 +28,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Interface in English, Vietnamese and Chinese.
 
     Your data stays on your device. No server, no tracking, no account.
-    Works on every chain gmgn supports: Solana, Ethereum, Base, BSC, Robinhood, X Layer, Blast, Tron…
+    Works with every chain that gmgn.ai supports.
 
 **Category**: Productivity (or "Workflow & Planning" in the new console)
 
@@ -54,7 +56,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Giao diện tiếng Anh, tiếng Việt, tiếng Trung.
 
     Dữ liệu chỉ lưu trên máy bạn. Không máy chủ, không theo dõi, không tài khoản.
-    Hỗ trợ mọi chain gmgn có: Solana, Ethereum, Base, BSC, Robinhood, X Layer, Blast, Tron…
+    Hoạt động với mọi chain mà gmgn.ai hỗ trợ.
 
 ## 中文（简体）
 
@@ -80,7 +82,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • 界面支持英文、越南文、中文。
 
     数据只保存在你的设备上。没有服务器、没有跟踪、没有账号。
-    支持 gmgn 的所有链：Solana、Ethereum、Base、BSC、Robinhood、X Layer、Blast、Tron…
+    支持 gmgn.ai 上的所有链。
 
 ## Store icon and promo tile
 
