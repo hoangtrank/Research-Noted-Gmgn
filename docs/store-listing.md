@@ -18,7 +18,9 @@ The Store lets you add one listing per language. Fill **English** first (default
 
     Researching hundreds of tokens on gmgn.ai and can't remember what each project does? Research-Noted-Gmgn adds a note button right next to every token.
 
-    • ✎ button next to the symbol in every list (watchlist, trending, meme…). Yellow = has a note, orange = pinned. Hover to see the summary.
+    • ✎ button next to the symbol in every list on gmgn.ai and DexScreener (watchlist, trending and more). Yellow = has a note, orange = pinned. Hover to see the summary.
+    • The same token on gmgn and DexScreener shares one note.
+    • The side panel follows the token you open.
     • Notes open in Chrome's Side Panel, so nothing covers the gmgn page.
     • Per project: "What does this project do?", name, tags, status (watching / researching / holding / sold / passed / dead), conviction 1–5, pin.
     • Timeline: research, news, buy, sell, alerts, links. Pasted X/AI links become clickable. The market cap at the time of each entry is saved with it.
@@ -47,7 +49,9 @@ The Store lets you add one listing per language. Fill **English** first (default
 
     Bạn research hàng trăm token trên gmgn.ai và không còn nhớ dự án nào làm gì? Research-Noted-Gmgn thêm một nút ghi chú ngay cạnh mỗi token.
 
-    • Nút ✎ cạnh symbol trong mọi danh sách (theo dõi, trending, meme…). Vàng = đã ghi chú, cam = đã pin. Rê chuột là thấy tóm tắt.
+    • Nút ✎ cạnh symbol trong mọi danh sách trên gmgn.ai và DexScreener (theo dõi, trending…). Vàng = đã ghi chú, cam = đã pin. Rê chuột là thấy tóm tắt.
+    • Cùng một token trên gmgn và DexScreener dùng chung một ghi chú.
+    • Side panel tự chuyển theo token bạn đang mở.
     • Ghi chú mở trong Side Panel của Chrome, không che nội dung gmgn.
     • Mỗi dự án: "Dự án làm gì?", tên, tag, trạng thái (theo dõi / đang research / đang giữ / đã bán / bỏ qua / dead), mức tin tưởng 1–5, pin.
     • Timeline: research, tin tức, mua, bán, cảnh báo, link. Link X/AI dán vào tự thành link. Market cap tại lúc ghi được lưu kèm mỗi mốc.
@@ -74,7 +78,9 @@ The Store lets you add one listing per language. Fill **English** first (default
 
     在 gmgn.ai 研究了上百个代币，却记不住每个项目是做什么的？Research-Noted-Gmgn 在每个代币旁边添加一个笔记按钮。
 
-    • 每个列表（自选、热门、meme…）的代币符号旁都有 ✎ 按钮。黄色 = 已有笔记，橙色 = 已置顶。悬停即可查看摘要。
+    • gmgn.ai 和 DexScreener 上每个列表（自选、热门…）的代币符号旁都有 ✎ 按钮。黄色 = 已有笔记，橙色 = 已置顶。悬停即可查看摘要。
+    • 同一代币在 gmgn 和 DexScreener 上共享同一条笔记。
+    • 侧边栏会跟随你打开的代币。
     • 笔记在 Chrome 侧边栏中打开，不会遮挡 gmgn 页面。
     • 每个项目：「这个项目是做什么的？」、名称、标签、状态（观察中 / 研究中 / 持有中 / 已卖出 / 已放弃 / 归零）、信心 1–5、置顶。
     • 时间线：研究、新闻、买入、卖出、警告、链接。粘贴的 X/AI 链接可直接点击。每条记录都会保存当时的市值。
@@ -102,7 +108,7 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 
 **Single purpose**
 
-    Personal research notes for tokens/projects the user views on gmgn.ai: a note button next to each token, a timeline of notes per project, and a dashboard to search them. Everything is stored locally on the user's device.
+    Personal research notes for tokens/projects the user views on gmgn.ai and DexScreener: a note button next to each token, a timeline of notes per project, one-click research with Grok, and a dashboard to search them. Everything is stored locally on the user's device.
 
 **Permission justifications**
 
@@ -113,6 +119,8 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 | `activeTab` | When the user clicks the toolbar icon or presses Alt+N, reads the current tab's gmgn.ai URL to open the note for that token. |
 | `sidePanel` | Shows the note editor in Chrome's side panel so it does not cover the gmgn.ai page. |
 | Host permission `gmgn.ai` (content script) | Adds the note button next to each token link on gmgn.ai and shows the note indicator/tooltip inline. |
+| Host permission `dexscreener.com` (content script) | Adds the note button next to each pair link on DexScreener and shows the note indicator/tooltip inline. |
+| Host permission `api.dexscreener.com` | DexScreener links identify trading pairs, not tokens. The extension calls DexScreener's public API to resolve a pair address to its token (symbol, address, market cap) so the note uses the same key as on gmgn.ai. No user data is sent; results are cached locally. |
 | Host permissions `x.com/i/grok`, `twitter.com/i/grok`, `grok.com` (content script) | Adds a "Save to Research-Noted-Gmgn" panel on Grok pages so the user can save Grok's research answer into the token's note. It only reads the answer text the user chooses to save; nothing is sent anywhere. |
 
 **Remote code**: No, I am not using remote code.
@@ -122,7 +130,7 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose
 - I do not use or transfer user data to determine creditworthiness or for lending purposes
 
-**Privacy policy URL**: https://github.com/hoangtrank/noted/blob/main/PRIVACY.md
+**Privacy policy URL**: https://github.com/hoangtrank/Research-Noted-Gmgn/blob/main/PRIVACY.md
 (use the branch name instead of `main` if the file is not on `main` yet, e.g. `claude/gmgn-project-notes-extension-dgkfnb`)
 
 ## Distribution tab

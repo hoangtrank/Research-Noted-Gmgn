@@ -1,6 +1,6 @@
 # Research-Noted-Gmgn
 
-Chrome extension (Manifest V3) that adds a **✎ note** button next to every token on [gmgn.ai](https://gmgn.ai) so you can keep **timeline research notes** per project: what it does, tags, pin, status, conviction, and dated entries (research, news, buy, sell, alerts) with X / AI links.
+Chrome extension (Manifest V3) that adds a **✎ note** button next to every token on [gmgn.ai](https://gmgn.ai) and [dexscreener.com](https://dexscreener.com) so you can keep **timeline research notes** per project: what it does, tags, pin, status, conviction, dated entries (research, news, buy, sell, alerts) with X / AI links, and one-click research with Grok.
 
 The goal: when you research hundreds of projects, hovering the button next to a symbol instantly reminds you "what this does, what I found, at what market cap I bought".
 
@@ -14,14 +14,24 @@ UI languages: **English** (default), Tiếng Việt, 中文 — switchable in th
 
 | Where | What |
 |---|---|
-| Every token list on gmgn (watchlist, trending, meme, wallets…) | ✎ button right after the symbol. Violet = no note yet, yellow = has a note, orange 📌 = pinned; the number is the timeline length. Hover shows summary, tags and the latest entry. |
+| Every token list on gmgn (watchlist, trending, meme, wallets…) and every pair list on DexScreener (watchlist, screener, new pairs…) | ✎ button right after the symbol. Violet = no note yet, yellow = has a note, orange 📌 = pinned; the number is the timeline length. Hover shows summary, tags and the latest entry. |
 | Click the button | Opens Chrome's **Side Panel** on the right (outside the page: the browser shrinks gmgn instead of covering it; drag the edge to resize): symbol, one-line name, status, conviction 1–5, **What does this project do?**, tags, timeline. Autosaves. The market cap shown in the row is stored with each entry ("bought at MC $10.6M"). The popup can switch to an in-page overlay instead. |
-| Token page `/{chain}/token/{address}` | Floating button with symbol + summary; click it or press `Alt+N`. |
+| Token page on gmgn, pair page on DexScreener | Floating button with symbol + summary; click it or press `Alt+N`. |
+| **Side panel follows the page** | Once the panel is open in a tab, opening another token (clicking a watchlist row, a link, the address bar) switches the panel to that token. Toggle in Settings. |
 | Extension icon → Dashboard | All noted projects: full-text search (symbol / name / summary / tag / address / entries), filter by status / tag / pinned, sort, edit in place, add by gmgn URL. |
 | Export / import | JSON (backup, manual sync between machines) and Markdown (feed your whole research to an AI). |
 | **Research with Grok** | One button in the note builds a research prompt from an editable template (symbol, chain, contract, market cap, gmgn link) and opens Grok on X (or grok.com) with it prefilled. On the Grok page, a small Research-Noted-Gmgn panel captures the answer (last message, or your selection) and saves it into the token's timeline as a *Research* entry with a link back to the conversation. No API key, uses your own X account. |
 
-Works on every chain gmgn supports (`sol`, `eth`, `base`, `bsc`, `robinhood`, `xlayer`, `blast`, `tron`…): the storage key is `chain:address`, so the same token in the watchlist, trending or detail page points to one note.
+Works on every chain gmgn supports (`sol`, `eth`, `base`, `bsc`, `robinhood`, `xlayer`, `blast`, `tron`…): the storage key is `chain:address`, so the same token in the watchlist, trending or detail page points to one note. DexScreener links use *pair* addresses, so the extension resolves pair → token through DexScreener's public API and lands on the same key: a note written on gmgn shows up on DexScreener and vice versa.
+
+## Research with Grok
+
+1. Open a note (side panel, overlay or dashboard) and click **✨ Research with Grok**.
+2. The extension builds a prompt from your template with the token's symbol, chain, contract, current market cap and gmgn link, and opens Grok on X (or grok.com) in a new tab with the prompt prefilled. Press Enter.
+3. On the Grok page a small **Research-Noted-Gmgn** panel appears at the bottom right. After Grok answers, click **Capture last answer**, or select the text you want and click **Use selected text**. Edit if needed, then **Save to Research-Noted-Gmgn**.
+4. The answer lands in the token's timeline as a *Research* entry with a link back to the Grok conversation. If you opened Grok by hand, the panel lets you pick a recent project or paste a gmgn token URL to link it.
+
+The template, the target (Grok on X / grok.com) and the follow-the-page toggle live in **Dashboard → ⚙ Settings**. Placeholders: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}`. No API key is needed; Grok runs in your own X account, and only the answer text you choose to save is stored, locally.
 
 ## Install (load unpacked)
 
@@ -50,14 +60,16 @@ _locales/                en (default), vi, zh_CN: extension name, description, c
 src/lib/storage.js       NotedStore: data model, chrome.storage.local access, export/import, Markdown
 src/lib/i18n.js          NotedI18n: UI strings for en/vi/zh, language setting, helpers for static HTML
 src/lib/editor.js        NotedEditor: the note editor UI shared by the Side Panel, the in-page drawer and the dashboard
-src/content/gmgn.js      Content script: finds token links, injects buttons, tooltip, floating button; Shadow DOM drawer as fallback
-src/content/gmgn.css     Styles for the injected button (light DOM)
+src/content/core.js      Shared content-script core: injects buttons, tooltip, floating button, opens the side panel; Shadow DOM drawer as fallback
+src/content/sites/gmgn.js        Site adapter: tokens from /{chain}/token/{address} links (+ g-table data-row-key fallback)
+src/content/sites/dexscreener.js Site adapter: pair links /{chain}/{pair}, resolved to tokens via the background (DexScreener API, cached)
+src/content/badge.css    Styles for the injected button (light DOM)
 src/content/grok.js      Content script on x.com/i/grok and grok.com: "Save to Research-Noted-Gmgn" panel (capture / selection / link project)
 src/lib/research.js      NotedResearch: prompt template, placeholders, deep links to Grok on X and grok.com
 src/panel/               Side Panel page (editor for the active tab's token)
 src/dashboard/           Dashboard (options page)
 src/popup/               Toolbar popup: stats, note-this-token, view mode, language
-src/background.js        Service worker: opens the Side Panel, remembers the token per tab (storage.session), keyboard shortcut
+src/background.js        Service worker: opens the Side Panel, remembers the token per tab (storage.session), follow-the-page, keyboard shortcut, Grok tabs, DexScreener pair→token resolver
 scripts/make_icons.py    Dependency-free icon generator
 scripts/pack.py          Builds the Web Store ZIP (runtime files only)
 test/                    Mock gmgn pages + Playwright e2e test that loads the real extension
@@ -72,6 +84,8 @@ Key decisions:
 - **Editor in Chrome's Side Panel** (Chrome ≥ 116) rather than an overlay: gmgn's viewport is genuinely narrowed, its fixed header and trade panels stay visible, and the panel persists while switching tokens. The content script sends a message, the background calls `sidePanel.open()` inside the user gesture and remembers the token per tab in `storage.session`. If the panel cannot open (or the user chooses "Overlay" in the popup) a Shadow DOM drawer inside the page is used, with CSS isolated from gmgn.
 - The injected button stops `click/mousedown` propagation so the row's own navigation is not triggered.
 - **Research via deep link, not an embedded Grok.** x.com forbids framing and its login cookies would not work inside an extension page, so the extension opens Grok in a tab with the prompt in the URL (`x.com/i/grok?text=…`, `grok.com/?q=…`), remembers which token that tab is researching (`storage.session`, keyed by tab id), and a content script on the Grok page offers to save the answer back. The capture heuristic is DOM-agnostic: it picks the last minimal text block before the composer that does not contain the prompt, and the user can always select text manually.
+- **One core, one adapter per site.** `core.js` owns everything site-independent; an adapter only says how to find token elements, how to turn a link into a token (synchronously for gmgn, through an async resolver for DexScreener) and what the current page's token is. Adding a site is one small file plus a manifest entry.
+- **DexScreener pairs are resolved through the public DexScreener API** (`/latest/dex/pairs/{chain}/{addresses}`, batched by 30, with a fallback to `/latest/dex/tokens/` when the address is a token rather than a pair). Results are cached forever in `chrome.storage.local` (a pair never changes its token); the market cap returned at scan time is stored with the note entry. Inverted pairs (base = WSOL/USDC…) pick the other side.
 - **Runtime i18n** (`settings.lang`) instead of relying only on `chrome.i18n`, so the UI language can be chosen independently of the browser language. Manifest strings still use `_locales/` as Chrome requires.
 
 ### Data model
@@ -94,7 +108,7 @@ Entry types: `note`, `research`, `news`, `buy`, `sell`, `alert`, `link`. Statuse
 
 ## If the button does not appear on gmgn
 
-gmgn.ai was blocked in the environment where this extension was developed, so button injection was verified against a mock page that mirrors the watchlist structure (rows are `<a href="/{chain}/token/…">`) plus a `g-table` with `data-row-key`. If a list on the real site shows no button:
+gmgn.ai and dexscreener.com were blocked in the environment where this extension was developed, so button injection was verified against mock pages that mirrors the watchlist structure (rows are `<a href="/{chain}/token/…">`) plus a `g-table` with `data-row-key`. If a list on the real site shows no button:
 
 1. Open DevTools on gmgn, pick the **Research-Noted-Gmgn** context in the Console dropdown and run `document.querySelectorAll('a[href*="/token/"]').length`. If it is 0 the rows are not links; inspect what attribute they use (e.g. `data-row-key`) and extend `scan()` in `src/content/gmgn.js`.
 2. Token pages always have the floating button and `Alt+N` because they rely on the URL, not the DOM.
@@ -115,6 +129,8 @@ gmgn.ai was blocked in the environment where this extension was developed, so bu
 | `activeTab` | Read the current tab's gmgn URL when the user clicks the icon or presses the shortcut, to open that token's note |
 | `sidePanel` | Show the note editor in Chrome's side panel so it does not cover gmgn |
 | Content script on `gmgn.ai` | Add the note button next to each token and show the note indicator inline |
+| Content script on `dexscreener.com` | Add the note button next to each pair and show the note indicator inline |
+| Host permission `api.dexscreener.com` | Resolve a DexScreener pair address to its token (symbol, address, market cap) so notes share one key with gmgn |
 | Content script on `x.com/i/grok`, `grok.com` | Add the "Save to Research-Noted-Gmgn" panel on Grok pages so the research answer can be saved into the note |
 
 ## Roadmap ideas

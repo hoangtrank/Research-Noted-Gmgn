@@ -173,11 +173,12 @@
   // ---- Settings modal: giao diện ghi chú, đích research, template prompt ----
   async function initSettings() {
     const R = globalThis.NotedResearch;
-    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved');
+    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved'), follow = $('#follow');
     target.innerHTML = Object.entries(R.TARGETS).map(([k, v]) => `<option value="${k}">${E.esc(v.label)}</option>`).join('');
     const load = async () => {
       const st = (await chrome.storage.local.get('settings')).settings || {};
       uiMode.value = st.ui || 'panel';
+      follow.checked = st.follow !== false;
       target.value = st.researchTarget || 'x';
       tpl.value = st.researchTemplate || R.DEFAULT_TEMPLATE;
     };
@@ -191,6 +192,7 @@
     $('#settings-close').addEventListener('click', () => { modal.hidden = true; });
     modal.addEventListener('click', ev => { if (ev.target === modal) modal.hidden = true; });
     uiMode.addEventListener('change', () => patch({ ui: uiMode.value }));
+    follow.addEventListener('change', () => patch({ follow: follow.checked }));
     target.addEventListener('change', () => patch({ researchTarget: target.value }));
     let tplTimer = null;
     tpl.addEventListener('input', () => { clearTimeout(tplTimer); tplTimer = setTimeout(() => patch({ researchTemplate: tpl.value }), 500); });

@@ -20,7 +20,11 @@
   modeSel.addEventListener('change', () => chrome.storage.local.set({ settings: { ...settings, ui: modeSel.value } }));
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const token = tab && tab.url ? S.parseTokenUrl(tab.url) : null;
+  let token = tab && tab.url ? S.parseTokenUrl(tab.url) : null;
+  if (!token && tab && tab.id) {
+    // Trang không có token trong URL (DexScreener): hỏi content script.
+    try { const r = await chrome.tabs.sendMessage(tab.id, { type: 'noted:get-page-token' }); if (r && r.token) token = r.token; } catch (_) {}
+  }
   const btn = $('#note-this');
   if (token && tab.id) {
     const p = projects.find(x => x.key === token.key);

@@ -6,11 +6,20 @@ importScripts('lib/storage.js', 'lib/research.js');
 
 const SESSION_PREFIX = 'tab:';
 const GROK_PREFIX = 'grok:';
-let uiMode = 'panel'; // 'panel' | 'drawer' (cache của settings.ui, vì handler phím tắt không được await trước sidePanel.open)
+const DEX_CACHE_KEY = 'dex:pairs';
+const DEX_API = 'https://api.dexscreener.com';
+const pageTokens = new Map(); // tabId -> token đang xem (content script báo), dùng cho phím tắt trên site không có token trong URL
+let uiMode = 'panel';  // 'panel' | 'drawer' (cache của settings.ui, vì handler phím tắt không được await trước sidePanel.open)
+let follow = true;     // settings.follow: Side Panel tự chuyển sang token của trang đang xem
 
-chrome.storage.local.get('settings').then(r => { uiMode = (r.settings && r.settings.ui) || 'panel'; });
+function applySettings(st) {
+  st = st || {};
+  uiMode = st.ui || 'panel';
+  follow = st.follow !== false;
+}
+chrome.storage.local.get('settings').then(r => applySettings(r.settings));
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.settings) uiMode = (changes.settings.newValue && changes.settings.newValue.ui) || 'panel';
+  if (area === 'local' && changes.settings) applySettings(changes.settings.newValue);
 });
 
 function notifyPanels(payload) {
@@ -93,6 +102,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
     }
+    case 'noted:page-token': { // content script báo token của trang hiện tại
+      const tabId = sender.tab && sender.tab.id;
+      if (!tabId) { sendResponse({ ok: false }); return; }
+      if (msg.token) pageTokens.set(tabId, msg.token); else pageTokens.delete(tabId);
+      // Theo dõi trang: nếu panel của tab này đã từng mở thì chuyển sang token mới (không tự mở panel).
+      if (follow && msg.token) {
+        chrome.storage.session.get(SESSION_PREFIX + tabId).then(async r => {
+          const cur = r[SESSION_PREFIX + tabId];
+          if (!cur) return;
+          const ctx = { ...(cur.token && cur.token.key === msg.token.key ? cur.ctx : {}), ...(msg.ctx || {}) };
+          if (!ctx.symbol && cur.token && cur.token.key === msg.token.key && cur.ctx) ctx.symbol = cur.ctx.symbol || '';
+          await remember(tabId, msg.token, ctx);
+        }).catch(() => {});
+      }
+      sendResponse({ ok: true });
+      return;
+    }
+    case 'noted:dex-resolve': { // pair DexScreener -> token
+      dexResolve(String(msg.chain || '').toLowerCase(), Array.isArray(msg.addresses) ? msg.addresses : [])
+        .then(results => sendResponse({ ok: true, results }))
+        .catch(err => sendResponse({ ok: false, error: String(err && err.message), results: {} }));
+      return true;
+    }
     case 'noted:recent-projects': {
       NotedStore.getAll().then(all => {
         all.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -106,7 +138,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Alt+N: tab được truyền sẵn nên không cần tabs.query (giữ được user gesture cho sidePanel.open).
 chrome.commands.onCommand.addListener((command, tab) => {
   if (command !== 'toggle-note' || !tab || !tab.id) return;
-  const token = NotedStore.parseTokenUrl(tab.url || '');
+  const token = NotedStore.parseTokenUrl(tab.url || '') || pageTokens.get(tab.id) || null;
   if (!token) {
     chrome.tabs.sendMessage(tab.id, { type: 'noted:toast', key: 'toast_open_token' }).catch(() => {});
     return;
@@ -115,5 +147,88 @@ chrome.commands.onCommand.addListener((command, tab) => {
 });
 
 chrome.tabs.onRemoved.addListener(tabId => {
+  pageTokens.delete(tabId);
   chrome.storage.session.remove([SESSION_PREFIX + tabId, GROK_PREFIX + tabId]).catch(() => {});
 });
+
+// ---- DexScreener: đổi địa chỉ pair -> token qua API công khai (không cần key), cache vĩnh viễn trong storage.local ----
+const QUOTE_SYMBOLS = new Set(['SOL', 'WSOL', 'USDC', 'USDT', 'USDC.E', 'USDBC', 'WETH', 'ETH', 'WBNB', 'BNB', 'DAI', 'WAVAX', 'AVAX', 'WMATIC', 'MATIC', 'POL', 'WBTC', 'BTC', 'WHYPE', 'HYPE', 'SUI', 'WTRX', 'TRX', 'FDUSD', 'USD1', 'CBBTC', 'WOKB', 'OKB', 'WBLAST', 'WMON', 'MON']);
+let dexCachePromise = null; // một promise dùng chung để các lần tra song song không tạo ra hai bản cache ghi đè nhau
+
+function loadDexCache() {
+  if (!dexCachePromise) dexCachePromise = chrome.storage.local.get(DEX_CACHE_KEY).then(r => r[DEX_CACHE_KEY] || {});
+  return dexCachePromise;
+}
+
+function pickToken(pair) {
+  const b = pair.baseToken || {}, q = pair.quoteToken || {};
+  const bq = QUOTE_SYMBOLS.has(String(b.symbol || '').toUpperCase());
+  const qq = QUOTE_SYMBOLS.has(String(q.symbol || '').toUpperCase());
+  return bq && !qq ? q : b;
+}
+
+function fmtMc(n) {
+  n = Number(n);
+  if (!isFinite(n) || n <= 0) return null;
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(2)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+async function apiBase() {
+  try { const st = (await chrome.storage.local.get('settings')).settings || {}; return st.dexApiBase || DEX_API; } catch (_) { return DEX_API; }
+}
+
+async function fetchJson(url) {
+  const r = await fetch(url, { headers: { accept: 'application/json' } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function dexResolve(chain, addresses) {
+  const cache = await loadDexCache();
+  const base = await apiBase();
+  const results = {};
+  const need = [];
+  for (const a of addresses) {
+    const k = `${chain}:${String(a).toLowerCase()}`;
+    if (cache[k]) results[a] = { ...cache[k], mc: null }; else need.push(a);
+  }
+  const found = new Set();
+  const lower = x => String(x || '').toLowerCase();
+  for (let i = 0; i < need.length; i += 30) {
+    const chunk = need.slice(i, i + 30);
+    try {
+      const j = await fetchJson(`${base}/latest/dex/pairs/${chain}/${chunk.join(',')}`);
+      for (const p of (j && j.pairs) || []) {
+        const a = chunk.find(x => lower(x) === lower(p.pairAddress));
+        const tok = pickToken(p);
+        if (!a || !tok.address) continue;
+        const entry = { address: tok.address, symbol: tok.symbol || '', name: tok.name || '' };
+        cache[`${chain}:${lower(a)}`] = entry;
+        results[a] = { ...entry, mc: fmtMc(p.marketCap || p.fdv) };
+        found.add(a);
+      }
+    } catch (err) { console.warn('[Research-Noted-Gmgn] dexscreener pairs:', err && err.message); }
+  }
+  // Địa chỉ không phải pair có thể là địa chỉ token (dexscreener.com/{chain}/{token} cũng mở được).
+  const miss = need.filter(a => !found.has(a));
+  for (let i = 0; i < miss.length; i += 30) {
+    const chunk = miss.slice(i, i + 30);
+    try {
+      const j = await fetchJson(`${base}/latest/dex/tokens/${chunk.join(',')}`);
+      const pairs = (j && j.pairs) || [];
+      for (const a of chunk) {
+        const p = pairs.find(x => lower(x.chainId) === chain && (lower(x.baseToken && x.baseToken.address) === lower(a) || lower(x.quoteToken && x.quoteToken.address) === lower(a)));
+        if (!p) { results[a] = null; continue; }
+        const tok = lower(p.baseToken && p.baseToken.address) === lower(a) ? p.baseToken : p.quoteToken;
+        const entry = { address: tok.address, symbol: tok.symbol || '', name: tok.name || '' };
+        cache[`${chain}:${lower(a)}`] = entry;
+        results[a] = { ...entry, mc: fmtMc(p.marketCap || p.fdv) };
+      }
+    } catch (err) { console.warn('[Research-Noted-Gmgn] dexscreener tokens:', err && err.message); for (const a of chunk) if (!(a in results)) results[a] = null; }
+  }
+  if (need.length) chrome.storage.local.set({ [DEX_CACHE_KEY]: cache }).catch(() => {});
+  return results;
+}

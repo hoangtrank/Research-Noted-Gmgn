@@ -7,6 +7,7 @@ const fs = require('fs');
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const mock = require('./mock-gmgn');
 const grokMock = require('./mock-grok');
+const dexMock = require('./mock-dexscreener');
 
 const EXT = process.env.EXT_DIR || path.resolve(__dirname, '..'); // EXT_DIR: kiểm tra một bản đã đóng gói
 const OUT = process.env.SHOT_DIR || path.join(__dirname, 'shots');
@@ -26,6 +27,8 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   });
   await ctx.route('https://gmgn.ai/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: mock.handle(route.request().url()) }));
   for (const pat of ['https://x.com/**', 'https://grok.com/**']) await ctx.route(pat, route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: grokMock.page(route.request().url()) }));
+  await ctx.route('https://dexscreener.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: dexMock.handle(route.request().url()) }));
+  const dexApi = await dexMock.startApi();
 
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent('serviceworker');
@@ -151,6 +154,16 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert((await shadowQ(page, '.nd-fab')).includes('FRONG'), 'FAB đọc symbol từ title');
   const info = await sw.evaluate(async (args) => chrome.tabs.sendMessage(args.tabId, { type: 'noted:page-info', key: args.key }), { tabId: gmgnTabId, key: 'robinhood:0x2222222222222222222222222222222222222222' });
   assert(info && info.symbol === 'FRONG', 'content script trả symbol cho panel: ' + JSON.stringify(info));
+
+  console.log('7b) Panel theo dõi trang: mở trang token khác -> panel của tab chuyển theo');
+  await page.waitForTimeout(400);
+  const follow = await sw.evaluate(async id => (await chrome.storage.session.get('tab:' + id))['tab:' + id], gmgnTabId);
+  assert(follow && follow.token.key === 'robinhood:0x2222222222222222222222222222222222222222' && follow.ctx.symbol === 'FRONG', 'session của tab đổi sang FRONG kèm symbol: ' + JSON.stringify(follow && follow.token));
+  const panelF = await ctx.newPage();
+  await panelF.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${gmgnTabId}`);
+  await panelF.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+  assert((await panelF.$eval('.ne-symbol', e => e.value)) === 'FRONG', 'panel hiện đúng token đang xem');
+  await panelF.close();
 
   console.log('8) Dashboard');
   const dash = await ctx.newPage();
@@ -306,6 +319,45 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await dash.selectOption('#research-target', 'x');
   await dash.waitForTimeout(600);
   await dash.screenshot({ path: path.join(OUT, '7-settings.png') });
+
+  console.log('15) DexScreener: pair -> token qua API, cùng khoá với gmgn');
+  await sw.evaluate(async base => { const st = (await chrome.storage.local.get('settings')).settings || {}; await chrome.storage.local.set({ settings: { ...st, dexApiBase: base, ui: 'panel', lang: 'en' } }); }, dexApi.base);
+  const dex = await ctx.newPage();
+  dex.on('pageerror', e => console.log('DEX ERROR', e.message));
+  await dex.goto('https://dexscreener.com/watchlist/abc12');
+  await dex.waitForFunction(() => document.querySelectorAll('.noted-badge').length >= 4, null, { timeout: 15000 });
+  const dbadges = await dex.$$eval('.noted-badge', els => els.map(b => ({ key: b.dataset.key, sym: b.dataset.symbol, prev: b.previousSibling && b.previousSibling.nodeValue && b.previousSibling.nodeValue.trim(), cls: b.className })));
+  console.log('  dex badges:', dbadges.map(b => `${b.key} ${b.sym} after "${b.prev}"`).join(' | '));
+  assert(dbadges.length === 4, 'chỉ 4 link pair/token được gắn nút (bỏ qua /watchlist, /gainers, /new-pairs)');
+  const bA = dbadges.find(b => b.key === `sol:${dexMock.MINT_A}`);
+  assert(bA && bA.sym === 'BONKZ' && bA.prev === 'BONKZ', 'pair Solana -> token base (BONKZ), nút đặt ngay sau symbol');
+  const bB = dbadges.find(b => b.key === `robinhood:${dexMock.PROLOG}`);
+  assert(bB && bB.cls.includes('noted-badge--pin'), 'pair EVM -> PROLOG, trùng khoá với ghi chú tạo trên gmgn nên hiện trạng thái pin');
+  const bC = dbadges.find(b => b.key === `sol:${dexMock.MINT_C}`);
+  assert(bC && bC.cls.includes('noted-badge--has'), 'link theo địa chỉ token (không phải pair) -> tra endpoint tokens, khớp ghi chú EXTENSION');
+  const bD = dbadges.find(b => b.key === `sol:${dexMock.MINT_D}`);
+  assert(bD && bD.sym === 'DOGEY', 'cặp đảo (base là WSOL) -> lấy quote token DOGEY');
+  await dex.hover(`.noted-badge[data-key="robinhood:${dexMock.PROLOG}"]`);
+  await dex.waitForTimeout(200);
+  assert((await shadowQ(dex, '.nd-tip')).includes('Launchpad'), 'tooltip trên DexScreener hiện tóm tắt ghi từ gmgn');
+  await sw.evaluate(() => { chrome.runtime.onMessage.addListener((m, sender) => { if (m && m.type === 'noted:open' && sender.tab) globalThis.__dexTab = sender.tab.id; }); });
+  await dex.click(`.noted-badge[data-key="robinhood:${dexMock.PROLOG}"]`);
+  await dex.waitForTimeout(800);
+  const dexTabId = await sw.evaluate(() => globalThis.__dexTab);
+  const dsess = await sw.evaluate(async id => (await chrome.storage.session.get('tab:' + id))['tab:' + id], dexTabId);
+  assert(dsess && dsess.token.key === `robinhood:${dexMock.PROLOG}` && dsess.ctx.symbol === 'PROLOG' && dsess.ctx.mc === '$10.64M', 'bấm nút: mở panel với symbol + MC từ API DexScreener');
+  assert((await dex.evaluate(() => location.pathname)) === '/watchlist/abc12', 'bấm nút không điều hướng sang trang pair');
+  await dex.setViewportSize({ width: 1280, height: 800 });
+  await dex.screenshot({ path: path.join(OUT, '8-dexscreener.png') });
+  await dex.goto('https://dexscreener.com/robinhood/0x1A2B3C00000000000000000000000000000000B2');
+  await dex.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden && f.textContent.includes('PROLOG'); }, null, { timeout: 15000 });
+  assert(true, 'trang pair: FAB hiện PROLOG + tóm tắt');
+  const pt = await sw.evaluate(async id => chrome.tabs.sendMessage(id, { type: 'noted:get-page-token' }), dexTabId);
+  assert(pt && pt.token && pt.token.key === `robinhood:${dexMock.PROLOG}` && pt.symbol === 'PROLOG', 'popup/phím tắt lấy được token của trang pair');
+  const cached = await sw.evaluate(async () => (await chrome.storage.local.get('dex:pairs'))['dex:pairs']);
+  assert(cached && Object.keys(cached).length >= 4, 'mapping pair -> token được cache trong storage.local');
+  await dex.close();
+  dexApi.server.close();
 
   await ctx.close();
   console.log('\nALL PASSED');

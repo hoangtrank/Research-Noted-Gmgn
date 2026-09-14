@@ -1,17 +1,16 @@
-// Content script cho gmgn.ai:
-//  - quét mọi link /{chain}/token/{address} (danh sách theo dõi, trending, meme...) và gắn nút Research-Noted-Gmgn cạnh symbol
-//  - trang token: hiện nút nổi (FAB) cho token đang xem
-//  - bấm nút: gửi background mở Chrome Side Panel (nằm ngoài trang, không che gmgn);
-//    nếu không mở được hoặc người dùng chọn "overlay" thì dùng drawer Shadow DOM trong trang
+// Lõi content script dùng chung cho các site (gmgn.ai, dexscreener.com). Site cụ thể được mô tả bởi
+// window.__notedAdapter (nạp trước file này): tìm phần tử token trong trang, đổi tham chiếu -> token, token của trang.
+// Lõi lo: gắn nút cạnh symbol, tooltip, nút nổi (FAB), gửi mở Side Panel (dự phòng drawer Shadow DOM), i18n.
 (() => {
   'use strict';
-  if (window.__notedGmgnLoaded) return;
-  window.__notedGmgnLoaded = true;
+  if (window.__notedCoreLoaded) return;
+  window.__notedCoreLoaded = true;
 
   const S = globalThis.NotedStore;
   const E = globalThis.NotedEditor;
   const I = globalThis.NotedI18n;
-  if (!S || !E || !I) return;
+  const A = window.__notedAdapter;
+  if (!S || !E || !I || !A) return;
   const t = (k, v) => I.t(k, v);
 
   const ATTR = 'data-noted-key';
@@ -43,11 +42,69 @@
 `;
 
   let host, shadow, drawer, editor, tip, fab, toastEl;
-  let openKey = null;      // key đang mở trong drawer (chỉ dùng ở chế độ overlay)
-  let uiMode = 'panel';    // settings.ui: 'panel' (Side Panel) | 'drawer' (overlay trong trang)
+  let openKey = null;      // key đang mở trong drawer (chế độ overlay)
+  let uiMode = 'panel';    // settings.ui: 'panel' | 'drawer'
+  let pageToken = null;    // token của trang hiện tại (đã resolve)
+  let lastPageKey = undefined;
   let lastHref = location.href;
-  let scanTimer = 0;
+  let scanTimer = 0, scanning = false, rescan = false;
   let toastTimer = 0;
+
+  // ---------------- tiện ích dùng chung (adapter gọi qua window.__notedCore) ----------------
+  function looksLikeSymbol(s) {
+    if (s.length > 24) return false;
+    if (/^#?\d+$/.test(s) || /^[\d.,%$+\-−~\s]+[kKmMbB]?$/.test(s)) return false;   // rank, số, giá, %
+    if (/^\d+\s?[smhdw]$/i.test(s) || /^\d+[.,]\d+[kKmMbB]$/.test(s)) return false; // 3d, 12h, 4,01K
+    if (/^(copy|buy|sell|mua|bán|new|hot|live|\/)$/i.test(s)) return false;
+    return /[\p{L}\p{N}]/u.test(s);
+  }
+
+  function cleanSymbol(txt) {
+    return String(txt || '').replace(/\s+/g, ' ').trim().replace(/^\$/, '').slice(0, 32);
+  }
+
+  // Text node đầu tiên trông giống symbol (bỏ số, giá, %, thời gian) và đang hiển thị.
+  function findSymbolText(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n, seen = 0;
+    while ((n = walker.nextNode()) && seen < 12) {
+      const txt = n.nodeValue.replace(/\s+/g, ' ').trim();
+      if (!txt) continue;
+      const el = n.parentElement;
+      if (!el || el.closest('.noted-badge')) continue;
+      seen++;
+      if (!looksLikeSymbol(txt)) continue;
+      if (!el.getClientRects().length) continue;
+      return n;
+    }
+    return null;
+  }
+
+  function symbolFor(container) {
+    const tn = findSymbolText(container);
+    return tn ? cleanSymbol(tn.nodeValue) : '';
+  }
+
+  // Giá trị $ lớn nhất trong hàng (xấp xỉ MC) để lưu kèm mốc timeline.
+  function captureMc(container) {
+    let el = container;
+    for (let i = 0; i < 4 && el; i++, el = el.parentElement) {
+      const txt = el.textContent || '';
+      if (txt.length > 2500) break;
+      let best = null, bestVal = -1;
+      for (const m of txt.matchAll(/\$\s?(\d[\d,.]*)\s?([KMBT])?(?![\d,.])/gi)) {
+        const num = parseFloat(m[1].replace(/,/g, '.').replace(/\.(?=.*\.)/g, ''));
+        if (!isFinite(num)) continue;
+        const mult = { K: 1e3, M: 1e6, B: 1e9, T: 1e12 }[(m[2] || '').toUpperCase()] || 1;
+        const v = num * mult;
+        if (v > bestVal) { bestVal = v; best = `$${m[1]}${m[2] ? m[2].toUpperCase() : ''}`; }
+      }
+      if (best) return best;
+    }
+    return null;
+  }
+
+  window.__notedCore = { looksLikeSymbol, cleanSymbol, findSymbolText, symbolFor, captureMc };
 
   // ---------------- UI trong Shadow DOM ----------------
   function mount() {
@@ -100,7 +157,6 @@
     drawer.appendChild(editor.el);
   }
 
-  // Đổi ngôn ngữ: vẽ lại nút, FAB và tạo lại editor (drawer đang mở sẽ đóng).
   I.onChange(() => {
     if (openKey) { drawer.classList.remove('open'); openKey = null; }
     createEditor();
@@ -149,59 +205,43 @@
     scanTimer = setTimeout(() => { scanTimer = 0; scan(); }, 120);
   }
 
-  function pageChain() {
-    const seg = S.normalizeChain(location.pathname.split('/')[1] || '');
-    if (seg && S.CHAIN_LABELS[seg]) return seg;
-    const q = S.normalizeChain(new URLSearchParams(location.search).get('chain') || '');
-    return q && /^[a-z0-9-]{2,20}$/.test(q) ? q : null;
-  }
-
-  function scan() {
-    if (location.href !== lastHref) { lastHref = location.href; hideTip(); }
-    for (const a of document.querySelectorAll('a[href*="/token/"]')) {
-      const t = S.parseTokenUrl(a.getAttribute('href'));
-      if (t) decorate(a, t);
-    }
-    // Dự phòng: bảng g-table của gmgn có data-row-key = địa chỉ token nhưng hàng không phải thẻ <a>.
-    const chain = pageChain();
-    if (chain) {
-      for (const row of document.querySelectorAll('[data-row-key]')) {
-        if (row.querySelector('a[href*="/token/"]') || row.closest('a[href*="/token/"]')) continue;
-        const address = S.normalizeAddress(row.getAttribute('data-row-key'));
-        if (!address) continue;
-        decorate(row, { chain, address, key: S.keyOf(chain, address) });
+  async function scan() {
+    if (scanning) { rescan = true; return; }
+    scanning = true;
+    try {
+      if (location.href !== lastHref) { lastHref = location.href; hideTip(); }
+      const targets = A.scanTargets();
+      const pending = new Set();
+      for (const x of targets) if (x.ref && x.ref.pending) pending.add(x.ref.pending);
+      const pr = A.pageRef ? A.pageRef() : null;
+      if (pr && pr.pending) pending.add(pr.pending);
+      let resolved = new Map();
+      if (pending.size) { try { resolved = await A.resolve([...pending]); } catch (_) { resolved = new Map(); } }
+      for (const x of targets) {
+        const token = x.ref.pending ? resolved.get(x.ref.pending) : x.ref;
+        if (token && x.el.isConnected) decorate(x.el, token);
       }
+      pageToken = pr ? (pr.pending ? resolved.get(pr.pending) || null : pr) : null;
+      const key = pageToken ? pageToken.key : null;
+      if (key !== lastPageKey) { lastPageKey = key; announcePageToken(true); }
+      refreshFab();
+    } finally {
+      scanning = false;
+      if (rescan) { rescan = false; scheduleScan(); }
     }
-    refreshFab();
   }
 
-  // Tìm text node đầu tiên trông giống symbol (bỏ số, giá, %, thời gian) và đang hiển thị.
-  function findSymbolText(root) {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let n, seen = 0;
-    while ((n = walker.nextNode()) && seen < 12) {
-      const txt = n.nodeValue.replace(/\s+/g, ' ').trim();
-      if (!txt) continue;
-      const el = n.parentElement;
-      if (!el || el.closest('.noted-badge')) continue;
-      seen++;
-      if (!looksLikeSymbol(txt)) continue;
-      if (!el.getClientRects().length) continue; // ẩn (sr-only, tooltip...)
-      return n;
-    }
-    return null;
-  }
-
-  function looksLikeSymbol(t) {
-    if (t.length > 24) return false;
-    if (/^[\d.,%$+\-−~\s]+[kKmMbB]?$/.test(t)) return false;   // số, giá, %
-    if (/^\d+\s?[smhdw]$/i.test(t) || /^\d+[.,]\d+[kKmMbB]$/.test(t)) return false; // 3d, 12h, 4,01K
-    if (/^(copy|buy|sell|mua|bán|new|hot|live)$/i.test(t)) return false;
-    return /[\p{L}\p{N}]/u.test(t);
-  }
-
-  function cleanSymbol(txt) {
-    return String(txt || '').replace(/\s+/g, ' ').trim().replace(/^\$/, '').slice(0, 32);
+  // Báo background token của trang (để Side Panel "theo dõi" trang và phím tắt biết token). Symbol trên trang SPA
+  // có thể cập nhật muộn hơn URL, nên thử lại một lần sau 800ms nếu chưa có.
+  let announceTimer = 0;
+  function announcePageToken(retry) {
+    clearTimeout(announceTimer);
+    const tk = pageToken;
+    const ctx = tk ? { symbol: pageSymbol(), mc: tk.mc || null } : {};
+    try {
+      chrome.runtime.sendMessage({ type: 'noted:page-token', token: tk ? { chain: tk.chain, address: tk.address, key: tk.key } : null, ctx }, () => void chrome.runtime.lastError);
+    } catch (_) {}
+    if (retry && tk && !ctx.symbol) announceTimer = setTimeout(() => { if (pageToken && pageToken.key === tk.key) announcePageToken(false); }, 800);
   }
 
   const stop = ev => { ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation(); };
@@ -219,9 +259,9 @@
     return b;
   }
 
-  function decorate(container, t) {
+  function decorate(container, token) {
     let badge = container.querySelector('.noted-badge');
-    const tn = findSymbolText(container);
+    const tn = (A.symbolNode && A.symbolNode(container, token)) || findSymbolText(container);
     if (!badge) {
       badge = makeBadge();
       if (tn) tn.parentNode.insertBefore(badge, tn.nextSibling);
@@ -231,15 +271,15 @@
         if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
       }
     } else if (tn && badge.previousSibling !== tn && !badge.classList.contains('noted-badge--abs')) {
-      // React vẽ lại text node: kéo nút về ngay sau symbol.
-      tn.parentNode.insertBefore(badge, tn.nextSibling);
+      tn.parentNode.insertBefore(badge, tn.nextSibling); // React vẽ lại text node: kéo nút về ngay sau symbol
     }
-    if (badge.dataset.key !== t.key) {
-      badge.dataset.key = t.key;
-      badge.dataset.chain = t.chain;
-      badge.dataset.address = t.address;
+    if (badge.dataset.key !== token.key) {
+      badge.dataset.key = token.key;
+      badge.dataset.chain = token.chain;
+      badge.dataset.address = token.address;
     }
-    if (container.getAttribute(ATTR) !== t.key) container.setAttribute(ATTR, t.key);
+    badge.dataset.symbol = token.symbol || '';
+    if (container.getAttribute(ATTR) !== token.key) container.setAttribute(ATTR, token.key);
     paintBadge(badge);
   }
 
@@ -258,35 +298,18 @@
     for (const b of document.querySelectorAll('.noted-badge')) paintBadge(b);
   }
 
-  // Lấy MC (giá trị $ lớn nhất) trong hàng để lưu kèm mốc timeline.
-  function captureMc(container) {
-    let el = container;
-    for (let i = 0; i < 4 && el; i++, el = el.parentElement) {
-      const txt = el.textContent || '';
-      if (txt.length > 2500) break;
-      let best = null, bestVal = -1;
-      for (const m of txt.matchAll(/\$\s?(\d[\d,.]*)\s?([KMBT])?(?![\d,.])/gi)) {
-        const num = parseFloat(m[1].replace(/,/g, '.').replace(/\.(?=.*\.)/g, ''));
-        if (!isFinite(num)) continue;
-        const mult = { K: 1e3, M: 1e6, B: 1e9, T: 1e12 }[(m[2] || '').toUpperCase()] || 1;
-        const v = num * mult;
-        if (v > bestVal) { bestVal = v; best = `$${m[1]}${m[2] ? m[2].toUpperCase() : ''}`; }
-      }
-      if (best) return best;
-    }
-    return null;
-  }
-
-  function symbolFor(container) {
-    const tn = findSymbolText(container);
-    return tn ? cleanSymbol(tn.nodeValue) : '';
+  function tokenOf(badge) {
+    return { chain: badge.dataset.chain, address: badge.dataset.address, key: badge.dataset.key, symbol: badge.dataset.symbol || '' };
   }
 
   function onBadgeClick(b) {
     const container = b.closest(`[${ATTR}]`) || b.parentElement;
-    const t = { chain: b.dataset.chain, address: b.dataset.address, key: b.dataset.key };
+    const token = tokenOf(b);
+    const p = cache.get(token.key);
+    const ctx = A.clickContext ? A.clickContext(container, token) : { symbol: symbolFor(container), mc: captureMc(container) };
+    if (!ctx.symbol) ctx.symbol = (p && p.symbol) || token.symbol || '';
     hideTip();
-    openNote(t, { symbol: symbolFor(container), mc: captureMc(container) });
+    openNote({ chain: token.chain, address: token.address, key: token.key }, ctx);
   }
 
   // Gửi background mở Side Panel. Gọi đồng bộ ngay trong click để giữ user gesture (sidePanel.open yêu cầu).
@@ -323,7 +346,7 @@
 
   function hideTip() { if (tip) tip.hidden = true; }
 
-  // ---------------- drawer ----------------
+  // ---------------- drawer (dự phòng) ----------------
   async function openDrawer(token, ctx = {}) {
     if (!editor) { await I.init(); mount(); }
     if (openKey && openKey !== token.key) await editor.flush();
@@ -340,39 +363,37 @@
     openKey = null;
   }
 
+  // ---------------- token của trang ----------------
   function pageSymbol() {
-    const t = S.parseTokenUrl(location.href);
-    if (!t) return '';
-    const cached = cache.get(t.key);
+    if (!pageToken) return '';
+    const cached = cache.get(pageToken.key);
     if (cached && cached.symbol) return cached.symbol;
-    const first = (document.title.split('|')[0] || '').trim().split(/\s+/)[0] || '';
-    if (first && !/^gmgn/i.test(first) && looksLikeSymbol(first)) return cleanSymbol(first);
-    const h1 = document.querySelector('h1');
-    if (h1 && looksLikeSymbol(h1.textContent.trim())) return cleanSymbol(h1.textContent);
-    const a = document.querySelector(`a[${ATTR}="${CSS.escape(t.key)}"]`);
-    return a ? symbolFor(a) : '';
+    if (pageToken.symbol) return pageToken.symbol;
+    const fromAdapter = A.pageSymbol ? A.pageSymbol() : '';
+    if (fromAdapter) return fromAdapter;
+    const el = document.querySelector(`[${ATTR}="${CSS.escape(pageToken.key)}"]`);
+    return el ? symbolFor(el) : '';
   }
 
   function toggleForPage() {
-    const t = S.parseTokenUrl(location.href);
-    if (!t) { toast(I.t('toast_open_token')); return; }
-    if (openKey === t.key) closeDrawer();
-    else openNote(t, { symbol: pageSymbol(), mc: null });
+    if (!pageToken) { toast(t('toast_open_token')); return; }
+    if (openKey === pageToken.key) closeDrawer();
+    else openNote({ chain: pageToken.chain, address: pageToken.address, key: pageToken.key }, { symbol: pageSymbol(), mc: pageToken.mc || null });
   }
 
   // Panel/popup hỏi symbol đang hiển thị cho một token.
   function pageInfoFor(key) {
-    const t = S.parseTokenUrl(location.href);
-    if (t && t.key === key) return { symbol: pageSymbol() };
-    const a = document.querySelector(`[${ATTR}="${CSS.escape(key)}"]`);
-    return { symbol: a ? symbolFor(a) : '' };
+    if (pageToken && pageToken.key === key) return { symbol: pageSymbol() };
+    const el = document.querySelector(`[${ATTR}="${CSS.escape(key)}"]`);
+    if (!el) return { symbol: '' };
+    const b = el.querySelector('.noted-badge');
+    return { symbol: (b && b.dataset.symbol) || symbolFor(el) };
   }
 
   function refreshFab() {
     if (!fab) return;
-    const tok = S.parseTokenUrl(location.href);
-    if (!tok) { fab.hidden = true; return; }
-    const p = cache.get(tok.key);
+    if (!pageToken) { fab.hidden = true; return; }
+    const p = cache.get(pageToken.key);
     const sym = (p && p.symbol) || pageSymbol();
     fab.hidden = false;
     fab.classList.toggle('has', !!p);
@@ -390,18 +411,19 @@
         toggleForPage(); sendResponse({ ok: true }); break;
       case 'noted:open-drawer': { // background chọn chế độ overlay (hoặc Side Panel không mở được)
         const ctx = msg.ctx || {};
-        const t = msg.token || S.parseTokenUrl(location.href);
-        if (t) openDrawer(t, { symbol: ctx.symbol || (S.parseTokenUrl(location.href)?.key === t.key ? pageSymbol() : pageInfoFor(t.key).symbol), mc: ctx.mc || null });
+        const tk = msg.token || pageToken;
+        if (tk) openDrawer(tk, { symbol: ctx.symbol || (pageToken && pageToken.key === tk.key ? pageSymbol() : pageInfoFor(tk.key).symbol), mc: ctx.mc || null });
         sendResponse({ ok: true }); break;
       }
       case 'noted:page-info':
         sendResponse(pageInfoFor(msg.key)); break;
+      case 'noted:get-page-token':
+        sendResponse({ token: pageToken ? { chain: pageToken.chain, address: pageToken.address, key: pageToken.key } : null, symbol: pageSymbol() }); break;
       case 'noted:toast':
         toast(msg.key ? t(msg.key) : (msg.text || '')); sendResponse({ ok: true }); break;
     }
   });
 
-  // Nạp ngôn ngữ trước khi dựng UI có chữ; việc quét/gắn nút không cần chờ.
   I.init().then(() => { mount(); return loadAll(); }).then(scan);
   scan();
   new MutationObserver(scheduleScan).observe(document.documentElement, {

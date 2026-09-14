@@ -54,6 +54,7 @@
   async function show(entry) {
     if (!entry || !entry.token) { showEmpty(); return; }
     const { token, ctx = {} } = entry;
+    if (currentKey === token.key && !mount.hidden) return; // cùng token: giữ nguyên editor đang gõ
     if (currentKey && currentKey !== token.key) await editor.flush();
     currentKey = token.key;
     let symbol = ctx.symbol || '';

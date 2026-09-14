@@ -61,3 +61,4 @@ kbd{font:11px ui-monospace,Menlo,monospace;background:var(--bg3);border:1px soli
 .field select,.field textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
 .field textarea{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;resize:vertical}
 .modal-foot{display:flex;align-items:center;gap:10px}
+.chk-row{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
