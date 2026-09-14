@@ -48,6 +48,12 @@ Requires Chrome / Brave / Edge 116 or newer (Side Panel API).
 3. **Load unpacked** → pick the repo folder (the one containing `manifest.json`).
 4. Reload your gmgn.ai tab. The ✎ button appears next to each symbol.
 
+### Updating without losing data
+
+Notes live in `chrome.storage.local`, which is tied to the extension's ID. For an unpacked extension the ID is derived from the folder path, so **update in place**: replace the files inside the same folder (`git pull`, or extract the new ZIP over it), then click **Reload** on `chrome://extensions`. Loading a new folder creates a new ID with an empty store (the old data still sits under the old entry: export it there, import it here). Export a JSON backup from the Dashboard before updating anyway.
+
+To make the unpacked ID identical to the Web Store ID (so the same data is used by both), copy the public key shown in the Developer Dashboard (Package → View public key) into a `"key"` field of `manifest.json`; `scripts/pack.py` strips that field from the Store ZIP.
+
 Icons are included in `icons/`; to change them, edit `scripts/make_icons.py` and run `npm run icons` (it also rewrites the `icons` entries in `manifest.json`). The shortcut `Alt+N` can be changed at `chrome://extensions/shortcuts`.
 
 ## Suggested research workflow

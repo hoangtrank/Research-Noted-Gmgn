@@ -41,7 +41,13 @@ def main():
         for item in INCLUDE:
             full = os.path.join(ROOT, item)
             if os.path.isfile(full):
-                z.write(full, item); count += 1
+                if item == 'manifest.json' and 'key' in m:
+                    # "key" chỉ dùng để cố định ID khi Load unpacked; gói lên Web Store không được chứa nó.
+                    stripped = {k: v for k, v in m.items() if k != 'key'}
+                    z.writestr('manifest.json', json.dumps(stripped, ensure_ascii=False, indent=2) + '\n')
+                else:
+                    z.write(full, item)
+                count += 1
                 continue
             for dirpath, dirnames, filenames in os.walk(full):
                 dirnames[:] = sorted(d for d in dirnames if not d.startswith('.'))
