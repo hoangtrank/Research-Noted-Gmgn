@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fit screenshot to 1280×800</title>
+<style>
+  :root{--bg:#0d0f14;--bg2:#181b22;--line:#2b303a;--fg:#e6e8ec;--fg2:#9aa3b2;--acc:#facc15}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;padding:20px}
+  h1{font-size:18px;margin:0 0 4px}
+  .sub{color:var(--fg2);margin:0 0 16px}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--fg2);cursor:pointer;background:var(--bg2)}
+  .drop.over{border-color:var(--acc);color:var(--fg)}
+  .drop input{display:none}
+  .row{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin:14px 0}
+  label{display:inline-flex;align-items:center;gap:6px;color:var(--fg2)}
+  select,input[type=color]{font:inherit;color:var(--fg);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  input[type=range]{width:220px}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:8px;padding:8px 14px}
+  button.primary{background:var(--acc);border-color:var(--acc);color:#111;font-weight:700}
+  button:disabled{opacity:.5;cursor:default}
+  canvas{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#000;display:block}
+  .info{color:var(--fg2);font-size:12px;margin-top:8px}
+  kbd{font:11px ui-monospace,Menlo,monospace;background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+</style>
+</head>
+<body>
+  <h1>Fit screenshot to 1280×800 (Chrome Web Store)</h1>
+  <p class="sub">Everything runs in your browser; the image is never uploaded anywhere.</p>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept="image/*">
+    <div><b>Drop a screenshot here</b> or click to choose a file · you can also paste with <kbd>Ctrl</kbd>+<kbd>V</kbd></div>
+  </label>
+
+  <div class="row">
+    <label>Size
+      <select id="size">
+        <option value="1280x800">1280 × 800</option>
+        <option value="640x400">640 × 400</option>
+        <option value="440x280">440 × 280 (small promo tile)</option>
+        <option value="1400x560">1400 × 560 (marquee tile)</option>
+      </select>
+    </label>
+    <label>Mode
+      <select id="mode">
+        <option value="fit">Fit — keep the whole image, add bars</option>
+        <option value="fill">Fill — crop to the frame</option>
+      </select>
+    </label>
+    <label id="posRow">Crop position <input type="range" id="pos" min="0" max="100" value="50"></label>
+    <label>Bar color <input type="color" id="bar" value="#0b0d10"> <button id="autoBar" type="button">from image edges</button></label>
+  </div>
+  <div class="row">
+    <button class="primary" id="download" disabled>⬇ Download PNG</button>
+    <span class="info" id="info">No image yet.</span>
+  </div>
+
+  <canvas id="out" width="1280" height="800"></canvas>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const drop = $('#drop'), file = $('#file'), sizeSel = $('#size'), modeSel = $('#mode'), pos = $('#pos'), posRow = $('#posRow');
+  const bar = $('#bar'), autoBar = $('#autoBar'), dl = $('#download'), info = $('#info'), canvas = $('#out');
+  const ctx = canvas.getContext('2d');
+  let img = null, name = 'screenshot';
+
+  function loadFile(f) {
+    if (!f || !f.type.startsWith('image/')) return;
+    name = (f.name || 'screenshot').replace(/\.[^.]+$/, '');
+    const url = URL.createObjectURL(f);
+    const i = new Image();
+    i.onload = () => { img = i; URL.revokeObjectURL(url); guessBar(); render(); };
+    i.src = url;
+  }
+
+  // Lấy màu nền trung bình từ viền ảnh để làm thanh đệm.
+  function guessBar() {
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+    const w = c.width, h = c.height, d = x.getImageData(0, 0, w, h).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    const take = (px, py) => { const i = (py * w + px) * 4; r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; };
+    for (let px = 0; px < w; px += 4) { take(px, 0); take(px, h - 1); }
+    for (let py = 0; py < h; py += 4) { take(0, py); take(w - 1, py); }
+    const hex = v => Math.round(v / n).toString(16).padStart(2, '0');
+    bar.value = `#${hex(r)}${hex(g)}${hex(b)}`;
+  }
+
+  // Thu nhỏ theo nhiều bước để chữ nét hơn.
+  function downscale(source, sw, sh, tw, th) {
+    let cur = source, cw = sw, ch = sh;
+    while (cw / 2 > tw && ch / 2 > th) {
+      const c = document.createElement('canvas'); c.width = Math.round(cw / 2); c.height = Math.round(ch / 2);
+      const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cur, 0, 0, c.width, c.height);
+      cur = c; cw = c.width; ch = c.height;
+    }
+    return cur;
+  }
+
+  function render() {
+    if (!img) return;
+    const [W, H] = sizeSel.value.split('x').map(Number);
+    canvas.width = W; canvas.height = H;
+    const mode = modeSel.value;
+    posRow.style.display = mode === 'fill' ? '' : 'none';
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = bar.value; ctx.fillRect(0, 0, W, H);
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const scale = mode === 'fit' ? Math.min(W / iw, H / ih) : Math.max(W / iw, H / ih);
+    const dw = Math.round(iw * scale), dh = Math.round(ih * scale);
+    const p = Number(pos.value) / 100;
+    const dx = mode === 'fit' ? Math.round((W - dw) / 2) : Math.round((W - dw) * p);
+    const dy = mode === 'fit' ? Math.round((H - dh) / 2) : Math.round((H - dh) * p);
+    const src = downscale(img, iw, ih, dw, dh);
+    ctx.drawImage(src, dx, dy, dw, dh);
+    dl.disabled = false;
+    info.textContent = `Source ${iw}×${ih} → ${W}×${H} (${mode === 'fit' ? 'fit, scale ' + scale.toFixed(2) : 'fill/crop, scale ' + scale.toFixed(2)})`;
+  }
+
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); loadFile(e.dataTransfer.files[0]); });
+  file.addEventListener('change', () => loadFile(file.files[0]));
+  document.addEventListener('paste', e => { const it = [...(e.clipboardData.items || [])].find(i => i.type.startsWith('image/')); if (it) loadFile(it.getAsFile()); });
+  for (const el of [sizeSel, modeSel, pos, bar]) el.addEventListener('input', render);
+  autoBar.addEventListener('click', () => { if (img) { guessBar(); render(); } });
+  dl.addEventListener('click', () => {
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${name}-${canvas.width}x${canvas.height}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }, 'image/png');
+  });
+  window.__fitTool = { loadFile, render, canvas };
+})();
+</script>
+</body>
+</html>

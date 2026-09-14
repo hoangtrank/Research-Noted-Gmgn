@@ -91,6 +91,8 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 At least 1, up to 5 images of 1280×800 (PNG/JPEG). Samples in `docs/store/` (English UI, generated from the mock page). Replace them with screenshots taken on the real gmgn.ai once you have a few notes.
 
+To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), open `docs/store/fit-1280x800.html` in Chrome, drop or paste the image, pick "Fit" (keeps everything, adds bars in the image's edge color) or "Fill" (crops), then Download PNG. Nothing is uploaded.
+
 ## Privacy practices tab
 
 **Single purpose**
