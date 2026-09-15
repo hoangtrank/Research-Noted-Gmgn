@@ -8,7 +8,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const mock = require('./mock-gmgn');
 const grokMock = require('./mock-grok');
 const dexMock = require('./mock-dexscreener');
-const xMock = require('./mock-x');
+const xSearchMock = require('./mock-xsearch');
 
 const EXT = process.env.EXT_DIR || path.resolve(__dirname, '..'); // EXT_DIR: kiểm tra một bản đã đóng gói
 const OUT = process.env.SHOT_DIR || path.join(__dirname, 'shots');
@@ -29,7 +29,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await ctx.route('https://gmgn.ai/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: mock.handle(route.request().url()) }));
   for (const pat of ['https://x.com/**', 'https://grok.com/**']) await ctx.route(pat, route => {
     const u = new URL(route.request().url());
-    const body = u.hostname === 'x.com' && !u.pathname.startsWith('/i/grok') ? xMock.page() : grokMock.page(route.request().url());
+    const body = u.hostname === 'x.com' && !u.pathname.startsWith('/i/grok') ? xSearchMock.page(route.request().url()) : grokMock.page(route.request().url());
     route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body });
   });
   await ctx.route('https://dexscreener.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: dexMock.handle(route.request().url()) }));
@@ -44,7 +44,30 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   page.on('pageerror', e => console.log('PAGE ERROR', e.message));
   page.on('console', m => { if (m.type() === 'error') console.log('CONSOLE', m.text()); });
 
-  console.log('1) Danh sách theo dõi: gắn nút');
+  console.log('0) Mặc định: danh sách không có nút ✎ ở từng hàng, chỉ nút nổi trên trang token');
+  await page.goto('https://gmgn.ai/follow?chain=robinhood');
+  await page.waitForTimeout(1500);
+  assert((await page.$$('.noted-badge')).length === 0, 'mặc định không gắn nút vào hàng');
+  await page.goto('https://gmgn.ai/robinhood/token/0xaa40e79e987517f7462bf79315b8a118799b04e3');
+  await page.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden; }, null, { timeout: 8000 });
+  assert(true, 'trang token vẫn có nút nổi');
+  await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+  await page.waitForTimeout(1200);
+  const panelLive = await sw.evaluate(() => panelWindows.size > 0);
+  console.log('  side panel thật có mở trong headless:', panelLive);
+  if (panelLive) {
+    await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+    await page.waitForTimeout(800);
+    const tabIdT = await sw.evaluate(async () => (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0].id);
+    const opts = await sw.evaluate(async id => chrome.sidePanel.getOptions({ tabId: id }), tabIdT);
+    assert(opts.enabled === false && (await sw.evaluate(() => panelWindows.size)) === 0, 'bấm nút nổi lần 2 đóng side panel');
+    await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+    await page.waitForTimeout(1200);
+    assert((await sw.evaluate(async id => chrome.sidePanel.getOptions({ tabId: id }), tabIdT)).enabled === true && (await sw.evaluate(() => panelWindows.size)) > 0, 'bấm lần 3 mở lại');
+  }
+  await sw.evaluate(async () => { const st = (await chrome.storage.local.get('settings')).settings || {}; await chrome.storage.local.set({ settings: { ...st, listBadges: true } }); });
+
+  console.log('1) Danh sách theo dõi: gắn nút (tuỳ chọn listBadges bật)');
   await page.goto('https://gmgn.ai/follow?chain=robinhood');
   await page.waitForSelector('.noted-badge', { timeout: 10000 });
   await page.waitForTimeout(1500); // đợi hàng "LATE" được thêm động
@@ -124,7 +147,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await page.screenshot({ path: path.join(OUT, '2-list-tooltip.png') });
 
   console.log('5) Chế độ overlay (settings.ui = drawer): bấm nút mở drawer trong trang');
-  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'drawer' } }));
+  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'drawer', listBadges: true } }));
   await page.reload();
   await page.waitForSelector(`.noted-badge[data-key="${PROLOG}"]`);
   await page.waitForTimeout(400);
@@ -231,7 +254,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await dash.waitForSelector('.card');
   assert((await dash.$eval('#f-status option[value=""]', e => e.textContent)) === 'Mọi trạng thái', 'dashboard tiếng Việt');
   assert((await dash.$eval('#stats', e => e.textContent)).includes('dự án'), 'thống kê tiếng Việt');
-  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', lang: 'zh' } }));
+  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', lang: 'zh', listBadges: true } }));
   await dash.waitForTimeout(400);
   await dash.reload();
   await dash.waitForSelector('.card');
@@ -247,7 +270,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await page.waitForTimeout(250);
   assert((await shadowQ(page, '.nd-tip')).includes('研究中'), 'tooltip trong trang gmgn dùng tiếng Trung');
   assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === '为该项目添加笔记 (Research-Noted-Gmgn)', 'title nút tiếng Trung');
-  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', lang: 'en' } }));
+  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', lang: 'en', listBadges: true } }));
   await page.waitForTimeout(300);
   await page.hover('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]');
   assert((await page.$eval('.noted-badge[data-key="robinhood:0x2222222222222222222222222222222222222222"]', b => b.title)) === 'Add a note for this project (Research-Noted-Gmgn)', 'đổi ngôn ngữ áp ngay cho nút mà không cần tải lại');
@@ -402,89 +425,38 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   const cached = await sw.evaluate(async () => (await chrome.storage.local.get('dex:pairs'))['dex:pairs']);
   assert(cached && Object.keys(cached).length >= 6, 'mapping pair -> token được cache trong storage.local');
   await dex.close();
-  dexApi.server.close();
 
-  console.log('16) Lưu bài trên X: nút trên bài, gợi ý dự án, lưu chữ + link, ảnh chụp qua Alt+S, Undo, viewer, export ảnh');
+  console.log('16) Tìm kiếm trên X theo contract / $SYMBOL: nút nổi nhận ra token, lưu đoạn bôi đen kèm tên tài khoản');
   const xp = await ctx.newPage();
   xp.on('pageerror', e => console.log('X ERROR', e.message));
-  await xp.goto('https://x.com/home');
-  await xp.waitForFunction(() => document.querySelectorAll('.noted-x-btn').length === 3, null, { timeout: 10000 });
-  assert(await xp.$eval('article', a => a.querySelector('[role="group"] .noted-x-btn') !== null), 'nút ✎ nằm trong thanh hành động của bài');
-  await xp.waitForFunction(() => document.getElementById('noted-x-host')?.shadowRoot.querySelector('.ob'), null, { timeout: 5000 });
-  assert((await xp.evaluate(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.ob').textContent)).includes('Alt+S'), 'lần đầu vào X hiện hướng dẫn (✎ để lưu, chuột phải/Alt+S để kèm ảnh)');
-  await xp.evaluate(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.ob button').click());
-  await xp.waitForTimeout(300);
-  await xp.reload();
-  await xp.waitForFunction(() => document.querySelectorAll('.noted-x-btn').length === 3, null, { timeout: 10000 });
-  await xp.waitForTimeout(500);
-  assert(!(await xp.evaluate(() => !!document.getElementById('noted-x-host')?.shadowRoot.querySelector('.ob'))), 'bấm "Got it" thì không hiện lại');
-  await xp.click('article:nth-of-type(1) .noted-x-btn');
-  const xq = (sel, prop = 'textContent') => xp.evaluate(([s, p]) => { const el = document.getElementById('noted-x-host').shadowRoot.querySelector(s); return el ? el[p] : null; }, [sel, prop]);
-  const xclick = sel => xp.evaluate(s => document.getElementById('noted-x-host').shadowRoot.querySelector(s).click(), sel);
-  await xp.waitForFunction(() => document.getElementById('noted-x-host')?.shadowRoot.querySelector('.pk'), null, { timeout: 5000 });
-  assert((await xq('.chips')).includes('PROLOG'), 'bài có $PROLOG -> gợi ý dự án PROLOG');
-  assert((await xq('.save', 'disabled')) === false, 'gợi ý duy nhất được chọn sẵn');
-  await xp.evaluate(() => { const r = document.getElementById('noted-x-host').shadowRoot; r.querySelector('.shot').checked = false; });
-  await xclick('.save');
-  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').classList.contains('ok'), null, { timeout: 8000 });
-  let xe = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x');
-  assert(xe.length === 1 && xe[0].type === 'news' && xe[0].tweetId === '1900000000000000001' && xe[0].text.includes('@alpha_caller (Alpha Caller)') && xe[0].text.includes('https://x.com/alpha_caller/status/1900000000000000001') && xe[0].text.includes('partnered with Virtuals'), 'mốc lưu tác giả, thời gian, nội dung, link bài');
-  assert(!xe[0].image, 'bỏ tick ảnh -> không có ảnh');
-  assert(await xp.$eval('article:nth-of-type(1) .noted-x-btn', b => b.classList.contains('noted-x-btn--saved')), 'nút bài đã lưu đổi màu');
-  await xclick('.save');
-  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').textContent.includes('Already saved'), null, { timeout: 5000 });
-  assert(true, 'lưu lại cùng bài vào cùng dự án bị chặn');
-  await xclick('.undo');
-  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').textContent.includes('Removed'), null, { timeout: 5000 });
-  xe = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x');
-  assert(xe.length === 0 && !(await xp.$eval('article:nth-of-type(1) .noted-x-btn', b => b.classList.contains('noted-x-btn--saved'))), 'Undo gỡ mốc và trả màu nút');
-  await xp.keyboard.press('Escape');
-
-  // Bài không có ticker: tìm dự án bằng ô tìm kiếm, kèm ảnh; Alt+S (phím tắt cấp activeTab) nếu headless chuyển được lệnh
-  await xp.hover('article:nth-of-type(2)');
-  await xp.keyboard.press('Alt+S');
-  await xp.waitForTimeout(600);
-  let armed = await xp.evaluate(() => !!document.getElementById('noted-x-host')?.shadowRoot.querySelector('.pk'));
-  console.log('  Alt+S mở picker trong headless:', armed);
-  if (!armed) await xp.click('article:nth-of-type(2) .noted-x-btn');
-  await xp.waitForFunction(() => document.getElementById('noted-x-host')?.shadowRoot.querySelector('.pk .q'), null, { timeout: 5000 });
-  await xp.evaluate(() => { const r = document.getElementById('noted-x-host').shadowRoot; const q = r.querySelector('.q'); q.value = 'exten'; q.dispatchEvent(new Event('input')); });
-  await xp.waitForTimeout(100);
-  assert((await xq('.list')).includes('EXTENSION') && !(await xq('.list')).includes('PROLOG'), 'ô tìm kiếm lọc dự án');
-  await xp.evaluate(() => { const r = document.getElementById('noted-x-host').shadowRoot; r.querySelector('.list .item[data-key]').click(); r.querySelector('.type').value = 'link'; r.querySelector('.shot').checked = true; });
-  await xclick('.save');
-  await xp.waitForFunction(() => document.getElementById('noted-x-host').shadowRoot.querySelector('.status').classList.contains('ok'), null, { timeout: 15000 });
-  const ext2 = await sw.evaluate(async () => (await chrome.storage.local.get('p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump'))['p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump']);
-  const xe2 = ext2.timeline.filter(e => e.source === 'x');
-  assert(xe2.length === 1 && xe2[0].type === 'link' && xe2[0].tweetId === '1900000000000000002', 'lưu vào dự án chọn từ tìm kiếm với loại mốc đã chọn');
-  const statusText = await xq('.status');
-  if (xe2[0].image) {
-    const img = await sw.evaluate(async id => (await chrome.storage.local.get('img:' + id))['img:' + id], xe2[0].image);
-    assert(img && img.data.startsWith('data:image/jpeg;base64,') && img.w > 100 && img.h > 50, `ảnh chụp được cắt và lưu (${img.w}x${img.h}, ${Math.round(img.data.length / 1024)} KB)`);
-    const viewer = await ctx.newPage();
-    await viewer.goto(`chrome-extension://${extId}/src/viewer/viewer.html?img=${xe2[0].image}`);
-    await viewer.waitForFunction(() => { const i = document.getElementById('img'); return i && !i.hidden && i.naturalWidth > 0; }, null, { timeout: 5000 });
-    assert(true, 'trang viewer hiện ảnh');
-    await viewer.close();
-    await dash.reload();
-    await dash.waitForSelector('.card');
-    await dash.evaluate(() => [...document.querySelectorAll('.card')].find(c => c.textContent.includes('EXTENSION')).click());
-    await dash.waitForFunction(() => document.querySelector('.ne-eimg img') && document.querySelector('.ne-eimg img').naturalWidth > 0, null, { timeout: 8000 });
-    assert(true, 'timeline trong dashboard hiện thumbnail ảnh');
-    const exp = await dash.evaluate(async () => NotedStore.exportJSON({ images: true }));
-    assert(exp.images && exp.images[xe2[0].image] && exp.images[xe2[0].image].data.length > 1000, 'export JSON kèm ảnh');
-    const expNo = await dash.evaluate(async () => NotedStore.exportJSON({ images: false }));
-    assert(!expNo.images, 'export JSON không kèm ảnh khi tắt');
-    await sw.evaluate(async id => chrome.storage.local.remove('img:' + id), xe2[0].image);
-    const imp = await dash.evaluate(async data => NotedStore.importJSON(data), exp);
-    assert(imp.images === 1 && !!(await sw.evaluate(async id => (await chrome.storage.local.get('img:' + id))['img:' + id], xe2[0].image)), 'import khôi phục ảnh');
-  } else {
-    console.log('  (headless không cấp activeTab: chỉ kiểm tra đường lưu chữ; trạng thái:', statusText.trim(), ')');
-    assert(statusText.includes('Saved to EXTENSION'), 'không chụp được thì vẫn lưu chữ và báo rõ');
-  }
+  await xp.goto('https://x.com/search?q=0xaa40e79e987517f7462bf79315b8a118799b04e3&src=typed_query');
+  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden; }, null, { timeout: 10000 });
+  const fabX = await shadowQ(xp, '.nd-fab');
+  assert(fabX.includes('Research-Noted-Gmgn') && fabX.includes('PROLOG') && fabX.includes('Robinhood'), 'nút nổi: Research-Noted-Gmgn · PROLOG · Robinhood: ' + fabX);
+  assert((await xp.$$('.noted-badge')).length === 0 && (await xp.$$('.noted-x-btn')).length === 0, 'không có nút nào trên từng bài');
+  const ptx = await sw.evaluate(async id => chrome.tabs.sendMessage(id, { type: 'noted:get-page-token' }), await sw.evaluate(async () => { const all = await chrome.tabs.query({}); return all[all.length - 1].id; }));
+  assert(ptx && ptx.token && ptx.token.key === PROLOG, 'popup/phím tắt/side panel nhận đúng token của trang tìm kiếm');
+  // bôi đen chữ trong bài của @hoangtrank
+  await xp.evaluate(() => { const el = document.querySelector('article [data-testid="tweetText"]'); const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+  await xp.waitForFunction(() => { const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel'); return b && !b.hidden; }, null, { timeout: 5000 });
+  assert((await shadowQ(xp, '.nd-sel')).includes('PROLOG'), 'bôi đen -> hiện nút "Save selection → PROLOG"');
+  await xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').click());
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-toast').classList.contains('show'), null, { timeout: 5000 });
+  const selEntries = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x');
+  assert(selEntries.length === 1 && selEntries[0].type === 'research' && selEntries[0].text.startsWith('@hoangtrank: đây là dự án ngon') && selEntries[0].text.includes('Source: https://x.com/hoangtrank/status/1900000000000000011'), 'mốc lưu "@hoangtrank: <đoạn bôi đen>" kèm link bài: ' + selEntries[0].text.split('\n')[0]);
   await xp.setViewportSize({ width: 1280, height: 800 });
-  await xp.screenshot({ path: path.join(OUT, '9-x-save.png') });
+  await xp.screenshot({ path: path.join(OUT, '9-x-search.png') });
+  await xp.goto('https://x.com/search?q=%24EXTENSION&f=live');
+  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden && f.textContent.includes('EXTENSION'); }, null, { timeout: 10000 });
+  assert(true, 'tìm theo $SYMBOL cũng nhận ra dự án đã ghi chú');
+  await xp.goto(`https://x.com/search?q=${dexMock.MINT_A}`);
+  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden && f.textContent.includes('BONKZ'); }, null, { timeout: 15000 });
+  assert((await shadowQ(xp, '.nd-fab')).includes('Solana'), 'địa chỉ chưa có ghi chú -> tra DexScreener ra BONKZ · Solana, bấm là tạo ghi chú mới được');
+  await xp.goto('https://x.com/search?q=hello%20world');
+  await xp.waitForTimeout(1200);
+  assert(await xp.evaluate(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return !f || f.hidden; }), 'tìm kiếm không liên quan -> không hiện gì');
   await xp.close();
+  dexApi.server.close();
 
   await ctx.close();
   console.log('\nALL PASSED');

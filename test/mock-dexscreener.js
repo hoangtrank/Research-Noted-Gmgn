@@ -30,6 +30,7 @@ const SUI_PAIRS = {
   [`sui:${PAIR_S}`]: { chainId: 'sui', pairAddress: PAIR_S, baseToken: { address: TOKEN_S, symbol: 'SUIDOG', name: 'Sui Dog' }, quoteToken: { address: '0x2::sui::SUI', symbol: 'SUI', name: 'Sui' }, marketCap: 910000, fdv: 910000 },
 };
 const TOKENS = {
+  [MINT_A.toLowerCase()]: { chainId: 'solana', pairAddress: PAIR_A, baseToken: { address: MINT_A, symbol: 'BONKZ', name: 'Bonkz Coin' }, quoteToken: { address: 'So11111111111111111111111111111111111111112', symbol: 'SOL', name: 'Wrapped SOL' }, marketCap: 2390000, fdv: 2390000, liquidity: { usd: 500000 } },
   [MINT_C.toLowerCase()]: { chainId: 'solana', pairAddress: 'PairCcccccccccccccccccccccccccccccccccccccC3', baseToken: { address: MINT_C, symbol: 'EXTENSION', name: 'Extension' }, quoteToken: { address: 'So11111111111111111111111111111111111111112', symbol: 'SOL', name: 'Wrapped SOL' }, marketCap: 420760, fdv: 420760 },
 };
 

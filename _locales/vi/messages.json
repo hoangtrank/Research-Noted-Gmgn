@@ -7,8 +7,5 @@
   },
   "cmdToggle": {
     "message": "Mở/đóng ghi chú cho token đang xem"
-  },
-  "cmdSavePost": {
-    "message": "Lưu bài X đang rê chuột (kèm ảnh chụp)"
   }
 }

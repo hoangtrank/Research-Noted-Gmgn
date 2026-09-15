@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "minimum_chrome_version": "116",
   "default_locale": "en",
   "description": "__MSG_appDesc__",
@@ -15,8 +15,7 @@
     "storage",
     "unlimitedStorage",
     "activeTab",
-    "sidePanel",
-    "contextMenus"
+    "sidePanel"
   ],
   "host_permissions": [
     "https://api.dexscreener.com/*"
@@ -82,13 +81,19 @@
     },
     {
       "matches": [
-        "https://x.com/*",
-        "https://twitter.com/*"
+        "https://x.com/search*",
+        "https://twitter.com/search*"
       ],
       "js": [
         "src/lib/storage.js",
         "src/lib/i18n.js",
-        "src/content/x.js"
+        "src/lib/research.js",
+        "src/lib/editor.js",
+        "src/content/sites/xsearch.js",
+        "src/content/core.js"
+      ],
+      "css": [
+        "src/content/badge.css"
       ],
       "run_at": "document_idle"
     },
@@ -112,12 +117,6 @@
         "default": "Alt+N"
       },
       "description": "__MSG_cmdToggle__"
-    },
-    "save-post": {
-      "suggested_key": {
-        "default": "Alt+S"
-      },
-      "description": "__MSG_cmdSavePost__"
     }
   }
 }

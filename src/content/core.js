@@ -37,13 +37,18 @@
 .nd-fab:hover{filter:brightness(1.15)}
 .nd-fab.has{border-color:rgba(250,204,21,.7);color:#fde047;background:linear-gradient(180deg,#2a2610,#1b1a12)}
 .nd-fab .f-sum{font-weight:400;color:#9aa3b2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}
+.nd-sel{position:fixed;right:16px;bottom:140px;z-index:2147482999;display:flex;align-items:center;gap:8px;max-width:min(380px,calc(100vw - 32px));padding:8px 14px;border-radius:999px;border:1px solid rgba(250,204,21,.7);background:linear-gradient(180deg,#2a2610,#1b1a12);color:#fde047;font:600 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer}
+.nd-sel:hover{filter:brightness(1.15)}
+.nd-sel .s-txt{font-weight:400;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
 .nd-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483002;padding:8px 14px;border-radius:999px;background:#20242d;color:#e6e8ec;border:1px solid #2b303a;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .15s;pointer-events:none}
 .nd-toast.show{opacity:1}
 `;
 
-  let host, shadow, drawer, editor, tip, fab, toastEl;
+  let host, shadow, drawer, editor, tip, fab, toastEl, selBtn;
+  let lastSelection = '';
   let openKey = null;      // key đang mở trong drawer (chế độ overlay)
   let uiMode = 'panel';    // settings.ui: 'panel' | 'drawer'
+  let listBadges = false;  // settings.listBadges: có gắn nút ✎ vào từng hàng token trong danh sách không (mặc định chỉ nút nổi)
   let pageToken = null;    // token của trang hiện tại (đã resolve)
   let lastPageKey = undefined;
   let lastHref = location.href;
@@ -137,6 +142,18 @@
     toastEl.className = 'nd-toast';
     shadow.appendChild(toastEl);
 
+    if (A.selectionSave) {
+      selBtn = document.createElement('button');
+      selBtn.type = 'button';
+      selBtn.className = 'nd-sel';
+      selBtn.hidden = true;
+      selBtn.addEventListener('mousedown', ev => ev.preventDefault()); // giữ nguyên vùng bôi đen khi bấm
+      selBtn.addEventListener('click', saveSelection);
+      shadow.appendChild(selBtn);
+      let selTimer = 0;
+      document.addEventListener('selectionchange', () => { clearTimeout(selTimer); selTimer = setTimeout(refreshSelection, 200); });
+    }
+
     (document.body || document.documentElement).appendChild(host);
 
     document.addEventListener('keydown', ev => {
@@ -177,9 +194,18 @@
   }
 
   // ---------------- dữ liệu ----------------
+  function applySettings(st) {
+    st = st || {};
+    uiMode = st.ui || 'panel';
+    const next = !!st.listBadges;
+    if (listBadges && !next) for (const b of document.querySelectorAll('.noted-badge')) b.remove();
+    listBadges = next;
+    if (listBadges) scheduleScan();
+  }
+
   async function loadAll() {
     const [all, r] = await Promise.all([S.getAll(), chrome.storage.local.get('settings')]);
-    uiMode = (r.settings && r.settings.ui) || 'panel';
+    applySettings(r.settings);
     cache.clear();
     for (const p of all) cache.set(p.key, p);
     refreshBadges();
@@ -187,7 +213,7 @@
   }
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.settings) uiMode = (changes.settings.newValue && changes.settings.newValue.ui) || 'panel';
+    if (area === 'local' && changes.settings) applySettings(changes.settings.newValue);
   });
 
   S.onChange(async keys => {
@@ -210,7 +236,7 @@
     scanning = true;
     try {
       if (location.href !== lastHref) { lastHref = location.href; hideTip(); }
-      const targets = A.scanTargets();
+      const targets = listBadges ? A.scanTargets() : [];
       const pending = new Set();
       for (const x of targets) if (x.ref && x.ref.pending) pending.add(x.ref.pending);
       const pr = A.pageRef ? A.pageRef() : null;
@@ -316,10 +342,10 @@
   }
 
   // Gửi background mở Side Panel. Gọi đồng bộ ngay trong click để giữ user gesture (sidePanel.open yêu cầu).
-  function openNote(token, ctx) {
+  function openNote(token, ctx, toggle) {
     const fallback = () => openDrawer(token, ctx);
     try {
-      chrome.runtime.sendMessage({ type: 'noted:open', token, ctx, mode: uiMode }, res => {
+      chrome.runtime.sendMessage({ type: 'noted:open', token, ctx, mode: uiMode, toggle: !!toggle }, res => {
         if (chrome.runtime.lastError || !res || res.mode !== 'panel') fallback();
         else if (openKey) closeDrawer();
       });
@@ -381,7 +407,7 @@
   function toggleForPage() {
     if (!pageToken) { toast(t('toast_open_token')); return; }
     if (openKey === pageToken.key) closeDrawer();
-    else openNote({ chain: pageToken.chain, address: pageToken.address, key: pageToken.key }, { symbol: pageSymbol(), mc: pageToken.mc || null });
+    else openNote({ chain: pageToken.chain, address: pageToken.address, key: pageToken.key }, { symbol: pageSymbol(), mc: pageToken.mc || null }, true);
   }
 
   // Panel/popup hỏi symbol đang hiển thị cho một token.
@@ -400,10 +426,49 @@
     const sym = (p && p.symbol) || pageSymbol();
     fab.hidden = false;
     fab.classList.toggle('has', !!p);
+    const prefix = A.fabPrefix ? `${E.esc(A.fabPrefix)} · ` : '';
+    const chain = A.fabChain ? ` · ${E.esc(S.chainLabel(pageToken.chain))}` : '';
     fab.innerHTML = p
-      ? `${p.pinned ? '📌' : '📝'} <b>${E.esc(sym || t('fab_note'))}</b>${p.summary ? `<span class="f-sum">${E.esc(p.summary.slice(0, 90))}</span>` : `<span class="f-sum">${E.esc(t('entries_count', { n: p.timeline.length }))}</span>`}`
-      : `📝 ${E.esc(t('fab_note'))}${sym ? ' ' + E.esc(sym) : ''}`;
+      ? `${p.pinned ? '📌' : '📝'} <b>${prefix}${E.esc(sym || t('fab_note'))}</b>${chain}${p.summary ? `<span class="f-sum">${E.esc(p.summary.slice(0, 90))}</span>` : `<span class="f-sum">${E.esc(t('entries_count', { n: p.timeline.length }))}</span>`}`
+      : `📝 ${prefix}${E.esc(t('fab_note'))}${sym ? ' <b>' + E.esc(sym) + '</b>' : ''}${chain}`;
     fab.title = t('fab_title');
+    refreshSelection();
+  }
+
+  // ---------------- lưu đoạn chữ đang bôi đen vào timeline của token đang xem ----------------
+  function refreshSelection() {
+    if (!selBtn) return;
+    const sel = window.getSelection && window.getSelection();
+    const text = sel && !sel.isCollapsed ? String(sel.toString() || '').trim() : '';
+    if (text.length >= 3 && pageToken) {
+      lastSelection = text;
+      const p = cache.get(pageToken.key);
+      const sym = (p && p.symbol) || pageSymbol() || S.shortAddress(pageToken.address);
+      selBtn.innerHTML = `＋ ${E.esc(t('sel_save', { symbol: sym }))}<span class="s-txt">${E.esc(text.slice(0, 60))}</span>`;
+      selBtn.hidden = false;
+    } else if (!text) {
+      selBtn.hidden = true;
+    }
+  }
+
+  function saveSelection() {
+    if (!pageToken || !lastSelection) return;
+    const sel = window.getSelection && window.getSelection();
+    let src = (A.selectionSource && sel && A.selectionSource(sel)) || null;
+    if (typeof src === 'string') src = { url: src };
+    const url = (src && src.url) || location.href;
+    const author = (src && src.author) || '';
+    const token = { chain: pageToken.chain, address: pageToken.address, key: pageToken.key };
+    const p = cache.get(pageToken.key);
+    const symbol = (p && p.symbol) || pageSymbol() || pageToken.symbol || '';
+    const text = author ? `${author}: ${lastSelection}` : lastSelection; // mở đầu bằng tên tài khoản của bài chứa đoạn bôi đen
+    chrome.runtime.sendMessage({ type: 'noted:add-entry', token, symbol, entryType: 'research', text, url, sourceLabel: t('grok_source') }, res => {
+      if (chrome.runtime.lastError || !res || !res.ok) { toast(t('grok_nothing')); return; }
+      toast(t('sel_saved', { symbol: res.symbol || symbol || S.shortAddress(token.address) }));
+      selBtn.hidden = true;
+      lastSelection = '';
+      if (sel) sel.removeAllRanges();
+    });
   }
 
   // ---------------- khởi động ----------------

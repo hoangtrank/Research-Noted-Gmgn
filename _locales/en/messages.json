@@ -7,8 +7,5 @@
   },
   "cmdToggle": {
     "message": "Open/close the note for the current token"
-  },
-  "cmdSavePost": {
-    "message": "Save the X post under the cursor (with screenshot)"
   }
 }

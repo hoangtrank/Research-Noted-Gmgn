@@ -174,14 +174,14 @@
   // ---- Settings modal: giao diện ghi chú, đích research, template prompt ----
   async function initSettings() {
     const R = globalThis.NotedResearch;
-    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved'), follow = $('#follow'), grokAuto = $('#grok-auto'), xShot = $('#x-shot'), exportImages = $('#export-images');
+    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved'), follow = $('#follow'), grokAuto = $('#grok-auto'), listBadges = $('#list-badges'), exportImages = $('#export-images');
     target.innerHTML = Object.entries(R.TARGETS).map(([k, v]) => `<option value="${k}">${E.esc(v.label)}</option>`).join('');
     const load = async () => {
       const st = (await chrome.storage.local.get('settings')).settings || {};
       uiMode.value = st.ui || 'panel';
       follow.checked = st.follow !== false;
       grokAuto.checked = st.grokAutoSave !== false;
-      xShot.checked = st.xScreenshot !== false;
+      listBadges.checked = !!st.listBadges;
       exportImages.checked = st.exportImages !== false;
       target.value = st.researchTarget || 'x';
       tpl.value = st.researchTemplate || R.DEFAULT_TEMPLATE;
@@ -198,7 +198,7 @@
     uiMode.addEventListener('change', () => patch({ ui: uiMode.value }));
     follow.addEventListener('change', () => patch({ follow: follow.checked }));
     grokAuto.addEventListener('change', () => patch({ grokAutoSave: grokAuto.checked }));
-    xShot.addEventListener('change', () => patch({ xScreenshot: xShot.checked }));
+    listBadges.addEventListener('change', () => patch({ listBadges: listBadges.checked }));
     exportImages.addEventListener('change', () => patch({ exportImages: exportImages.checked }));
     target.addEventListener('change', () => patch({ researchTarget: target.value }));
     let tplTimer = null;

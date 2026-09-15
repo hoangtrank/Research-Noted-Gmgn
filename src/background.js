@@ -9,9 +9,17 @@ const GROK_PREFIX = 'grok:';
 const DEX_CACHE_KEY = 'dex:pairs';
 const DEX_API = 'https://api.dexscreener.com';
 const pageTokens = new Map(); // tabId -> token đang xem (content script báo), dùng cho phím tắt trên site không có token trong URL
+const tabTokens = new Map();  // tabId -> key đang hiển thị trong side panel (bản trong bộ nhớ của storage.session)
+const panelWindows = new Set(); // windowId có side panel đang mở (panel giữ một port tới background)
+chrome.runtime.onConnect.addListener(port => {
+  if (!port.name.startsWith('noted-panel:')) return;
+  const wid = Number(port.name.slice('noted-panel:'.length));
+  if (!wid) return;
+  panelWindows.add(wid);
+  port.onDisconnect.addListener(() => panelWindows.delete(wid));
+});
 const GROK_HOSTS = ['x.com', 'twitter.com', 'grok.com'];
 const X_HOSTS = ['x.com', 'twitter.com'];
-const X_MENU_ID = 'noted-save-post';
 
 // Token gửi qua message phải hợp lệ (chain/address chuẩn hoá được) trước khi dùng làm khoá.
 function validToken(t) {
@@ -45,12 +53,15 @@ function notifyPanels(payload) {
 }
 
 async function remember(tabId, token, ctx) {
+  tabTokens.set(tabId, token.key);
   await chrome.storage.session.set({ [SESSION_PREFIX + tabId]: { token, ctx: ctx || {}, at: Date.now() } });
   notifyPanels({ type: 'noted:show', tabId, token, ctx: ctx || {} });
 }
 
 // Mở ghi chú cho token trong tab. Phải gọi sidePanel.open() ngay trong lượt xử lý user gesture (không await trước).
-function openNote({ tabId, token, ctx, mode, fromContent }, sendResponse) {
+// toggle=true (nút nổi, Alt+N): nếu panel đang mở đúng token này thì đóng panel cho tab (Chrome không có API close,
+// nên tắt panel của tab bằng setOptions enabled:false; lần mở sau bật lại).
+function openNote({ tabId, windowId, token, ctx, mode, fromContent, toggle }, sendResponse) {
   const drawer = async () => {
     if (!fromContent) {
       try { await chrome.tabs.sendMessage(tabId, { type: 'noted:open-drawer', token, ctx: ctx || {} }); } catch (_) {}
@@ -58,6 +69,13 @@ function openNote({ tabId, token, ctx, mode, fromContent }, sendResponse) {
     sendResponse({ ok: true, mode: 'drawer' });
   };
   if ((mode || uiMode) === 'drawer' || !chrome.sidePanel) { drawer(); return; }
+  if (toggle && windowId && panelWindows.has(windowId) && tabTokens.get(tabId) === token.key) {
+    chrome.sidePanel.setOptions({ tabId, enabled: false })
+      .then(() => { panelWindows.delete(windowId); sendResponse({ ok: true, mode: 'panel', closed: true }); })
+      .catch(() => sendResponse({ ok: true, mode: 'panel', closed: false }));
+    return;
+  }
+  chrome.sidePanel.setOptions({ tabId, enabled: true, path: 'src/panel/panel.html' }).catch(() => {});
   chrome.sidePanel.open({ tabId })
     .then(async () => { await remember(tabId, token, ctx); sendResponse({ ok: true, mode: 'panel' }); })
     .catch(err => { console.warn('[Research-Noted-Gmgn] sidePanel.open thất bại, dùng drawer:', err && err.message); drawer(); });
@@ -72,7 +90,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const token = validToken(msg.token);
       if (!tabId || !token) { sendResponse({ ok: false }); return; }
       const c = msg.ctx || {};
-      openNote({ tabId, token, ctx: { symbol: String(c.symbol || '').slice(0, 32), mc: c.mc ? String(c.mc).slice(0, 24) : null }, mode: msg.mode, fromContent: !!sender.tab }, sendResponse);
+      openNote({ tabId, windowId: sender.tab ? sender.tab.windowId : Number(msg.windowId) || null, token, ctx: { symbol: String(c.symbol || '').slice(0, 32), mc: c.mc ? String(c.mc).slice(0, 24) : null }, mode: msg.mode, fromContent: !!sender.tab, toggle: !!msg.toggle }, sendResponse);
       return true; // trả lời bất đồng bộ
     }
     case 'noted:open-dashboard': {
@@ -173,35 +191,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
     }
-    // ---- Lưu bài trên X (chữ + link, tuỳ chọn ảnh chụp) ----
-    case 'noted:x-saved-ids': { // tweetId -> {key, entryId, symbol} suy từ timeline (không cần chỉ mục riêng)
-      NotedStore.getAll().then(all => {
-        const map = {};
-        for (const p of all) for (const e of p.timeline) if (e.source === 'x' && e.tweetId) map[e.tweetId] = { key: p.key, entryId: e.id, symbol: p.symbol };
-        sendResponse(map);
-      });
-      return true;
-    }
-    case 'noted:x-save': {
-      if (!fromHost(sender, X_HOSTS)) { sendResponse({ ok: false, reason: 'host' }); return; }
-      xSave(msg, sender).then(sendResponse).catch(err => sendResponse({ ok: false, reason: String(err && err.message) }));
-      return true;
-    }
-    case 'noted:x-unsave': {
-      if (!fromHost(sender, X_HOSTS)) { sendResponse({ ok: false }); return; }
+    case 'noted:add-entry': { // thêm một mốc vào token (dùng cho "lưu đoạn bôi đen" trên trang tìm kiếm X)
       (async () => {
-        const token = validToken(parseKey(msg.key));
-        const id = String(msg.entryId || '');
-        if (!token || !id) { sendResponse({ ok: false }); return; }
-        const p = await NotedStore.get(token.key);
-        if (!p) { sendResponse({ ok: false }); return; }
-        const entry = p.timeline.find(e => e.id === id && e.source === 'x');
-        if (!entry) { sendResponse({ ok: true, removed: 0 }); return; }
-        p.timeline = p.timeline.filter(e => e !== entry);
-        if (entry.image) await NotedStore.removeImages([entry.image]);
-        await NotedStore.save(p);
-        sendResponse({ ok: true, removed: 1 });
+        const token = validToken(msg.token);
+        const text = String(msg.text || '').trim().slice(0, 20000);
+        if (!token || !text) { sendResponse({ ok: false }); return; }
+        const type = NotedStore.ENTRY_TYPES.some(x => x.id === msg.entryType) ? msg.entryType : 'research';
+        const url = /^https:\/\/[^\s]{1,300}$/.test(String(msg.url || '')) ? String(msg.url) : '';
+        let p = await NotedStore.get(token.key) || NotedStore.emptyProject(token.chain, token.address, { symbol: String(msg.symbol || '').slice(0, 32) });
+        if (!p.symbol && msg.symbol) p.symbol = String(msg.symbol).slice(0, 32);
+        const body = url ? `${text}\n\n${String(msg.sourceLabel || 'Source').slice(0, 20)}: ${url}` : text;
+        const entry = NotedStore.newEntry(type, body, { source: 'x' });
+        p.timeline.push(entry);
+        p = await NotedStore.save(p);
+        sendResponse({ ok: true, key: p.key, symbol: p.symbol, entryId: entry.id });
       })();
+      return true;
+    }
+    case 'noted:dex-lookup': { // địa chỉ token (chưa biết chain) -> chain, symbol, tên qua DexScreener
+      dexLookupToken(String(msg.address || '')).then(token => sendResponse({ ok: !!token, token })).catch(() => sendResponse({ ok: false }));
       return true;
     }
     case 'noted:open-viewer': {
@@ -220,44 +228,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-// Menu chuột phải trên X: chọn menu = "gọi" extension nên Chrome cấp activeTab -> được phép chụp màn hình tab này.
-function installMenu() {
-  try {
-    chrome.contextMenus.removeAll(() => {
-      chrome.contextMenus.create({
-        id: X_MENU_ID, title: 'Save post with screenshot to Research-Noted-Gmgn',
-        contexts: ['page', 'link', 'image', 'selection', 'video'],
-        documentUrlPatterns: ['https://x.com/*', 'https://twitter.com/*'],
-      }, () => void chrome.runtime.lastError);
-    });
-  } catch (_) {}
-}
-chrome.runtime.onInstalled.addListener(installMenu);
-chrome.runtime.onStartup.addListener(installMenu);
-installMenu();
-
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId !== X_MENU_ID || !tab || !tab.id) return;
-  chrome.tabs.sendMessage(tab.id, { type: 'noted:x-context', reason: 'menu' }).catch(() => {});
-});
-
 // Alt+N: tab được truyền sẵn nên không cần tabs.query (giữ được user gesture cho sidePanel.open).
 chrome.commands.onCommand.addListener((command, tab) => {
-  if (command === 'save-post' && tab && tab.id) { // Alt+S trên X: lưu bài đang rê chuột, kèm ảnh (phím tắt cấp activeTab)
-    chrome.tabs.sendMessage(tab.id, { type: 'noted:x-context', reason: 'shortcut' }).catch(() => {});
-    return;
-  }
   if (command !== 'toggle-note' || !tab || !tab.id) return;
   const token = NotedStore.parseTokenUrl(tab.url || '') || pageTokens.get(tab.id) || null;
   if (!token) {
     chrome.tabs.sendMessage(tab.id, { type: 'noted:toast', key: 'toast_open_token' }).catch(() => {});
     return;
   }
-  openNote({ tabId: tab.id, token, ctx: {}, mode: uiMode, fromContent: false }, () => {});
+  openNote({ tabId: tab.id, windowId: tab.windowId, token, ctx: {}, mode: uiMode, fromContent: false, toggle: true }, () => {});
 });
 
 chrome.tabs.onRemoved.addListener(tabId => {
   pageTokens.delete(tabId);
+  tabTokens.delete(tabId);
   chrome.storage.session.remove([SESSION_PREFIX + tabId, GROK_PREFIX + tabId]).catch(() => {});
 });
 
@@ -266,55 +250,6 @@ function parseKey(key) {
   const s = String(key || '');
   const i = s.indexOf(':');
   return i > 0 ? { chain: s.slice(0, i), address: s.slice(i + 1) } : null;
-}
-
-const IMG_MAX_W = 1000;
-
-async function captureCrop(windowId, c) {
-  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
-  const bmp = await createImageBitmap(await (await fetch(dataUrl)).blob());
-  // Hệ số ảnh chụp / CSS px suy từ chiều ngang (ảnh có thể ở pixel CSS hoặc pixel thiết bị, và trong vài môi trường
-  // chỉ phủ phần trên viewport), áp cho cả hai trục rồi cắt trong giới hạn ảnh.
-  const k = bmp.width / Math.max(1, Number(c.vw) || bmp.width);
-  const sx = Math.max(0, Math.round(c.x * k)), sy = Math.max(0, Math.round(c.y * k));
-  const sw = Math.max(1, Math.min(bmp.width - sx, Math.round(c.w * k))), sh = Math.max(1, Math.min(bmp.height - sy, Math.round(c.h * k)));
-  const outW = Math.min(sw, IMG_MAX_W), outH = Math.max(1, Math.round(sh * outW / sw));
-  const canvas = new OffscreenCanvas(outW, outH);
-  canvas.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, outW, outH);
-  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return { data: `data:image/jpeg;base64,${btoa(bin)}`, w: outW, h: outH, bytes: bytes.length };
-}
-
-async function xSave(msg, sender) {
-  const token = validToken(parseKey(msg.key));
-  if (!token) return { ok: false, reason: 'key' };
-  const tw = msg.tweet || {};
-  const tweetId = /^\d{1,30}$/.test(String(tw.id || '')) ? String(tw.id) : '';
-  const text = String(tw.text || '').slice(0, 20000);
-  const url = /^https:\/\/(x|twitter)\.com\/[A-Za-z0-9_]{1,20}\/status\/\d{1,30}$/.test(String(tw.url || '')) ? String(tw.url) : '';
-  const author = String(tw.author || '').slice(0, 80);
-  const when = String(tw.time || '').slice(0, 40);
-  const type = NotedStore.ENTRY_TYPES.some(x => x.id === msg.entryType) ? msg.entryType : 'news';
-  let p = await NotedStore.get(token.key);
-  if (!p) return { ok: false, reason: 'project' };
-  const existing = tweetId ? p.timeline.find(e => e.source === 'x' && e.tweetId === tweetId) : null;
-  if (existing) return { ok: true, duplicate: true, key: p.key, symbol: p.symbol, entryId: existing.id };
-  let image = null, imageError = '';
-  if (msg.capture && sender.tab) {
-    try {
-      const shot = await captureCrop(sender.tab.windowId, msg.capture);
-      image = `img_${NotedStore.uid()}`;
-      await chrome.storage.local.set({ [`img:${image}`]: { data: shot.data, w: shot.w, h: shot.h, ts: Date.now() } });
-    } catch (err) { imageError = String(err && err.message || err); image = null; }
-  }
-  const body = [`${author}${when ? ` · ${when}` : ''}`.trim(), text, url].filter(Boolean).join('\n\n');
-  const entry = NotedStore.newEntry(type, body, { source: 'x', ...(tweetId ? { tweetId } : {}), ...(image ? { image } : {}) });
-  p.timeline.push(entry);
-  p = await NotedStore.save(p);
-  return { ok: true, key: p.key, symbol: p.symbol, entryId: entry.id, image, imageError };
 }
 
 // ---- DexScreener: đổi địa chỉ pair -> token qua API công khai (không cần key), cache vĩnh viễn trong storage.local ----
@@ -350,6 +285,31 @@ async function fetchJson(url) {
   const r = await fetch(url, { headers: { accept: 'application/json' } });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
+}
+
+// Tra một địa chỉ token chưa rõ chain: lấy cặp có thanh khoản lớn nhất trên DexScreener. Cache 10 phút trong bộ nhớ.
+const lookupCache = new Map();
+async function dexLookupToken(address) {
+  const a = NotedStore.normalizeAddress(address);
+  if (!a) return null;
+  const hit = lookupCache.get(a);
+  if (hit && Date.now() - hit.at < 600000) return hit.token;
+  let token = null;
+  try {
+    const j = await fetchJson(`${await apiBase()}/latest/dex/tokens/${encodeURIComponent(a)}`);
+    const lower = x => String(x || '').toLowerCase();
+    const pairs = ((j && j.pairs) || []).filter(x => lower(x.baseToken && x.baseToken.address) === lower(a) || lower(x.quoteToken && x.quoteToken.address) === lower(a));
+    pairs.sort((x, y) => ((y.liquidity && y.liquidity.usd) || 0) - ((x.liquidity && x.liquidity.usd) || 0));
+    const p = pairs[0];
+    if (p) {
+      const tok = lower(p.baseToken && p.baseToken.address) === lower(a) ? p.baseToken : p.quoteToken;
+      const chain = NotedStore.normalizeChain(p.chainId);
+      const addr = NotedStore.normalizeAddress(tok.address);
+      if (/^[a-z0-9-]{2,20}$/.test(chain) && addr) token = { chain, address: addr, key: NotedStore.keyOf(chain, addr), symbol: tok.symbol || '', name: tok.name || '', mc: fmtMc(p.marketCap || p.fdv) };
+    }
+  } catch (err) { console.warn('[Research-Noted-Gmgn] dexscreener lookup:', err && err.message); }
+  lookupCache.set(a, { at: Date.now(), token });
+  return token;
 }
 
 async function dexResolve(chain, addresses) {

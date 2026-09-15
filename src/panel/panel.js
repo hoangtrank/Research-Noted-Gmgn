@@ -31,6 +31,9 @@
     }
   }
 
+  // Kết nối tới background: còn kết nối = panel đang mở ở cửa sổ này (dùng cho bấm nút lần hai để đóng).
+  try { if (windowId) chrome.runtime.connect({ name: `noted-panel:${windowId}` }); } catch (_) {}
+
   const empty = $('#empty');
   const mount = $('#mount');
   let currentKey = null;

@@ -14,9 +14,9 @@ UI languages: **English** (default), Tiếng Việt, 中文 — switchable in th
 
 | Where | What |
 |---|---|
-| Every token list on gmgn (watchlist, trending, meme, wallets…) and every pair list on DexScreener (watchlist, screener, new pairs…) | ✎ button right after the symbol. Violet = no note yet, yellow = has a note, orange 📌 = pinned; the number is the timeline length. Hover shows summary, tags and the latest entry. |
+| Token page on gmgn, pair page on DexScreener, X search for a contract / $SYMBOL | One floating **Note SYMBOL** button (bottom right) for the token you are looking at: yellow when a note exists, showing its summary. Click to open the note in the side panel; click again to close it. |
+| Token lists (optional, off by default) | Settings → "Also show a ✎ button on every row": a button right after each symbol, violet = no note, yellow = has a note, orange 📌 = pinned; hover shows the summary. |
 | Click the button | Opens Chrome's **Side Panel** on the right (outside the page: the browser shrinks gmgn instead of covering it; drag the edge to resize): symbol, one-line name, status, conviction 1–5, **What does this project do?**, tags, timeline. Autosaves. The market cap shown in the row is stored with each entry ("bought at MC $10.6M"). The popup can switch to an in-page overlay instead. |
-| Token page on gmgn, pair page on DexScreener | Floating button with symbol + summary; click it or press `Alt+N`. |
 | **Side panel follows the page** | Once the panel is open in a tab, opening another token (clicking a watchlist row, a link, the address bar) switches the panel to that token. Toggle in Settings. |
 | Extension icon → Dashboard | All noted projects: full-text search (symbol / name / summary / tag / address / entries), filter by status / tag / pinned, sort, edit in place, add by gmgn URL. |
 | Export / import | JSON (backup, manual sync between machines) and Markdown (feed your whole research to an AI). |
@@ -33,36 +33,9 @@ Works on every chain gmgn supports (`sol`, `eth`, `base`, `bsc`, `robinhood`, `x
 
 The template, the target (Grok on X / grok.com), auto-save and the follow-the-page toggle live in **Dashboard → ⚙ Settings** (auto-save can also be toggled on the Grok panel itself).
 
-## Save X posts (with screenshot)
+## Researching on X
 
-Every post on x.com gets a small **✎** button in its action bar. Click it, pick the project (posts mentioning a `$SYMBOL` or a contract address you have noted are suggested first), choose the entry type, and save. The entry stores author, time, text and the post link.
-
-Screenshots need a user gesture that Chrome recognises as "invoking the extension", so for a screenshot use **right-click on the post → "Save post with screenshot to Research-Noted-Gmgn"** or press **Alt+S** while hovering the post. After one such gesture on a tab, the ✎ button can capture too until you navigate away. The screenshot is the visible part of the post (Chrome captures the viewport), scaled to at most 1000 px wide as JPEG (~60–150 KB), stored locally under its own key and shown as a thumbnail in the timeline; click it to open the viewer. JSON export includes screenshots by default (toggle in Settings). Placeholders: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {gmgn_url}`. No API key is needed; Grok runs in your own X account, and only the answer text you choose to save is stored, locally.
-
-## Install (load unpacked)
-
-Requires Chrome / Brave / Edge 116 or newer (Side Panel API).
-
-1. Download the source (clone or Download ZIP and extract).
-2. Open `chrome://extensions`, enable **Developer mode**.
-3. **Load unpacked** → pick the repo folder (the one containing `manifest.json`).
-4. Reload your gmgn.ai tab. The ✎ button appears next to each symbol.
-
-### Updating without losing data
-
-Notes live in `chrome.storage.local`, which is tied to the extension's ID. For an unpacked extension the ID is derived from the folder path, so **update in place**: replace the files inside the same folder (`git pull`, or extract the new ZIP over it), then click **Reload** on `chrome://extensions`. Loading a new folder creates a new ID with an empty store (the old data still sits under the old entry: export it there, import it here). Export a JSON backup from the Dashboard before updating anyway.
-
-To make the unpacked ID identical to the Web Store ID (so the same data is used by both), copy the public key shown in the Developer Dashboard (Package → View public key) into a `"key"` field of `manifest.json`; `scripts/pack.py` strips that field from the Store ZIP.
-
-Icons are included in `icons/`; to change them, edit `scripts/make_icons.py` and run `npm run icons` (it also rewrites the `icons` entries in `manifest.json`). The shortcut `Alt+N` can be changed at `chrome://extensions/shortcuts`.
-
-## Suggested research workflow
-
-1. See a new token on gmgn → click ✎ → write 1–3 sentences in **What does this project do?**, add tags (`ai`, `launchpad`, `robinhood`, `narrative-x`…).
-2. Research on X / with an AI → paste the thread link or the AI conclusion into **Timeline** as a *Research* entry. Each entry records the time and the market cap at that moment.
-3. Decide → change **Status** (Watching → Researching → Holding → Sold / Passed / Dead), set **Conviction**, **📌 pin** the projects you are actively following.
-4. Periodically open the Dashboard, filter `📌 pinned only` or by tag, export Markdown and ask an AI "which of the projects I researched deserve a second look?".
-5. Export JSON for backup (data lives in the browser's `chrome.storage.local`; uninstalling the extension deletes it).
+Click the **X** link in a note (or gmgn's own X-search button): it opens `x.com/search?q=<contract>`. On any X search whose query contains a contract address or `$SYMBOL` you have noted, a floating **Research-Noted-Gmgn · SYMBOL · Chain** button appears (bottom right). Click it to open the note in the side panel. Select any text in a post and a **Save selection → SYMBOL** button appears: it stores `@author: <selected text>` plus the post link as a *Research* entry. If the address is not noted yet, the extension asks DexScreener which token it is and offers to create the note. Nothing is added to individual posts.
 
 ## Architecture
 
@@ -77,8 +50,8 @@ src/content/sites/gmgn.js        Site adapter: tokens from /{chain}/token/{addre
 src/content/sites/dexscreener.js Site adapter: pair links /{chain}/{pair}, resolved to tokens via the background (DexScreener API, cached)
 src/content/badge.css    Styles for the injected button (light DOM)
 src/content/grok.js      Content script on x.com/i/grok and grok.com: "Save to Research-Noted-Gmgn" panel (auto-save, capture / selection / link project)
-src/content/x.js         Content script on x.com feed: ✎ button per post, project picker, save text/link (+ screenshot via right-click menu or Alt+S)
-src/viewer/              Screenshot viewer page
+src/content/sites/xsearch.js     Site adapter: X search pages, token from the query (contract / $SYMBOL), save selected text with @author
+src/viewer/              Image viewer page (for image entries in exports)
 src/lib/research.js      NotedResearch: prompt template, placeholders, deep links to Grok on X and grok.com
 src/panel/               Side Panel page (editor for the active tab's token)
 src/dashboard/           Dashboard (options page)
@@ -146,8 +119,7 @@ gmgn.ai and dexscreener.com were blocked in the environment where this extension
 | Content script on `dexscreener.com` | Add the note button next to each pair and show the note indicator inline |
 | Host permission `api.dexscreener.com` | Resolve a DexScreener pair address to its token (symbol, address, market cap) so notes share one key with gmgn |
 | Content script on `x.com/i/grok`, `grok.com` | Add the "Save to Research-Noted-Gmgn" panel on Grok pages so the research answer can be saved into the note |
-| Content script on `x.com`, `twitter.com` | Add the ✎ button to posts so a post can be saved into a note |
-| `contextMenus` | "Save post with screenshot" item on X posts; selecting it grants `activeTab` so the visible post can be captured with `captureVisibleTab` |
+| Content script on `x.com/search`, `twitter.com/search` | Recognise the token being researched from the search query and offer to save selected text into its note |
 
 ## Security
 
@@ -164,7 +136,6 @@ Threat model, mitigations and what leaves the device are documented in [SECURITY
 
 ```bash
 npm test            # Playwright e2e (uses Playwright's Chromium, no real gmgn needed)
-npm run test:capture   # screenshot pipeline (test-only copy of the extension with <all_urls>, since headless cannot grant activeTab)
 npm run icons       # regenerate icons
 npm run zip         # build the Web Store ZIP into dist/
 node test/store-shots.js   # regenerate 1280×800 store screenshots into docs/store/

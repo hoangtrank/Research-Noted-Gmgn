@@ -9,7 +9,8 @@ The extension runs content scripts on third-party sites (gmgn.ai, dexscreener.co
 | Page DOM (symbols, market cap, Grok answers) | Text read from the page | Every value rendered with `innerHTML` goes through `esc()`; URLs in notes are linkified only when they start with `http(s)://` and get `rel="noopener noreferrer"`. Inputs receive values through `.value`/`textContent`. |
 | Injected button attributes (light DOM, editable by the page) | `data-chain`, `data-address`, `data-symbol` | Re-validated on click with `normalizeChain` / `normalizeAddress`; symbol is escaped and length-limited. |
 | DexScreener API responses | JSON fields | Addresses normalized; symbol/name escaped and length-limited; results cached as plain data. Only `chain` `[a-z0-9-]` and address `[A-Za-z0-9_.:-]` reach the request URL. |
-| Messages to the service worker | `chrome.runtime.onMessage` | Only extension contexts can send (no `externally_connectable`). Content scripts may only act on their own tab (`sender.tab.id`, `msg.tabId` ignored). Grok-related messages must come from x.com/twitter.com/grok.com, DexScreener resolution from dexscreener.com. Tokens are validated before use. |
+| Messages to the service worker | `chrome.runtime.onMessage` | Only extension contexts can send (no `externally_connectable`). Content scripts may only act on their own tab (`sender.tab.id`, `msg.tabId` ignored). Grok-related messages must come from x.com/twitter.com/grok.com, DexScreener resolution from dexscreener.com. Tokens, entry types and URLs are validated and length-limited before use. |
+| X search query and selected text | Query string, page text | Query parsed with strict address/cashtag patterns; selected text is escaped when rendered and length-limited; author handle comes from the post's status link pattern. |
 | Imported JSON | Arbitrary file | `sanitize()` rejects records with invalid chain/address, coerces every field to its type, caps lengths (symbol 32, name 200, summary 20k, entry 20k, 50 tags, 5000 entries), validates entry ids/types/status. Object spread is used, so `__proto__` keys cannot pollute prototypes. |
 | Extension page URLs (`dashboard.html?open=`, `panel.html?tab=`) | Query string | Validated; extension pages are not web-accessible so web pages cannot open them. |
 | Outbound links | gmgn / X / DexScreener / Grok links | Built from validated chain/address with `encodeURIComponent`; fixed hosts. |
@@ -17,7 +18,7 @@ The extension runs content scripts on third-party sites (gmgn.ai, dexscreener.co
 
 ## Permissions
 
-`storage`, `unlimitedStorage` (notes), `activeTab` (read the current tab URL on user action), `sidePanel` (editor UI), host `api.dexscreener.com` (pair → token), content scripts on the four sites above. No `tabs`, no `<all_urls>`, no `webRequest`.
+`storage`, `unlimitedStorage` (notes), `activeTab` (read the current tab URL on user action), `sidePanel` (editor UI), host `api.dexscreener.com` (pair → token), content scripts on gmgn.ai, dexscreener.com, x.com/search, x.com/i/grok and grok.com. No `tabs`, no `<all_urls>`, no `webRequest`, no `contextMenus`.
 
 ## Data leaving the device
 
