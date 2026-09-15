@@ -96,5 +96,11 @@
   });
 
   I.onChange(async () => { await editor.flush(); location.reload(); });
+
+  // Dự phòng: nếu message "có mốc mới" bị lỡ (service worker vừa ngủ dậy, panel ở cửa sổ nền),
+  // đọc lại storage.session mỗi khi panel được nhìn thấy lại. show() tự bỏ qua nếu không có gì mới.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  window.addEventListener('focus', refresh);
+
   refresh();
 })();

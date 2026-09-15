@@ -440,6 +440,15 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(typeof xTabId === 'number', 'background nhận token của trang tìm kiếm X từ content script');
   const ptx = await sw.evaluate(async id => chrome.tabs.sendMessage(id, { type: 'noted:get-page-token' }), xTabId);
   assert(ptx && ptx.token && ptx.token.key === PROLOG, 'popup/phím tắt/side panel nhận đúng token của trang tìm kiếm');
+  // Mở sẵn ghi chú (như khi người dùng đã bấm nút token trước đó), rồi mới bôi đen và lưu.
+  await xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+  await xp.waitForTimeout(800);
+  const livePanel = await ctx.newPage();
+  await livePanel.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${xTabId}`);
+  await livePanel.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+  const beforeCount = await livePanel.$$eval('.ne-entry', els => els.length);
+  await xp.bringToFront();
+
   // bôi đen chữ trong bài của @hoangtrank
   await xp.evaluate(() => { const el = document.querySelector('article [data-testid="tweetText"]'); const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
   await xp.waitForFunction(() => { const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel'); return b && !b.hidden; }, null, { timeout: 5000 });
@@ -456,6 +465,10 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-toast').classList.contains('show'), null, { timeout: 5000 });
   const selEntries = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x');
   assert(selEntries.length === 1 && selEntries[0].type === 'research' && selEntries[0].text.startsWith('@hoangtrank: đây là dự án ngon') && selEntries[0].text.includes('Source: https://x.com/hoangtrank/status/1900000000000000011'), 'mốc lưu "@hoangtrank: <đoạn bôi đen>" kèm link bài: ' + selEntries[0].text.split('\n')[0]);
+  // Panel đang mở sẵn phải tự hiện mốc mới, không cần tắt/bật lại.
+  await livePanel.waitForFunction(n => document.querySelectorAll('.ne-entry').length === n + 1, beforeCount, { timeout: 8000 });
+  assert(await livePanel.$eval('.ne-entry--new .ne-etext', e => e.textContent.includes('@hoangtrank')), 'panel ĐANG MỞ tự hiện mốc vừa lưu (không phải tắt/bật lại)');
+  await livePanel.close();
   const sess = await sw.evaluate(async id => (await chrome.storage.session.get('tab:' + id))['tab:' + id], xTabId);
   assert(sess && sess.token.key === PROLOG && sess.ctx.highlight === selEntries[0].id, 'lưu xong: side panel của tab trỏ đúng dự án và mốc vừa lưu');
   const panelX = await ctx.newPage();
