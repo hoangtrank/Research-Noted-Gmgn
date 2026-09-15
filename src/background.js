@@ -192,8 +192,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
     }
     case 'noted:add-entry': { // thêm một mốc vào token (dùng cho "lưu đoạn bôi đen" trên trang tìm kiếm X)
+      const addToken = validToken(msg.token);
+      const addTabId = sender.tab && sender.tab.id;
+      const wantPanel = !!msg.openPanel && !!addTabId && (msg.mode || uiMode) !== 'drawer' && !!chrome.sidePanel;
+      // Mở panel NGAY trong lượt xử lý cú bấm (không await trước), rồi mới lưu bất đồng bộ.
+      if (wantPanel && addToken) {
+        chrome.sidePanel.setOptions({ tabId: addTabId, enabled: true, path: 'src/panel/panel.html' }).catch(() => {});
+        chrome.sidePanel.open({ tabId: addTabId }).catch(() => {});
+      }
       (async () => {
-        const token = validToken(msg.token);
+        const token = addToken;
         const text = String(msg.text || '').trim().slice(0, 20000);
         if (!token || !text) { sendResponse({ ok: false }); return; }
         const type = NotedStore.ENTRY_TYPES.some(x => x.id === msg.entryType) ? msg.entryType : 'research';
@@ -204,6 +212,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const entry = NotedStore.newEntry(type, body, { source: 'x' });
         p.timeline.push(entry);
         p = await NotedStore.save(p);
+        // Cho người dùng thấy ngay mốc vừa lưu: panel (hoặc drawer) mở đúng dự án và tô sáng mốc đó.
+        if (msg.openPanel && addTabId) {
+          const ctx = { symbol: p.symbol, highlight: entry.id, force: entry.id };
+          if (wantPanel) await remember(addTabId, { chain: p.chain, address: p.address, key: p.key }, ctx);
+          else chrome.tabs.sendMessage(addTabId, { type: 'noted:open-drawer', token: { chain: p.chain, address: p.address, key: p.key }, ctx }).catch(() => {});
+        }
         sendResponse({ ok: true, key: p.key, symbol: p.symbol, entryId: entry.id });
       })();
       return true;

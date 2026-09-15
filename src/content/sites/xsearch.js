@@ -41,7 +41,6 @@
 
   window.__notedAdapter = {
     name: 'xsearch',
-    fabPrefix: 'Research-Noted-Gmgn',
     fabChain: true,
     selectionSave: true,
     scanTargets: () => [],

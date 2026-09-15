@@ -36,10 +36,13 @@
 .nd-fab{position:fixed;right:16px;bottom:88px;z-index:2147482999;display:flex;align-items:center;gap:8px;max-width:min(380px,calc(100vw - 32px));padding:9px 14px;border-radius:999px;border:1px solid rgba(167,139,250,.7);background:linear-gradient(180deg,#2a1f4d,#1c1730);color:#e9e5ff;font:600 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer}
 .nd-fab:hover{filter:brightness(1.15)}
 .nd-fab.has{border-color:rgba(250,204,21,.7);color:#fde047;background:linear-gradient(180deg,#2a2610,#1b1a12)}
-.nd-fab .f-sum{font-weight:400;color:#9aa3b2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}
-.nd-sel{position:fixed;right:16px;bottom:140px;z-index:2147482999;display:flex;align-items:center;gap:8px;max-width:min(380px,calc(100vw - 32px));padding:8px 14px;border-radius:999px;border:1px solid rgba(250,204,21,.7);background:linear-gradient(180deg,#2a2610,#1b1a12);color:#fde047;font:600 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer}
-.nd-sel:hover{filter:brightness(1.15)}
-.nd-sel .s-txt{font-weight:400;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.nd-fab .f-sum{font-weight:400;color:#9aa3b2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.nd-fab .f-lbl{font-weight:600}
+.nd-fab .f-chain{font-weight:500;font-size:11px;color:#c7d2fe;background:rgba(99,102,241,.22);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.nd-fab.has .f-chain{color:#fde68a;background:rgba(250,204,21,.18)}
+.nd-sel{position:fixed;left:0;top:0;z-index:2147483001;display:flex;align-items:center;gap:7px;white-space:nowrap;max-width:min(340px,calc(100vw - 24px));padding:7px 13px;border-radius:999px;border:1px solid #facc15;background:#facc15;color:#111;font:700 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.45);cursor:pointer;transition:transform .1s}
+.nd-sel:hover{transform:translateY(-1px);background:#fde047}
+.nd-sel .s-txt{font-weight:400;color:#3f3a12;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
 .nd-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483002;padding:8px 14px;border-radius:999px;background:#20242d;color:#e6e8ec;border:1px solid #2b303a;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .15s;pointer-events:none}
 .nd-toast.show{opacity:1}
 `;
@@ -157,7 +160,9 @@
     (document.body || document.documentElement).appendChild(host);
 
     document.addEventListener('keydown', ev => {
-      if (ev.key === 'Escape' && openKey) { ev.stopPropagation(); closeDrawer(); }
+      if (ev.key !== 'Escape') return;
+      if (selBtn && !selBtn.hidden) { selBtn.hidden = true; return; }
+      if (openKey) { ev.stopPropagation(); closeDrawer(); }
     }, true);
     window.addEventListener('scroll', hideTip, { passive: true, capture: true });
   }
@@ -380,7 +385,7 @@
     if (!editor) { await I.init(); mount(); }
     if (openKey && openKey !== token.key) await editor.flush();
     openKey = token.key;
-    await editor.load({ ...token, symbol: ctx.symbol || '' }, { mc: ctx.mc || null });
+    await editor.load({ ...token, symbol: ctx.symbol || '' }, { mc: ctx.mc || null, highlight: ctx.highlight || '' });
     drawer.classList.add('open');
     setTimeout(() => editor.focus(), 200);
   }
@@ -426,11 +431,10 @@
     const sym = (p && p.symbol) || pageSymbol();
     fab.hidden = false;
     fab.classList.toggle('has', !!p);
-    const prefix = A.fabPrefix ? `${E.esc(A.fabPrefix)} · ` : '';
-    const chain = A.fabChain ? ` · ${E.esc(S.chainLabel(pageToken.chain))}` : '';
+    const chain = A.fabChain ? `<span class="f-chain">${E.esc(S.chainLabel(pageToken.chain))}</span>` : '';
     fab.innerHTML = p
-      ? `${p.pinned ? '📌' : '📝'} <b>${prefix}${E.esc(sym || t('fab_note'))}</b>${chain}${p.summary ? `<span class="f-sum">${E.esc(p.summary.slice(0, 90))}</span>` : `<span class="f-sum">${E.esc(t('entries_count', { n: p.timeline.length }))}</span>`}`
-      : `📝 ${prefix}${E.esc(t('fab_note'))}${sym ? ' <b>' + E.esc(sym) + '</b>' : ''}${chain}`;
+      ? `${p.pinned ? '📌' : '📝'} <b>${E.esc(sym || t('fab_note'))}</b>${chain}${p.summary ? `<span class="f-sum">${E.esc(p.summary.slice(0, 80))}</span>` : `<span class="f-sum">${E.esc(t('entries_count', { n: p.timeline.length }))}</span>`}`
+      : `📝 <span class="f-lbl">${E.esc(t('fab_note'))}</span>${sym ? ` <b>${E.esc(sym)}</b>` : ''}${chain}`;
     fab.title = t('fab_title');
     refreshSelection();
   }
@@ -440,15 +444,27 @@
     if (!selBtn) return;
     const sel = window.getSelection && window.getSelection();
     const text = sel && !sel.isCollapsed ? String(sel.toString() || '').trim() : '';
-    if (text.length >= 3 && pageToken) {
-      lastSelection = text;
-      const p = cache.get(pageToken.key);
-      const sym = (p && p.symbol) || pageSymbol() || S.shortAddress(pageToken.address);
-      selBtn.innerHTML = `＋ ${E.esc(t('sel_save', { symbol: sym }))}<span class="s-txt">${E.esc(text.slice(0, 60))}</span>`;
-      selBtn.hidden = false;
-    } else if (!text) {
-      selBtn.hidden = true;
-    }
+    if (!text) { selBtn.hidden = true; return; }
+    if (text.length < 3 || !pageToken) return;
+    lastSelection = text;
+    const p = cache.get(pageToken.key);
+    const sym = (p && p.symbol) || pageSymbol() || S.shortAddress(pageToken.address);
+    selBtn.innerHTML = `＋ ${E.esc(t('sel_save', { symbol: sym }))}<span class="s-txt">${E.esc(text.slice(0, 48))}</span>`;
+    selBtn.hidden = false;
+    placeSelBtn(sel);
+  }
+
+  // Nút bám ngay dưới (hoặc trên) vùng bôi đen cho khỏi phải đưa mắt đi xa.
+  function placeSelBtn(sel) {
+    let r = null;
+    try { r = sel.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : null; } catch (_) {}
+    const w = selBtn.offsetWidth || 240, h = selBtn.offsetHeight || 34;
+    if (!r || (!r.width && !r.height)) { selBtn.style.left = `${window.innerWidth - w - 16}px`; selBtn.style.top = `${window.innerHeight - h - 96}px`; return; }
+    const left = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - w - 8));
+    let top = r.bottom + 8;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+    selBtn.style.left = `${left}px`;
+    selBtn.style.top = `${top}px`;
   }
 
   function saveSelection() {
@@ -462,10 +478,11 @@
     const p = cache.get(pageToken.key);
     const symbol = (p && p.symbol) || pageSymbol() || pageToken.symbol || '';
     const text = author ? `${author}: ${lastSelection}` : lastSelection; // mở đầu bằng tên tài khoản của bài chứa đoạn bôi đen
-    chrome.runtime.sendMessage({ type: 'noted:add-entry', token, symbol, entryType: 'research', text, url, sourceLabel: t('grok_source') }, res => {
-      if (chrome.runtime.lastError || !res || !res.ok) { toast(t('grok_nothing')); return; }
+    selBtn.hidden = true;
+    // openPanel: background mở side panel ngay trong cú bấm này (giữ user gesture) rồi hiện mốc vừa lưu.
+    chrome.runtime.sendMessage({ type: 'noted:add-entry', token, symbol, entryType: 'research', text, url, sourceLabel: t('grok_source'), openPanel: true, mode: uiMode }, res => {
+      if (chrome.runtime.lastError || !res || !res.ok) { toast(t('grok_nothing')); refreshSelection(); return; }
       toast(t('sel_saved', { symbol: res.symbol || symbol || S.shortAddress(token.address) }));
-      selBtn.hidden = true;
       lastSelection = '';
       if (sel) sel.removeAllRanges();
     });

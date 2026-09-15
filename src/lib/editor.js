@@ -79,9 +79,13 @@
 .ne-eactions button{padding:0 5px;font-size:12px}
 .ne-etext{margin-top:3px;white-space:pre-wrap;word-break:break-word}
 .ne-etext a{word-break:break-all}
+.ne-at{color:#f87171;font-weight:700}
 .ne-entry textarea{margin-top:4px}
 .ne-eimg{margin-top:6px}
 .ne-eimg img{display:block;max-width:100%;max-height:260px;border:1px solid var(--ne-line);border-radius:8px;cursor:zoom-in;background:#000}
+.ne-entry--new .ne-etext{border-radius:6px;animation:ne-flash 2.4s ease-out}
+.ne-entry--new::before{border-color:var(--ne-acc);box-shadow:0 0 0 4px rgba(250,204,21,.18)}
+@keyframes ne-flash{0%{background:rgba(250,204,21,.28);box-shadow:0 0 0 6px rgba(250,204,21,.28)}100%{background:transparent;box-shadow:none}}
 .ne-empty{color:var(--ne-fg3);font-size:12px;padding:8px 0 4px 30px}
 .ne-foot{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--ne-line);font-size:11px;color:var(--ne-fg3);background:var(--ne-bg2);white-space:nowrap}
 .ne-foot .ne-spacer{flex:1}
@@ -97,6 +101,11 @@
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // Tên tài khoản (@handle) tô đỏ cho dễ nhận ra ai nói câu đó. Chạy trên chuỗi ĐÃ escape.
+  function mentions(escaped) {
+    return escaped.replace(/(^|[\s(\[<>"'*·:,])@([A-Za-z0-9_]{1,20})\b/g, (m, pre, h) => `${pre}<span class="ne-at">@${h}</span>`);
+  }
+
   function linkify(text) {
     const parts = String(text ?? '').split(/(https?:\/\/[^\s<>"')\]]+)/g);
     return parts.map((part, i) => {
@@ -106,7 +115,7 @@
         if (m) { tail = m[0]; url = url.slice(0, -tail.length); }
         return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(shortUrl(url))}</a>${esc(tail)}`;
       }
-      return esc(part);
+      return mentions(esc(part));
     }).join('');
   }
 
@@ -216,13 +225,15 @@
     ui.stars.innerHTML = [1, 2, 3, 4, 5].map(n => `<span data-n="${n}">★</span>`).join('');
 
     let project = null;   // dự án đang mở (có thể chưa được lưu)
-    let ctx = {};         // ngữ cảnh từ trang: { mc }
+    let ctx = {};         // ngữ cảnh từ trang: { mc, highlight }
+    let highlightId = ''; // id mốc vừa thêm từ nơi khác: tô sáng một lần cho người dùng thấy
     let persisted = false;
     let saveTimer = null;
     let destroyed = false;
 
     async function load(token, context = {}) {
       ctx = context || {};
+      highlightId = ctx.highlight || '';
       const existing = await S.get(token.key);
       persisted = !!existing;
       project = existing || S.emptyProject(token.chain, token.address);
@@ -286,6 +297,7 @@
         const et = S.ENTRY_TYPES.find(x => x.id === e.type) || S.ENTRY_TYPES[0];
         const li = el('li', 'ne-entry');
         li.dataset.type = e.type;
+        if (highlightId && e.id === highlightId) li.classList.add('ne-entry--new');
         li.innerHTML = `
           <div class="ne-ehead">
             <span class="ne-etype">${et.icon} ${esc(S.entryLabel(e.type))}</span>
@@ -310,6 +322,11 @@
         });
         li.querySelector('.ne-eedit').addEventListener('click', () => beginEdit(li, e));
         ui.entries.appendChild(li);
+      }
+      if (highlightId) {
+        const el2 = ui.entries.querySelector('.ne-entry--new');
+        if (el2) setTimeout(() => el2.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60);
+        setTimeout(() => { highlightId = ''; }, 2600);
       }
     }
 

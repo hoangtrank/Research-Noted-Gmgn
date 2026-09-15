@@ -37,6 +37,7 @@
   const empty = $('#empty');
   const mount = $('#mount');
   let currentKey = null;
+  let lastForce = '';   // id mốc vừa được thêm từ trang: khác giá trị cũ thì nạp lại dù cùng token
 
   const editor = E.create({
     showClose: true,
@@ -57,15 +58,18 @@
   async function show(entry) {
     if (!entry || !entry.token) { showEmpty(); return; }
     const { token, ctx = {} } = entry;
-    if (currentKey === token.key && !mount.hidden) return; // cùng token: giữ nguyên editor đang gõ
+    const force = String(ctx.force || '');
+    if (currentKey === token.key && !mount.hidden && (!force || force === lastForce)) return; // cùng token, không có gì mới: giữ nguyên editor đang gõ
     if (currentKey && currentKey !== token.key) await editor.flush();
+    else if (force && force !== lastForce) await editor.flush();
+    lastForce = force;
     currentKey = token.key;
     let symbol = ctx.symbol || '';
     if (!symbol && tabId) {
       // Mở từ popup/phím tắt: hỏi content script symbol đang hiển thị trên trang.
       try { const r = await chrome.tabs.sendMessage(tabId, { type: 'noted:page-info', key: token.key }); symbol = (r && r.symbol) || ''; } catch (_) {}
     }
-    await editor.load({ ...token, symbol }, { mc: ctx.mc || null });
+    await editor.load({ ...token, symbol }, { mc: ctx.mc || null, highlight: ctx.highlight || '' });
     empty.hidden = true;
     mount.hidden = false;
     editor.focus();

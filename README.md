@@ -14,7 +14,7 @@ UI languages: **English** (default), Tiếng Việt, 中文 — switchable in th
 
 | Where | What |
 |---|---|
-| Token page on gmgn, pair page on DexScreener, X search for a contract / $SYMBOL | One floating **Note SYMBOL** button (bottom right) for the token you are looking at: yellow when a note exists, showing its summary. Click to open the note in the side panel; click again to close it. |
+| Token page on gmgn, pair page on DexScreener, X search for a contract / $SYMBOL | One compact floating button for the token you are looking at — `📝 Note MEME · Robinhood`, or `📌 MEME · Robinhood — summary` once a note exists. Click to open the note in the side panel; click again to close it. |
 | Token lists (optional, off by default) | Settings → "Also show a ✎ button on every row": a button right after each symbol, violet = no note, yellow = has a note, orange 📌 = pinned; hover shows the summary. |
 | Click the button | Opens Chrome's **Side Panel** on the right (outside the page: the browser shrinks gmgn instead of covering it; drag the edge to resize): symbol, one-line name, status, conviction 1–5, **What does this project do?**, tags, timeline. Autosaves. The market cap shown in the row is stored with each entry ("bought at MC $10.6M"). The popup can switch to an in-page overlay instead. |
 | **Side panel follows the page** | Once the panel is open in a tab, opening another token (clicking a watchlist row, a link, the address bar) switches the panel to that token. Toggle in Settings. |
@@ -35,7 +35,9 @@ The template, the target (Grok on X / grok.com), auto-save and the follow-the-pa
 
 ## Researching on X
 
-Click the **X** link in a note (or gmgn's own X-search button): it opens `x.com/search?q=<contract>`. On any X search whose query contains a contract address or `$SYMBOL` you have noted, a floating **Research-Noted-Gmgn · SYMBOL · Chain** button appears (bottom right). Click it to open the note in the side panel. Select any text in a post and a **Save selection → SYMBOL** button appears: it stores `@author: <selected text>` plus the post link as a *Research* entry. If the address is not noted yet, the extension asks DexScreener which token it is and offers to create the note. Nothing is added to individual posts.
+Click the **X** link in a note (or gmgn's own X-search button): it opens `x.com/search?q=<contract>`. On any X search whose query contains a contract address or `$SYMBOL` you have noted, the floating note button appears for that token. Click it to open the note in the side panel.
+
+Select any text in a post and a **Save selection → SYMBOL** button pops up right under the selection. It stores `@author: <selected text>` plus the post link as a *Research* entry, then opens the side panel on that note and flashes the entry it just added, so you can see and edit it immediately. Handles like `@theunipcs` are shown in red inside the timeline. If the address is not noted yet, the extension asks DexScreener which token it is and offers to create the note. Nothing is added to individual posts.
 
 ## Architecture
 
