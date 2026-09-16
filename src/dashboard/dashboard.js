@@ -184,7 +184,7 @@
       listBadges.checked = !!st.listBadges;
       exportImages.checked = st.exportImages !== false;
       target.value = st.researchTarget || 'x';
-      tpl.value = st.researchTemplate || R.DEFAULT_TEMPLATE;
+      tpl.value = st.researchTemplate || R.defaultTemplate(I.lang);
     };
     const patch = async (fields) => {
       const st = (await chrome.storage.local.get('settings')).settings || {};
@@ -203,7 +203,7 @@
     target.addEventListener('change', () => patch({ researchTarget: target.value }));
     let tplTimer = null;
     tpl.addEventListener('input', () => { clearTimeout(tplTimer); tplTimer = setTimeout(() => patch({ researchTemplate: tpl.value }), 500); });
-    $('#template-reset').addEventListener('click', () => { tpl.value = R.DEFAULT_TEMPLATE; patch({ researchTemplate: '' }); });
+    $('#template-reset').addEventListener('click', () => { tpl.value = R.defaultTemplate(I.lang); patch({ researchTemplate: '' }); });
   }
 
   reload().then(() => {

@@ -445,7 +445,8 @@
       await flush();
       let settings = {};
       try { settings = (await chrome.storage.local.get('settings')).settings || {}; } catch (_) {}
-      const prompt = R.buildPrompt(settings.researchTemplate || R.DEFAULT_TEMPLATE, R.vars(project, ctx));
+      const lang = globalThis.NotedI18n ? globalThis.NotedI18n.lang : 'en';
+      const prompt = R.buildPrompt(settings.researchTemplate || R.defaultTemplate(lang), R.vars(project, ctx));
       chrome.runtime.sendMessage({
         type: 'noted:open-grok', target: settings.researchTarget || 'x', prompt,
         token: { chain: project.chain, address: project.address, key: project.key }, symbol: project.symbol || '',
