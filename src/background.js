@@ -292,7 +292,13 @@ function fmtMc(n) {
 }
 
 async function apiBase() {
-  try { const st = (await chrome.storage.local.get('settings')).settings || {}; return st.dexApiBase || DEX_API; } catch (_) { return DEX_API; }
+  try {
+    const st = (await chrome.storage.local.get('settings')).settings || {};
+    const o = String(st.dexApiBase || '');
+    // Chỉ chấp nhận chính DexScreener hoặc máy cục bộ (cho test) — không bao giờ gửi dữ liệu đi nơi khác.
+    if (o === DEX_API || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(o)) return o;
+  } catch (_) {}
+  return DEX_API;
 }
 
 async function fetchJson(url) {

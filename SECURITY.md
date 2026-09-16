@@ -24,6 +24,10 @@ The extension runs content scripts on third-party sites (gmgn.ai, dexscreener.co
 
 Only two, both user-initiated: the research prompt (token symbol, chain, contract, market cap, gmgn link) when clicking **Research with Grok**, and pair addresses sent to DexScreener's public API. Notes themselves never leave `chrome.storage.local`.
 
+## Self-check
+
+`python3 scripts/audit.py` re-derives this table from the source: it prints the declared permissions, the content-script hosts, every `fetch`/XHR call site and the domains reachable from the code, and fails if any forbidden API (eval, cookies, clipboard, history, bookmarks, identity, debugger, downloads, management, native messaging, webRequest, proxy, WebSocket, page wallet objects) appears or if a remote script is loaded. `scripts/pack.py` prints the SHA-256 of the built ZIP so a published build can be matched against a source tree.
+
 ## Reporting
 
 Open an issue at https://github.com/hoangtrank/Research-Noted-Gmgn/issues.

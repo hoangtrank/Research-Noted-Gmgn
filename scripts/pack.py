@@ -4,7 +4,7 @@
 Chỉ gồm những file cần để chạy (manifest.json, icons/, src/), manifest.json nằm ngay ở gốc ZIP
 như Web Store yêu cầu. Chạy: python3 scripts/pack.py  ->  dist/research-noted-gmgn-<version>.zip
 """
-import json, os, sys, zipfile
+import hashlib, json, os, sys, zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INCLUDE = ['manifest.json', 'icons', 'src', '_locales']
@@ -57,7 +57,10 @@ def main():
                     p = os.path.join(dirpath, fn)
                     z.write(p, os.path.relpath(p, ROOT).replace(os.sep, '/'))
                     count += 1
+    digest = hashlib.sha256(open(out, 'rb').read()).hexdigest()
     print(f'Đã tạo {os.path.relpath(out, ROOT)} ({count} file, {os.path.getsize(out) // 1024} KB), version {m["version"]}')
+    print(f'SHA-256: {digest}')
+    print('  (công bố mã băm này để người dùng đối chiếu gói trên Store với mã nguồn)')
     print('Tải lên: https://chrome.google.com/webstore/devconsole -> New item -> chọn file ZIP này')
 
 if __name__ == '__main__':

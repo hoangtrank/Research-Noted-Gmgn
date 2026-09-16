@@ -134,6 +134,9 @@ Dashboard → **⚙ Settings**:
 
 ## Câu hỏi thường gặp
 
+**Cài extension lạ vào máy có nguy hiểm không? Nó có lấy được ví của tôi không?**
+Không lấy được, và bạn tự kiểm tra được trong 2 phút. Đọc bài riêng: [Extension này có an toàn không?](an-toan.md)
+
 **Dữ liệu của tôi nằm ở đâu? Có ai xem được không?**
 Nằm ngay trong trình duyệt trên máy bạn. Không có máy chủ, không tài khoản, không ai xem được. Chỉ hai thứ rời khỏi máy, và chỉ khi bạn chủ động bấm: câu hỏi gửi cho Grok, và địa chỉ cặp giao dịch gửi cho DexScreener để biết đó là token nào. Ghi chú thì không bao giờ.
 

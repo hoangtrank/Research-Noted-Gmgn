@@ -163,7 +163,23 @@ gmgn.ai, dexscreener.com and x.com were blocked in the environment where this ex
 | Content script on `x.com/i/grok`, `grok.com` | Save Grok's research answer into the token's note |
 | Content script on `x.com/search`, `twitter.com/search` | Recognise the token being researched from the search query and save selected text into its note |
 
-## Security
+## Is it safe to install?
+
+A fair question for a crypto tool. The short answer is that this extension can only run on five domains, cannot reach your wallet, and sends nothing but public pair addresses.
+
+```bash
+python3 scripts/audit.py     # prints exactly what the extension may do, and fails on anything unexpected
+```
+
+The audit reads the source and reports the declared permissions, the sites the content scripts run on, every outbound request, and whether any dangerous API is used (eval, cookies, clipboard, history, native messaging, wallet objects in the page). It exits non-zero if anything falls outside the allowlist, so it is worth running on any fork before installing it.
+
+Why your keys are out of reach: Chrome isolates extensions from each other, so this one cannot read MetaMask's or Phantom's storage; private keys never appear in gmgn, DexScreener or X pages anyway; and the manifest grants no access to any other site, so there is nowhere else for it to look. It never asks to connect a wallet.
+
+Users can check for themselves in two minutes — `chrome://extensions` → Details → Site access lists the five domains, and DevTools → Network shows no traffic beyond `api.dexscreener.com`. `scripts/pack.py` prints the SHA-256 of the Store ZIP so a published build can be matched against this source.
+
+👉 Người dùng không rành kỹ thuật: [Extension này có an toàn không?](docs/an-toan.md)
+
+## Security (technical)
 
 Threat model, mitigations and what leaves the device: [SECURITY.md](SECURITY.md). Short version: every value from a page or API is escaped before rendering, messages are validated and tab-scoped, imported JSON is sanitized, extension pages have a strict CSP, and notes never leave `chrome.storage.local`.
 
@@ -178,6 +194,7 @@ Threat model, mitigations and what leaves the device: [SECURITY.md](SECURITY.md)
 
 ```bash
 npm test              # Playwright e2e against the real extension (mock sites, no network needed)
+npm run audit         # capability audit: permissions, outbound requests, dangerous APIs
 npm run icons         # regenerate icons
 npm run zip           # build the Web Store ZIP into dist/
 node test/shots.js    # regenerate the README and Store screenshots
