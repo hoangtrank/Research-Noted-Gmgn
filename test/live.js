@@ -63,14 +63,21 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
   console.log('Ảnh chụp  :', OUT, '\n');
 
   const launch = { headless: false, viewport: null, args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`] };
-  let ctx;
-  try {
-    ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel: MOCK ? 'chromium' : 'chrome' });
-  } catch (err) {
-    if (MOCK) throw err;
-    console.log('  (không mở được Google Chrome, thử Chromium của Playwright)');
+  // Google Chrome bản thương hiệu từ 137 trở đi BỎ QUA --load-extension: cửa sổ vẫn mở bình thường nhưng
+  // extension không được nạp, service worker không bao giờ xuất hiện. Vì vậy mặc định dùng Chromium của
+  // Playwright (Chrome for Testing — vẫn nhận cờ đó). --channel chrome để ép thử Chrome thương hiệu; nếu
+  // extension không lên thì tự mở lại bằng Chromium thay vì chết ở bước chờ service worker.
+  const swOf = async c => c.serviceWorkers()[0] || await c.waitForEvent('serviceworker', { timeout: 15000 }).catch(() => null);
+  const channel = arg('channel', 'chromium');
+  let ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel });
+  let sw = await swOf(ctx);
+  if (!sw && channel !== 'chromium') {
+    console.log(`  (kênh "${channel}" không nạp extension qua --load-extension, mở lại bằng Chromium của Playwright)`);
+    await ctx.close();
     ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel: 'chromium' });
+    sw = await swOf(ctx);
   }
+  if (!sw) throw new Error('extension không nạp được (không thấy service worker)');
 
   let dexApi = null;
   if (MOCK) {
@@ -84,8 +91,6 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     dexApi = await dexMock.startApi();
   }
 
-  let [sw] = ctx.serviceWorkers();
-  if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 15000 });
   console.log('extension id:', new URL(sw.url()).host, MOCK ? '(CHẾ ĐỘ GIẢ LẬP — chỉ kiểm tra bản thân script)' : '', '\n');
   if (dexApi) await sw.evaluate(async base => {
     const st = (await chrome.storage.local.get('settings')).settings || {};
@@ -148,7 +153,10 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     console.log('4) X: tìm theo contract, lưu đoạn bôi đen');
     const ca = TOKEN_URL.split('/').pop();
     await page.goto('https://x.com/search?q=' + encodeURIComponent(ca) + '&f=live', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    if (!MOCK && (firstRun || /\/i\/flow\/login|\/login/.test(page.url()))) {
+    // "Hồ sơ mới" không đủ tin: một lần chạy chết giữa chừng đã tạo thư mục hồ sơ mà chưa hề đăng nhập.
+    // Hỏi thẳng hồ sơ test xem đã có phiên X chưa (chỉ xem cookie có TỒN TẠI không, không đọc giá trị).
+    const xLoggedIn = async () => (await ctx.cookies('https://x.com')).some(c => c.name === 'auth_token');
+    if (!MOCK && (!(await xLoggedIn()) || /\/i\/flow\/login|\/login/.test(page.url()))) {
       await ask('  → Hãy đăng nhập X trong cửa sổ vừa mở, rồi bấm Enter ở đây... ');
       await page.goto('https://x.com/search?q=' + encodeURIComponent(ca) + '&f=live', { waitUntil: 'domcontentloaded', timeout: 60000 });
     }
