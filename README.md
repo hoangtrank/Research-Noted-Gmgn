@@ -202,3 +202,9 @@ npm run icons         # regenerate icons
 npm run zip           # build the Web Store ZIP into dist/
 node test/shots.js    # regenerate the README and Store screenshots
 ```
+
+Two console snippets for debugging against the real sites (they only read the page and
+send nothing anywhere): paste `scripts/grok-debug.js` into the console of a Grok tab for a
+report on why auto-save did or did not fire, and `scripts/grok-snapshot.js` to capture the
+page's DOM shape (scripts, images and all attributes but class/dir/role stripped) as a test
+fixture.

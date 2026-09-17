@@ -73,7 +73,7 @@ input{flex:1 1 160px}
               <button class="sel" type="button">${esc(t('grok_selection'))}</button>
               <button class="save primary" type="button" ${linked ? '' : 'disabled'}>${esc(t('grok_save'))}</button>
             </div>
-            ${linked && ctxInfo.prompt ? `<label class="hint auto"><input type="checkbox" class="autochk" ${autoSave ? 'checked' : ''}> ${esc(t('grok_auto'))}</label>
+            ${linked ? `<label class="hint auto"><input type="checkbox" class="autochk" ${autoSave ? 'checked' : ''}> ${esc(t('grok_auto'))}</label>
             <div class="autostat"></div>` : ''}
             <div class="status"></div>
           </div>
@@ -155,13 +155,15 @@ input{flex:1 1 160px}
   // Dấu nhận ra bong bóng prompt: 60 ký tự đầu, và địa chỉ contract — địa chỉ luôn nguyên vẹn dù giao diện
   // xuống dòng hay rút gọn đoạn văn, nên bắt được cả khi phần chữ đầu bị cắt.
   function promptSigs() {
-    if (!ctxInfo || !ctxInfo.prompt) return [];
-    const full = norm(ctxInfo.prompt);
+    if (!ctxInfo) return [];
+    const full = norm(ctxInfo.prompt || '');
     const out = [];
     const head = full.slice(0, 60);
     if (head) out.push(head);
+    // Địa chỉ contract là dấu nhận đủ mạnh kể cả khi tab không mang theo prompt (gắn dự án bằng tay,
+    // hoặc content script hỏi ngữ cảnh trước lúc background kịp lưu): chính nó nằm trong câu hỏi đã gửi.
     const addr = ctxInfo.token ? norm(ctxInfo.token.address) : '';
-    if (addr && addr.length >= 20 && full.includes(addr)) out.push(addr);
+    if (addr && addr.length >= 20 && (!full || full.includes(addr))) out.push(addr);
     return out;
   }
 
@@ -201,12 +203,17 @@ input{flex:1 1 160px}
   }
 
   function autoCheck() {
-    if (!ctxInfo || !ctxInfo.token || !ctxInfo.prompt) return;
+    if (!ctxInfo || !ctxInfo.token || !promptSigs().length) return;
     if (!autoSave) { setAuto('grok_auto_off'); return; }
     const bubble = promptBubble();
-    // Không thấy bong bóng prompt (giao diện đổi, prompt bị rút gọn): vẫn chạy nếu ô nhập đã được gửi đi,
-    // chỉ bỏ qua những khối có chứa chính prompt.
-    if (!bubble && !promptSent()) { setAuto('grok_auto_wait'); return; }
+    const hasPrompt = !!String(ctxInfo.prompt || '').trim();
+    if (!bubble) {
+      // Tab mở từ nút Research with Grok: prompt đã gửi là đủ, kể cả khi không nhận ra bong bóng
+      // (giao diện đổi, prompt bị rút gọn). Tab gắn dự án bằng tay: phải thấy địa chỉ contract trên
+      // trang mới dám lưu — nếu không, một câu hỏi không liên quan cũng bị ghi vào timeline.
+      if (!hasPrompt) { setAuto('grok_auto_ca'); return; }
+      if (!promptSent()) { setAuto('grok_auto_wait'); return; }
+    }
     const text = captureLastAnswer(bubble);
     if (!text || text.length < 80) { setAuto('grok_auto_read'); return; }
     setAuto('grok_auto_read');

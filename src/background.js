@@ -116,11 +116,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // ---- Research với Grok ----
     case 'noted:open-grok': { // mở tab Grok với prompt điền sẵn, nhớ token cho tab đó
       const url = NotedResearch.urlFor(msg.target, msg.prompt || '');
-      chrome.tabs.create({ url }).then(async tab => {
+      // Mở tab trắng trước, ghi ngữ cảnh, rồi mới điều hướng: nếu điều hướng ngay, content script trên trang
+      // Grok có thể hỏi ngữ cảnh trước lúc ghi xong và coi như tab chưa gắn dự án (mất luôn prompt).
+      chrome.tabs.create({ url: 'about:blank' }).then(async tab => {
         await chrome.storage.session.set({ [GROK_PREFIX + tab.id]: { token: msg.token, symbol: msg.symbol || '', prompt: msg.prompt || '', at: Date.now() } });
         // Panel đi theo tab đang xem, nên gắn luôn ghi chú này cho tab Grok vừa mở.
         const tk = validToken(msg.token);
         if (tk) await remember(tab.id, tk, { symbol: String(msg.symbol || '').slice(0, 32) });
+        await chrome.tabs.update(tab.id, { url });
         sendResponse({ ok: true, tabId: tab.id });
       }).catch(err => sendResponse({ ok: false, error: String(err && err.message) }));
       return true;
@@ -128,7 +131,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'noted:grok-context': { // content script trên Grok hỏi tab này đang research token nào
       const tabId = fromHost(sender, GROK_HOSTS) ? sender.tab.id : null;
       if (!tabId) { sendResponse(null); return; }
-      chrome.storage.session.get(GROK_PREFIX + tabId).then(r => sendResponse(r[GROK_PREFIX + tabId] || null));
+      chrome.storage.session.get(GROK_PREFIX + tabId).then(async r => {
+        const m = r[GROK_PREFIX + tabId];
+        if (!m || !m.token) { sendResponse(m || null); return; }
+        // Nhãn trên trang Grok nên hiện symbol chứ không phải địa chỉ rút gọn.
+        if (!m.symbol) { const p = await NotedStore.get(m.token.key); if (p && p.symbol) m.symbol = p.symbol; }
+        sendResponse(m);
+      });
       return true;
     }
     case 'noted:grok-link': { // gắn tay tab Grok với một dự án
@@ -137,7 +146,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (!tabId || !token) { sendResponse({ ok: false }); return; }
       (async () => {
         const p = await NotedStore.get(token.key);
-        const entry = { token, symbol: (p && p.symbol) || msg.symbol || '', prompt: '', at: Date.now() };
+        // Giữ lại prompt nếu tab này vốn được mở từ nút Research with Grok (gắn tay chỉ đổi dự án).
+        const prev = (await chrome.storage.session.get(GROK_PREFIX + tabId))[GROK_PREFIX + tabId];
+        const keepPrompt = prev && prev.token && prev.token.key === token.key ? String(prev.prompt || '') : '';
+        const entry = { token, symbol: (p && p.symbol) || msg.symbol || '', prompt: keepPrompt, at: Date.now() };
         await chrome.storage.session.set({ [GROK_PREFIX + tabId]: entry });
         sendResponse({ ok: true, ...entry });
       })();

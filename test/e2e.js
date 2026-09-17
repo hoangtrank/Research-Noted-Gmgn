@@ -441,7 +441,28 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await grok2.waitForFunction(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.status').classList.contains('ok'), null, { timeout: 5000 });
   const ext = await sw.evaluate(async () => (await chrome.storage.local.get('p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump'))['p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump']);
   assert(ext.timeline.length === 1 && ext.timeline[0].source === 'grok', 'lưu vào timeline EXTENSION');
+  await grok2.waitForFunction(() => { const el = document.getElementById('noted-grok-host').shadowRoot.querySelector('.autostat'); return el && el.textContent.trim(); }, null, { timeout: 8000 });
+  assert((await g2('.autostat')).includes('mentions this contract'), 'tab gắn tay: nói rõ chờ thấy địa chỉ contract mới lưu');
+  await grok2.waitForTimeout(5000); // quá ngưỡng ổn định 3s của tự lưu
+  const extAfter = await sw.evaluate(async () => (await chrome.storage.local.get('p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump'))['p:sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump']);
+  assert(extAfter.timeline.length === 1, 'câu trả lời không nhắc contract -> KHÔNG tự lưu bừa: ' + extAfter.timeline.length);
   await grok2.close();
+
+  console.log('13b) Tab gắn tay nhưng hội thoại có nhắc contract: vẫn tự lưu (không cần prompt kèm tab)');
+  const EXTKEY = 'sol:Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump';
+  const grokLinked = await ctx.newPage();
+  await grokLinked.goto('https://x.com/i/grok?text=' + encodeURIComponent('Research token: CA Cn1PJnjYTkcGGGEWnFjoV8ryFeZxU9STKzN9DM6Fpump — dev la ai?'));
+  await grokLinked.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.recent option[value^="sol:"]'), null, { timeout: 8000 });
+  await grokLinked.evaluate(k => { const r = document.getElementById('noted-grok-host').shadowRoot; const sel = r.querySelector('.recent'); sel.value = k; sel.dispatchEvent(new Event('change')); }, EXTKEY);
+  await grokLinked.waitForFunction(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.autochk'), null, { timeout: 5000 });
+  assert(true, 'gắn tay xong vẫn có công tắc tự lưu (trước đây chỉ hiện khi tab mang prompt)');
+  const g3ctx = await sw.evaluate(async () => { const all = await chrome.storage.session.get(null); const k = Object.keys(all).filter(x => x.startsWith('grok:')).sort((a, b) => all[b].at - all[a].at)[0]; return all[k]; });
+  assert(g3ctx && !g3ctx.prompt && g3ctx.token.key === EXTKEY, 'tab này thật sự không có prompt kèm theo');
+  await grokLinked.click('#send');
+  await grokLinked.waitForFunction(() => { const s = document.getElementById('noted-grok-host').shadowRoot.querySelector('.status'); return s.classList.contains('ok') && s.textContent.includes('Auto-saved'); }, null, { timeout: 25000 });
+  const ext2 = await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], EXTKEY);
+  assert(ext2.timeline.length === 2 && ext2.timeline[1].text.includes(grokMock.ANSWER_LI), 'tự lưu chạy nhờ neo vào địa chỉ contract trong câu hỏi');
+  await grokLinked.close();
 
   console.log('14) Settings: template và đích research');
   await dash.click('#open-settings');
