@@ -2,6 +2,7 @@
 (async () => {
   'use strict';
   const S = globalThis.NotedStore;
+  S.watchFontSize(px => document.documentElement.style.setProperty('--ne-fs', px + 'px'));
   const id = new URLSearchParams(location.search).get('img') || '';
   const img = document.getElementById('img'), missing = document.getElementById('missing'), dl = document.getElementById('dl'), meta = document.getElementById('meta');
   const rec = await S.getImage(id);
