@@ -6,6 +6,8 @@
   const $ = sel => document.querySelector(sel);
   await I.init();
   I.apply();
+  S.watchFontSize(px => document.documentElement.style.setProperty('--ne-fs', px + 'px'));
+
   I.bindSelect($('#lang'));
   I.onChange(() => location.reload());
 

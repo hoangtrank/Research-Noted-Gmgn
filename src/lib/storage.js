@@ -200,6 +200,29 @@
     return { id: uid(), ts: now(), type: type || 'note', text: String(text || '').trim(), ...extra };
   }
 
+  // ---- Cỡ chữ giao diện: một nguồn duy nhất cho side panel, dashboard và popup ----
+  const FONT = { min: 11, max: 22, def: 14, step: 1 };
+
+  function fontSize(settings) {
+    const n = Math.round(Number(settings && settings.fontSize));
+    return Number.isFinite(n) && n >= FONT.min && n <= FONT.max ? n : FONT.def;
+  }
+
+  async function setFontSize(px) {
+    const n = Math.min(FONT.max, Math.max(FONT.min, Math.round(Number(px)) || FONT.def));
+    const r = await chrome.storage.local.get('settings');
+    await chrome.storage.local.set({ settings: { ...(r.settings || {}), fontSize: n } });
+    return n;
+  }
+
+  // Áp cỡ chữ hiện tại rồi theo dõi thay đổi: đổi ở một nơi là mọi nơi đổi theo, không cần tải lại.
+  function watchFontSize(apply) {
+    chrome.storage.local.get('settings').then(r => apply(fontSize(r.settings))).catch(() => apply(FONT.def));
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.settings) apply(fontSize(changes.settings.newValue));
+    });
+  }
+
   function onChange(cb) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
@@ -313,6 +336,7 @@
     keyOf, normalizeChain, normalizeAddress, parseTokenUrl, tokenUrl, chainLabel, shortAddress, statusLabel, entryLabel,
     emptyProject, sanitize, newEntry, uid,
     get, getAll, save, remove, onChange, getImage, removeImages, IMG_RE,
+    FONT, fontSize, setFontSize, watchFontSize,
     exportJSON, importJSON, toMarkdown, fmtDate,
   };
 })();

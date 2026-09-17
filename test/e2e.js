@@ -616,6 +616,18 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await xp.mouse.click(60, 700);
   await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
   assert(true, 'bấm ra ngoài thì nút lưu tự ẩn');
+  await pickPost(1);
+  await xp.waitForFunction(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  // Bôi đen co lại còn 2 ký tự: nút phải biến mất, nếu không bấm vào sẽ lưu nhầm đoạn bôi đen cũ.
+  await xp.evaluate(() => {
+    const el = document.querySelectorAll('article [data-testid="tweetText"]')[1];
+    const node = el.firstChild; const r = document.createRange();
+    r.setStart(node, 0); r.setEnd(node, 2);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  assert(true, 'bôi đen còn quá ngắn thì nút cũng tự ẩn (không giữ lại đoạn cũ)');
+  await xp.evaluate(() => getSelection().removeAllRanges());
 
   console.log('16c) Panel tự bắt token của tab, và mốc mới hiện ngay');
   const panelNoTab = await ctx.newPage();
@@ -671,6 +683,38 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(await xp.evaluate(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return !f || f.hidden; }), 'tìm kiếm không liên quan -> không hiện gì');
   await xp.close();
   dexApi.server.close();
+
+  console.log('17) Cỡ chữ: mặc định lớn hơn, chỉnh được ngay trong bảng ghi chú, áp cho cả dashboard');
+  const fpanel = await ctx.newPage();
+  await fpanel.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${gmgnTabId}`);
+  await fpanel.waitForSelector('#mount:not([hidden]) .ne-summary', { timeout: 8000 });
+  const fsOf = (pg, sel) => pg.$eval(sel, el => getComputedStyle(el).fontSize);
+  assert((await fsOf(fpanel, '.ne-summary')) === '14px', 'mặc định 14px (trước đây 13px): ' + (await fsOf(fpanel, '.ne-summary')));
+  assert((await fsOf(fpanel, '.ne-foot')) === '12px', 'chữ nhỏ trong chân bảng cũng lên theo: ' + (await fsOf(fpanel, '.ne-foot')));
+  await fpanel.click('.ne-fs-up');
+  await fpanel.waitForFunction(() => getComputedStyle(document.querySelector('.ne-summary')).fontSize === '15px', null, { timeout: 4000 });
+  assert((await fpanel.$eval('.ne-fsval', e => e.textContent)) === '15', 'A+ tăng một bậc và hiện số đang dùng');
+  assert((await fsOf(fpanel, '.ne-symbol')) === '20px', 'tiêu đề giãn theo đúng tỉ lệ cũ: ' + (await fsOf(fpanel, '.ne-symbol')));
+  assert((await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings.fontSize)) === 15, 'cỡ chữ được lưu vào settings');
+  const fdash = await ctx.newPage();
+  await fdash.goto(`chrome-extension://${extId}/src/dashboard/dashboard.html`);
+  await fdash.waitForSelector('.card');
+  assert((await fsOf(fdash, 'body')) === '15px', 'dashboard dùng chung cỡ chữ: ' + (await fsOf(fdash, 'body')));
+  await fdash.click('#open-settings');
+  await fdash.waitForSelector('#settings:not([hidden])');
+  assert((await fdash.$eval('#font-size', e => e.value)) === '15', 'Settings hiện đúng cỡ đang dùng');
+  await fdash.selectOption('#font-size', '17');
+  await fpanel.waitForFunction(() => getComputedStyle(document.querySelector('.ne-summary')).fontSize === '17px', null, { timeout: 4000 });
+  assert(true, 'đổi trong Settings thì bảng ghi chú đang mở đổi theo ngay');
+  await fpanel.evaluate(() => { for (let i = 0; i < 12; i++) document.querySelector('.ne-fs-up').click(); });
+  await fpanel.waitForTimeout(600);
+  assert((await fpanel.$eval('.ne-fsval', e => e.textContent)) === '22', 'chặn trần ở 22px: ' + (await fpanel.$eval('.ne-fsval', e => e.textContent)));
+  assert((await fpanel.$eval('.ne-fs-up', e => e.disabled)) === true, 'chạm trần thì mờ nút A+');
+  await fdash.selectOption('#font-size', '14');
+  await fpanel.waitForFunction(() => getComputedStyle(document.querySelector('.ne-summary')).fontSize === '14px', null, { timeout: 4000 });
+  assert(true, 'đặt lại về mặc định');
+  await fdash.close();
+  await fpanel.close();
 
   await ctx.close();
   console.log('\nALL PASSED');

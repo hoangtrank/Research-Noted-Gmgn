@@ -7,6 +7,8 @@
   const t = (k, v) => I.t(k, v);
   await I.init();
   I.apply();
+  S.watchFontSize(px => document.documentElement.style.setProperty('--ne-fs', px + 'px'));
+
   I.bindSelect(document.querySelector('#lang'));
 
   const $ = sel => document.querySelector(sel);
@@ -174,8 +176,10 @@
   // ---- Settings modal: giao diện ghi chú, đích research, template prompt ----
   async function initSettings() {
     const R = globalThis.NotedResearch;
-    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved'), follow = $('#follow'), grokAuto = $('#grok-auto'), listBadges = $('#list-badges'), exportImages = $('#export-images');
+    const modal = $('#settings'), uiMode = $('#ui-mode'), target = $('#research-target'), tpl = $('#research-template'), saved = $('#settings-saved'), follow = $('#follow'), grokAuto = $('#grok-auto'), listBadges = $('#list-badges'), exportImages = $('#export-images'), fontSize = $('#font-size');
     target.innerHTML = Object.entries(R.TARGETS).map(([k, v]) => `<option value="${k}">${E.esc(v.label)}</option>`).join('');
+    fontSize.innerHTML = Array.from({ length: S.FONT.max - S.FONT.min + 1 }, (_, i) => S.FONT.min + i)
+      .map(n => `<option value="${n}">${n}px${n === S.FONT.def ? ' · ' + E.esc(t('default_word')) : ''}</option>`).join('');
     const load = async () => {
       const st = (await chrome.storage.local.get('settings')).settings || {};
       uiMode.value = st.ui || 'panel';
@@ -183,6 +187,7 @@
       grokAuto.checked = st.grokAutoSave !== false;
       listBadges.checked = !!st.listBadges;
       exportImages.checked = st.exportImages !== false;
+      fontSize.value = String(S.fontSize(st));
       target.value = st.researchTarget || 'x';
       tpl.value = st.researchTemplate || R.defaultTemplate(I.lang);
     };
@@ -200,6 +205,7 @@
     grokAuto.addEventListener('change', () => patch({ grokAutoSave: grokAuto.checked }));
     listBadges.addEventListener('change', () => patch({ listBadges: listBadges.checked }));
     exportImages.addEventListener('change', () => patch({ exportImages: exportImages.checked }));
+    fontSize.addEventListener('change', () => patch({ fontSize: Number(fontSize.value) }));
     target.addEventListener('change', () => patch({ researchTarget: target.value }));
     let tplTimer = null;
     tpl.addEventListener('input', () => { clearTimeout(tplTimer); tplTimer = setTimeout(() => patch({ researchTemplate: tpl.value }), 500); });

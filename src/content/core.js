@@ -53,6 +53,8 @@
   let host, shadow, drawer, editor, tip, fab, toastEl, selBtn;
   let lastSelection = '';
   let selConfirmUntil = 0;   // trong lúc hiện xác nhận "đã lưu" thì không để selectionchange ẩn nút đi
+  let selWatch = 0;          // bộ soi định kỳ: nút bôi đen không bao giờ được phép kẹt lại trên trang
+  const SEL_CONFIRM_MS = 2000;
   let openKey = null;      // key đang mở trong drawer (chế độ overlay)
   let uiMode = 'panel';    // settings.ui: 'panel' | 'drawer'
   let listBadges = false;  // settings.listBadges: có gắn nút ✎ vào từng hàng token trong danh sách không (mặc định chỉ nút nổi)
@@ -163,7 +165,7 @@
       document.addEventListener('mousedown', ev => {
         if (!selBtn || selBtn.hidden || Date.now() < selConfirmUntil) return;
         if (ev.target === host || (host && host.contains(ev.target))) return;
-        selBtn.hidden = true;
+        hideSel();
       }, true);
     }
 
@@ -171,7 +173,7 @@
 
     document.addEventListener('keydown', ev => {
       if (ev.key !== 'Escape') return;
-      if (selBtn && !selBtn.hidden) { selBtn.hidden = true; return; }
+      if (selBtn && !selBtn.hidden) { hideSel(); return; }
       if (openKey) { ev.stopPropagation(); closeDrawer(); }
     }, true);
     window.addEventListener('scroll', () => {
@@ -453,12 +455,36 @@
   }
 
   // ---------------- lưu đoạn chữ đang bôi đen vào timeline của token đang xem ----------------
+  function hideSel() {
+    if (!selBtn) return;
+    selBtn.hidden = true;
+    selBtn.className = 'nd-sel';
+    selConfirmUntil = 0;
+    lastSelection = '';
+    stopSelWatch();
+  }
+
+  // Trong lúc nút đang hiện thì tự soi lại mỗi 300ms. Không tin vào sự kiện của trang: X dựng lại DOM liên tục,
+  // nuốt sự kiện, và một setTimeout lỡ mất là nút kẹt lại vĩnh viễn (bấm vào còn lưu nhầm đoạn bôi đen cũ).
+  function startSelWatch() {
+    if (selWatch) return;
+    selWatch = setInterval(() => {
+      if (!selBtn || selBtn.hidden) { stopSelWatch(); return; }
+      if (Date.now() < selConfirmUntil) return;                    // đang hiện xác nhận "đã lưu"
+      if (selBtn.classList.contains('ok')) { hideSel(); return; }  // hết thời gian xác nhận -> tắt
+      const sel = window.getSelection && window.getSelection();
+      const text = sel && !sel.isCollapsed ? String(sel.toString() || '').trim() : '';
+      if (text.length < 3 || !pageToken) hideSel();
+    }, 300);
+  }
+
+  function stopSelWatch() { clearInterval(selWatch); selWatch = 0; }
+
   function refreshSelection() {
     if (!selBtn || Date.now() < selConfirmUntil) return;
     const sel = window.getSelection && window.getSelection();
     const text = sel && !sel.isCollapsed ? String(sel.toString() || '').trim() : '';
-    if (!text) { selBtn.hidden = true; return; }
-    if (text.length < 3 || !pageToken) return;
+    if (!text || text.length < 3 || !pageToken) { hideSel(); return; }
     lastSelection = text;
     const p = cache.get(pageToken.key);
     const sym = (p && p.symbol) || pageSymbol() || S.shortAddress(pageToken.address);
@@ -466,6 +492,7 @@
     selBtn.innerHTML = `＋ ${E.esc(t('sel_save', { symbol: sym }))}<span class="s-txt">${E.esc(text.slice(0, 48))}</span>`;
     selBtn.hidden = false;
     placeSelBtn(sel);
+    startSelWatch();
   }
 
   // Nút bám ngay dưới (hoặc trên) vùng bôi đen cho khỏi phải đưa mắt đi xa.
@@ -501,12 +528,14 @@
         return;
       }
       const sym = res.symbol || symbol || S.shortAddress(token.address);
-      // Xác nhận ngay tại chỗ bôi đen, giữ 1,8 giây rồi tự ẩn.
-      selConfirmUntil = Date.now() + 1800;
+      // Xác nhận ngay tại chỗ bôi đen, giữ 2 giây rồi tự ẩn. Bộ soi 300ms ở trên là lớp thứ hai:
+      // dù timer dưới đây không chạy (tab bị hãm, trang dựng lại), nút vẫn tự tắt đúng hạn.
+      selConfirmUntil = Date.now() + SEL_CONFIRM_MS;
       selBtn.className = 'nd-sel ok';
       selBtn.innerHTML = `✓ ${E.esc(t('sel_saved', { symbol: sym }))}`;
       selBtn.hidden = false;
-      setTimeout(() => { selConfirmUntil = 0; selBtn.hidden = true; selBtn.className = 'nd-sel'; }, 1800);
+      startSelWatch();
+      setTimeout(hideSel, SEL_CONFIRM_MS);
       toast(t('sel_saved', { symbol: sym }));
       lastSelection = '';
       if (sel) sel.removeAllRanges();

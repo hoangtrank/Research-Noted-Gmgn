@@ -60,6 +60,8 @@ Bảng ghi chú **đi theo token bạn đang xem**: bấm sang token khác trên
 
 Bấm **📌** ở góc trên để ghim những dự án bạn đang bám sát.
 
+**Chữ nhỏ quá hay to quá?** Ngay dưới đáy bảng ghi chú có **A−** và **A+**, bấm là đổi ngay, con số ở giữa cho biết đang dùng cỡ nào. Cỡ chữ áp cho cả bảng ghi chú, Dashboard lẫn popup, và được nhớ lại cho lần sau. Muốn chọn thẳng một con số thì vào Dashboard → ⚙ Settings → **Cỡ chữ** (11–22px, mặc định 14px).
+
 Bấm lại nút ở góc dưới phải một lần nữa để đóng bảng ghi chú.
 
 > **Mẹo:** dự án đã có ghi chú thì nút chuyển sang **màu vàng** và hiện luôn câu tóm tắt. Nhìn là biết mình từng xem qua rồi, khỏi research lại từ đầu.
@@ -134,6 +136,7 @@ Dashboard → **⚙ Settings**:
 ![Cài đặt](05-settings.png)
 
 - **Ngôn ngữ**: English, Tiếng Việt, 中文.
+- **Cỡ chữ**: 11–22px, mặc định 14px. Áp cho cả bảng ghi chú, Dashboard và popup.
 - **Kiểu hiển thị ghi chú**: bảng bên phải (khuyên dùng) hoặc lớp phủ trong trang.
 - **Bảng tự đổi theo token đang mở**: bật thì bấm token nào, bảng chuyển sang token đó.
 - **Mẫu câu hỏi cho Grok**: sửa được tuỳ ý.

@@ -10,7 +10,7 @@
 .ne{--ne-bg:#111318;--ne-bg2:#181b22;--ne-bg3:#20242d;--ne-line:#2b303a;--ne-fg:#e6e8ec;--ne-fg2:#9aa3b2;--ne-fg3:#6b7280;
   --ne-acc:#facc15;--ne-acc2:#f97316;--ne-green:#22c55e;--ne-red:#ef4444;--ne-blue:#60a5fa;
   box-sizing:border-box;display:flex;flex-direction:column;height:100%;min-height:0;color:var(--ne-fg);background:var(--ne-bg);
-  font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+  font:var(--ne-fs,14px)/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
 .ne *{box-sizing:border-box}
 .ne a{color:var(--ne-blue);text-decoration:none}.ne a:hover{text-decoration:underline}
 .ne input,.ne textarea,.ne select{font:inherit;color:var(--ne-fg);background:var(--ne-bg2);border:1px solid var(--ne-line);border-radius:8px;padding:7px 9px;outline:none;width:100%}
@@ -26,25 +26,25 @@
 .ne button.danger:hover{background:#2c1a1c}
 .ne-head{padding:14px 16px 10px;border-bottom:1px solid var(--ne-line);background:var(--ne-bg2)}
 .ne-titlerow{display:flex;align-items:center;gap:8px}
-.ne-symbol{font-weight:700;font-size:18px;padding:4px 8px;width:auto;flex:1 1 120px;min-width:0;background:transparent;border-color:transparent}
+.ne .ne-symbol{font-weight:700;font-size:calc(var(--ne-fs,14px) + 5px);padding:4px 8px;width:auto;flex:1 1 120px;min-width:0;background:transparent;border-color:transparent}
 .ne-symbol:hover,.ne-symbol:focus{background:var(--ne-bg);border-color:var(--ne-line)}
-.ne-chain{font-size:11px;font-weight:600;letter-spacing:.02em;color:#c7d2fe;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.35);border-radius:999px;padding:2px 8px;white-space:nowrap}
-.ne-pin{font-size:15px;padding:4px 8px}
+.ne-chain{font-size:calc(var(--ne-fs,14px) - 2px);font-weight:600;letter-spacing:.02em;color:#c7d2fe;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.35);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.ne .ne-pin{font-size:calc(var(--ne-fs,14px) + 2px);padding:4px 8px}
 .ne-pin.on{background:rgba(249,115,22,.18);border-color:rgba(249,115,22,.6);color:#fdba74}
-.ne-name{margin-top:6px;font-size:13px;padding:5px 8px;background:transparent;border-color:transparent}
+.ne-name{margin-top:6px;font-size:var(--ne-fs,14px);padding:5px 8px;background:transparent;border-color:transparent}
 .ne-name:hover,.ne-name:focus{background:var(--ne-bg);border-color:var(--ne-line)}
-.ne-addr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:12px;color:var(--ne-fg2)}
+.ne-addr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:calc(var(--ne-fs,14px) - 1px);color:var(--ne-fg2)}
 .ne-addr code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ne-fg2)}
-.ne-addr .ne-copy{padding:1px 6px;font-size:11px}
+.ne-addr .ne-copy{padding:1px 6px;font-size:calc(var(--ne-fs,14px) - 2px)}
 .ne-links{display:flex;gap:10px;margin-left:auto;align-items:center}
-.ne-grok{padding:3px 9px;font-size:12px;font-weight:600;color:#ddd6fe;background:linear-gradient(180deg,rgba(139,92,246,.32),rgba(139,92,246,.18));border-color:rgba(167,139,250,.75)}
+.ne .ne-grok{padding:3px 9px;font-size:calc(var(--ne-fs,14px) - 1px);font-weight:600;color:#ddd6fe;background:linear-gradient(180deg,rgba(139,92,246,.32),rgba(139,92,246,.18));border-color:rgba(167,139,250,.75)}
 .ne-grok:hover{background:#8b5cf6;color:#fff}
 .ne-body{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 16px 16px}
 .ne-sec{margin-bottom:14px}
-.ne-label{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ne-fg3);margin:0 0 6px}
+.ne-label{display:flex;align-items:center;justify-content:space-between;font-size:calc(var(--ne-fs,14px) - 2px);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ne-fg3);margin:0 0 6px}
 .ne-meta{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
 .ne-meta select{padding:6px 8px}
-.ne-stars{display:inline-flex;gap:2px;font-size:20px;line-height:1;cursor:pointer;user-select:none}
+.ne-stars{display:inline-flex;gap:2px;font-size:calc(var(--ne-fs,14px) + 7px);line-height:1;cursor:pointer;user-select:none}
 .ne-stars span{color:#3f4553;transition:color .1s}
 .ne-stars span.on{color:var(--ne-acc)}
 .ne-stars:hover span{color:#3f4553}
@@ -52,15 +52,15 @@
 .ne-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px;border:1px solid var(--ne-line);border-radius:8px;background:var(--ne-bg2)}
 .ne-tags input{flex:1 1 90px;min-width:70px;border:0;background:transparent;padding:3px 4px}
 .ne-tags input:focus{box-shadow:none}
-.ne-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 8px;border-radius:999px;font-size:12px;background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.35);color:#bfdbfe}
+.ne-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 8px;border-radius:999px;font-size:calc(var(--ne-fs,14px) - 1px);background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.35);color:#bfdbfe}
 .ne-chip b{font-weight:500}
-.ne-chip button{padding:0 4px;border:0;background:transparent;color:inherit;font-size:13px;line-height:1;opacity:.7}
+.ne-chip button{padding:0 4px;border:0;background:transparent;color:inherit;font-size:var(--ne-fs,14px);line-height:1;opacity:.7}
 .ne-chip button:hover{opacity:1;background:transparent}
 .ne-compose{display:grid;grid-template-columns:1fr;gap:6px;padding:8px;border:1px solid var(--ne-line);border-radius:10px;background:var(--ne-bg2)}
 .ne-compose textarea{min-height:56px;background:var(--ne-bg)}
 .ne-compose-row{display:flex;gap:6px;align-items:center}
 .ne-compose-row select{width:auto;flex:0 0 auto;padding:5px 8px}
-.ne-compose-row .ne-hint{flex:1;font-size:11px;color:var(--ne-fg3)}
+.ne-compose-row .ne-hint{flex:1;font-size:calc(var(--ne-fs,14px) - 2px);color:var(--ne-fg3)}
 .ne-entries{list-style:none;margin:10px 0 0;padding:0;position:relative}
 .ne-entries::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--ne-line)}
 .ne-entry{position:relative;padding:0 0 12px 30px}
@@ -70,13 +70,13 @@
 .ne-entry[data-type=alert]::before{border-color:var(--ne-acc2)}
 .ne-entry[data-type=research]::before{border-color:var(--ne-blue)}
 .ne-entry[data-type=news]::before{border-color:#a78bfa}
-.ne-ehead{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ne-fg3)}
-.ne-ehead .ne-etype{font-size:12px;color:var(--ne-fg2);font-weight:600}
+.ne-ehead{display:flex;align-items:center;gap:8px;font-size:calc(var(--ne-fs,14px) - 2px);color:var(--ne-fg3)}
+.ne-ehead .ne-etype{font-size:calc(var(--ne-fs,14px) - 1px);color:var(--ne-fg2);font-weight:600}
 .ne-ehead time{cursor:default}
 .ne-ehead .ne-mc{color:var(--ne-fg3)}
 .ne-ehead .ne-eactions{margin-left:auto;display:none;gap:2px}
 .ne-entry:hover .ne-eactions{display:inline-flex}
-.ne-eactions button{padding:0 5px;font-size:12px}
+.ne-eactions button{padding:0 5px;font-size:calc(var(--ne-fs,14px) - 1px)}
 .ne-etext{margin-top:3px;white-space:pre-wrap;word-break:break-word}
 .ne-etext a{word-break:break-all}
 .ne-at{color:#f87171;font-weight:700}
@@ -86,9 +86,12 @@
 .ne-entry--new .ne-etext{border-radius:6px;animation:ne-flash 2.4s ease-out}
 .ne-entry--new::before{border-color:var(--ne-acc);box-shadow:0 0 0 4px rgba(250,204,21,.18)}
 @keyframes ne-flash{0%{background:rgba(250,204,21,.28);box-shadow:0 0 0 6px rgba(250,204,21,.28)}100%{background:transparent;box-shadow:none}}
-.ne-empty{color:var(--ne-fg3);font-size:12px;padding:8px 0 4px 30px}
-.ne-foot{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--ne-line);font-size:11px;color:var(--ne-fg3);background:var(--ne-bg2);white-space:nowrap}
+.ne-empty{color:var(--ne-fg3);font-size:calc(var(--ne-fs,14px) - 1px);padding:8px 0 4px 30px}
+.ne-foot{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--ne-line);font-size:calc(var(--ne-fs,14px) - 2px);color:var(--ne-fg3);background:var(--ne-bg2);white-space:nowrap}
 .ne-foot .ne-spacer{flex:1}
+.ne-fs{display:inline-flex;align-items:center;gap:2px}
+.ne-fs button{padding:0 6px;font-size:calc(var(--ne-fs,14px) - 2px);line-height:1.5;color:var(--ne-fg2)}
+.ne-fs .ne-fsval{min-width:18px;text-align:center;font-variant-numeric:tabular-nums}
 .ne-saved{color:var(--ne-green);opacity:0;transition:opacity .2s}
 .ne-saved.show{opacity:1}
 `;
@@ -205,6 +208,11 @@
         <span class="ne-times"></span>
         <span class="ne-saved">${esc(t('saved'))}</span>
         <span class="ne-spacer"></span>
+        <span class="ne-fs" title="${esc(t('font_size'))}">
+          <button class="ne-fs-down" type="button" aria-label="${esc(t('font_smaller'))}">A−</button>
+          <span class="ne-fsval"></span>
+          <button class="ne-fs-up" type="button" aria-label="${esc(t('font_bigger'))}">A+</button>
+        </span>
         ${opts.showDashboardLink === false ? '' : `<a class="ne-dash" href="#">${esc(t('dashboard'))}</a>`}
         <button class="danger ne-delete" type="button">${esc(t('delete'))}</button>
       </div>`;
@@ -218,7 +226,30 @@
       tags: q('.ne-tags'), tagInput: q('.ne-taginput'), tagList: q('#ne-taglist'),
       count: q('.ne-count'), newText: q('.ne-newtext'), newType: q('.ne-newtype'), hint: q('.ne-hint'), add: q('.ne-add'),
       entries: q('.ne-entries'), times: q('.ne-times'), saved: q('.ne-saved'), dash: q('.ne-dash'), del: q('.ne-delete'),
+      fsVal: q('.ne-fsval'), fsDown: q('.ne-fs-down'), fsUp: q('.ne-fs-up'),
     };
+
+    // Cỡ chữ: đọc từ settings, áp cho gốc editor, và theo dõi để mọi bảng ghi chú đang mở đổi theo cùng lúc.
+    let fontPx = S.FONT.def;
+    function applyFont(px) {
+      fontPx = px;
+      root.style.setProperty('--ne-fs', px + 'px');
+      if (ui.fsVal) ui.fsVal.textContent = px;
+      if (ui.fsDown) ui.fsDown.disabled = px <= S.FONT.min;
+      if (ui.fsUp) ui.fsUp.disabled = px >= S.FONT.max;
+    }
+    applyFont(fontPx);
+    S.watchFontSize(applyFont);
+    // Áp ngay rồi mới ghi: bấm nhanh nhiều lần vẫn cộng dồn đúng (nếu đợi ghi xong mới cộng thì
+    // các lần bấm liên tiếp cùng đọc một giá trị cũ và ăn mất nhau).
+    const bumpFont = d => {
+      const next = Math.min(S.FONT.max, Math.max(S.FONT.min, fontPx + d * S.FONT.step));
+      if (next === fontPx) return;
+      applyFont(next);
+      S.setFontSize(next).catch(() => {});
+    };
+    if (ui.fsDown) ui.fsDown.addEventListener('click', () => bumpFont(-1));
+    if (ui.fsUp) ui.fsUp.addEventListener('click', () => bumpFont(1));
 
     ui.status.innerHTML = S.STATUSES.map(s => `<option value="${s.id}">${s.icon} ${esc(S.statusLabel(s.id))}</option>`).join('');
     ui.newType.innerHTML = S.ENTRY_TYPES.map(x => `<option value="${x.id}">${x.icon} ${esc(S.entryLabel(x.id))}</option>`).join('');
