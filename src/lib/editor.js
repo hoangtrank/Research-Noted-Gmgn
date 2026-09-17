@@ -7,6 +7,8 @@
   const t = (key, vars) => (globalThis.NotedI18n ? globalThis.NotedI18n.t(key, vars) : key);
 
   const CSS = `
+/* display tường minh đè lên display:none mặc định của [hidden]; thiếu dòng này thì el.hidden = true vô tác dụng */
+[hidden]{display:none!important}
 .ne{--ne-bg:#111318;--ne-bg2:#181b22;--ne-bg3:#20242d;--ne-line:#2b303a;--ne-fg:#e6e8ec;--ne-fg2:#9aa3b2;--ne-fg3:#6b7280;
   --ne-acc:#facc15;--ne-acc2:#f97316;--ne-green:#22c55e;--ne-red:#ef4444;--ne-blue:#60a5fa;
   box-sizing:border-box;display:flex;flex-direction:column;height:100%;min-height:0;color:var(--ne-fg);background:var(--ne-bg);

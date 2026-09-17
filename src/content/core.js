@@ -21,6 +21,9 @@
 
   const SHADOW_CSS = `
 :host{all:initial}
+/* Bắt buộc: các nút dưới đây khai báo display:flex, mà display tường minh đè lên display:none mặc định
+   của thuộc tính [hidden] — thiếu dòng này thì el.hidden = true không ẩn được gì. */
+[hidden]{display:none!important}
 .nd-drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:2147483000;transform:translateX(105%);transition:transform .18s ease;box-shadow:-12px 0 40px rgba(0,0,0,.5);background:#111318;display:flex;flex-direction:column;border-left:1px solid #2b303a}
 .nd-drawer.open{transform:none}
 .nd-drawer .ne{height:100%}

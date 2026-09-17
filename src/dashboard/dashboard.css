@@ -1,3 +1,5 @@
+/* display tường minh đè lên display:none mặc định của [hidden]; thiếu dòng này thì el.hidden = true vô tác dụng */
+[hidden]{display:none!important}
 :root{--bg:#0d0f14;--bg2:#111318;--bg3:#181b22;--line:#2b303a;--fg:#e6e8ec;--fg2:#9aa3b2;--fg3:#6b7280;--acc:#facc15;--acc2:#f97316;--blue:#60a5fa}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}

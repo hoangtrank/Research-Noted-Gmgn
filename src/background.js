@@ -12,10 +12,12 @@ const pageTokens = new Map(); // tabId -> token đang xem (content script báo),
 const tabTokens = new Map();  // tabId -> key đang hiển thị trong side panel (bản trong bộ nhớ của storage.session)
 const panelWindows = new Set(); // windowId có side panel đang mở (panel giữ một port tới background)
 const panelState = new Map();   // windowId -> { tabId, key } panel đang hiển thị (panel tự báo qua port)
+const panelPorts = new Map();   // port -> windowId: đếm theo port, không theo cửa sổ
 chrome.runtime.onConnect.addListener(port => {
   if (!port.name.startsWith('noted-panel:')) return;
   const wid = Number(port.name.slice('noted-panel:'.length));
   if (!wid) return;
+  panelPorts.set(port, wid);
   panelWindows.add(wid);
   // Panel gửi trạng thái mỗi lần đổi token và nhắc lại định kỳ: service worker ngủ dậy vẫn biết panel nào đang mở gì,
   // nên bấm nút lần hai luôn đóng đúng panel (trước đây trạng thái chỉ nằm trong bộ nhớ nên mất khi worker ngủ).
@@ -25,7 +27,14 @@ chrome.runtime.onConnect.addListener(port => {
     if (tid) panelState.set(wid, { tabId: tid, key: String(m.key || '') });
     else panelState.delete(wid);
   });
-  port.onDisconnect.addListener(() => { panelWindows.delete(wid); panelState.delete(wid); });
+  // Chrome dựng lại trang panel thì port mới kết nối trước rồi port cũ mới ngắt: chỉ dọn khi cửa sổ
+  // không còn port nào, nếu không một cú ngắt của trang cũ sẽ xoá mất cửa sổ đang có panel mở.
+  port.onDisconnect.addListener(() => {
+    panelPorts.delete(port);
+    if ([...panelPorts.values()].includes(wid)) return;
+    panelWindows.delete(wid);
+    panelState.delete(wid);
+  });
 });
 const GROK_HOSTS = ['x.com', 'twitter.com', 'grok.com'];
 const X_HOSTS = ['x.com', 'twitter.com'];
@@ -61,10 +70,14 @@ function notifyPanels(payload) {
   chrome.runtime.sendMessage(payload).catch(() => {});
 }
 
-async function remember(tabId, token, ctx) {
+// windowId đi kèm để side panel của cửa sổ đó nhận ra "mình đang hiện tab này", kể cả khi tab id nó tự tra
+// lúc mở đã cũ (panel sống lâu hơn tab đang xem).
+async function remember(tabId, token, ctx, windowId) {
   tabTokens.set(tabId, token.key);
+  let wid = windowId;
+  if (!wid) { try { wid = (await chrome.tabs.get(tabId)).windowId; } catch (_) {} }
   await chrome.storage.session.set({ [SESSION_PREFIX + tabId]: { token, ctx: ctx || {}, at: Date.now() } });
-  notifyPanels({ type: 'noted:show', tabId, token, ctx: ctx || {} });
+  notifyPanels({ type: 'noted:show', tabId, windowId: wid || null, token, ctx: ctx || {} });
 }
 
 // Mở ghi chú cho token trong tab. Phải gọi sidePanel.open() ngay trong lượt xử lý user gesture (không await trước).
@@ -83,13 +96,13 @@ function openNote({ tabId, windowId, token, ctx, mode, fromContent, toggle }, se
   const showing = ps ? (ps.tabId === tabId ? ps.key : '') : tabTokens.get(tabId);
   if (toggle && windowId && panelWindows.has(windowId) && showing === token.key) {
     chrome.sidePanel.setOptions({ tabId, enabled: false })
-      .then(() => { panelWindows.delete(windowId); sendResponse({ ok: true, mode: 'panel', closed: true }); })
+      .then(() => { panelWindows.delete(windowId); panelState.delete(windowId); sendResponse({ ok: true, mode: 'panel', closed: true }); })
       .catch(() => sendResponse({ ok: true, mode: 'panel', closed: false }));
     return;
   }
   chrome.sidePanel.setOptions({ tabId, enabled: true, path: 'src/panel/panel.html' }).catch(() => {});
   chrome.sidePanel.open({ tabId })
-    .then(async () => { await remember(tabId, token, ctx); sendResponse({ ok: true, mode: 'panel' }); })
+    .then(async () => { await remember(tabId, token, ctx, windowId); sendResponse({ ok: true, mode: 'panel' }); })
     .catch(err => { console.warn('[Research-Noted-Gmgn] sidePanel.open thất bại, dùng drawer:', err && err.message); drawer(); });
 }
 
@@ -194,7 +207,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const same = cur && cur.token && cur.token.key === token.key;
           const ctx = { ...(same ? cur.ctx : {}), symbol: String(c.symbol || '').slice(0, 32), mc: c.mc ? String(c.mc).slice(0, 24) : null };
           if (!ctx.symbol && same && cur.ctx) ctx.symbol = cur.ctx.symbol || '';
-          await remember(tabId, token, ctx);
+          await remember(tabId, token, ctx, wid);
         }).catch(() => {});
       }
       sendResponse({ ok: true });

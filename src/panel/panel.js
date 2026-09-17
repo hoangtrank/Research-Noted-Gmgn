@@ -126,7 +126,14 @@
   setInterval(sendState, 20000);
 
   chrome.runtime.onMessage.addListener(msg => {
-    if (msg && msg.type === 'noted:show' && msg.tabId === tabId) show({ token: msg.token, ctx: msg.ctx });
+    if (!msg || msg.type !== 'noted:show') return;
+    // Side panel là của cả cửa sổ: mở ghi chú cho tab nào trong cửa sổ này thì panel bám theo tab đó,
+    // kể cả khi tab id tra được lúc panel mở đã cũ (không thì panel bỏ qua mọi thứ và bấm nút lần hai không đóng được).
+    if (msg.tabId !== tabId) {
+      if (!pinnedTab && windowId && msg.windowId === windowId) { tabId = msg.tabId; currentKey = null; }
+      else return;
+    }
+    show({ token: msg.token, ctx: msg.ctx });
   });
 
   // Panel dùng chung cho cả cửa sổ: đổi tab thì hiện ghi chú của tab đó.

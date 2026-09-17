@@ -16,7 +16,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const PROLOG = 'robinhood:0xaa40e79e987517f7462bf79315b8a118799b04e3';
 const assert = (cond, msg) => { if (!cond) throw new Error('ASSERT: ' + msg); console.log('  ✓', msg); };
-const shadowQ = (page, sel) => page.evaluate(s => { const el = document.getElementById('noted-gmgn-host').shadowRoot.querySelector(s); return el ? (el.hidden ? '' : el.textContent) : null; }, sel);
+const shadowQ = (page, sel) => page.evaluate(s => { const el = document.getElementById('noted-gmgn-host').shadowRoot.querySelector(s); return el ? (el.getClientRects().length ? el.textContent : '') : null; }, sel);
 const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-drawer.open'));
 
 (async () => {
@@ -49,7 +49,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await page.waitForTimeout(1500);
   assert((await page.$$('.noted-badge')).length === 0, 'mặc định không gắn nút vào hàng');
   await page.goto('https://gmgn.ai/robinhood/token/0xaa40e79e987517f7462bf79315b8a118799b04e3');
-  await page.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden; }, null, { timeout: 8000 });
+  await page.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && f.getClientRects().length > 0; }, null, { timeout: 8000 });
   assert(true, 'trang token vẫn có nút nổi');
   await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
   await page.waitForTimeout(1200);
@@ -105,6 +105,11 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await panel.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${gmgnTabId}`);
   await panel.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
   assert((await panel.$eval('.ne-symbol', e => e.value)) === 'PROLOG', 'panel lấy symbol từ content script của tab gmgn');
+  const bothShown = async pg => pg.evaluate(() => {
+    const vis = el => !!el && el.getClientRects().length > 0;
+    return vis(document.querySelector('#empty')) && vis(document.querySelector('#mount'));
+  });
+  assert((await bothShown(panel)) === false, 'không hiện chồng màn hình trống lên bảng ghi chú');
   assert((await panel.$eval('.ne-mcnow', e => e.textContent)).includes('$10.64M'), 'panel hiện MC lúc ghi');
   await panel.click('.ne-name'); await panel.type('.ne-name', 'AI agent launchpad tren Robinhood chain');
   await panel.click('.ne-summary'); await panel.type('.ne-summary', 'Launchpad cho AI agent, doi ex-Coinbase, TGE thang 10. Rui ro: unlock lon.');
@@ -166,7 +171,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
 
   console.log('6) Trang token: FAB');
   await page.goto('https://gmgn.ai/robinhood/token/0xaa40e79e987517f7462bf79315b8a118799b04e3');
-  await page.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden; }, null, { timeout: 8000 });
+  await page.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && f.getClientRects().length > 0; }, null, { timeout: 8000 });
   const fabText = await shadowQ(page, '.nd-fab');
   assert(fabText.includes('PROLOG') && fabText.includes('Launchpad'), 'FAB hiện symbol + tóm tắt: ' + fabText);
   await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
@@ -543,7 +548,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await dex.setViewportSize({ width: 1280, height: 800 });
   await dex.screenshot({ path: path.join(OUT, '8-dexscreener.png') });
   await dex.goto('https://dexscreener.com/robinhood/0x1A2B3C00000000000000000000000000000000B2');
-  await dex.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden && f.textContent.includes('PROLOG'); }, null, { timeout: 15000 });
+  await dex.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && f.getClientRects().length > 0 && f.textContent.includes('PROLOG'); }, null, { timeout: 15000 });
   assert(true, 'trang pair: FAB hiện PROLOG + tóm tắt');
   const pt = await sw.evaluate(async id => chrome.tabs.sendMessage(id, { type: 'noted:get-page-token' }), dexTabId);
   assert(pt && pt.token && pt.token.key === `robinhood:${dexMock.PROLOG}` && pt.symbol === 'PROLOG', 'popup/phím tắt lấy được token của trang pair');
@@ -557,7 +562,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   // Không có quyền "tabs" nên ghi lại tab id từ sender của message thay vì query theo URL.
   await sw.evaluate(() => { chrome.runtime.onMessage.addListener((m, sender) => { if (m && m.type === 'noted:page-token' && sender.tab) globalThis.__xTab = sender.tab.id; }); });
   await xp.goto('https://x.com/search?q=0xaa40e79e987517f7462bf79315b8a118799b04e3&src=typed_query');
-  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden; }, null, { timeout: 10000 });
+  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && f.getClientRects().length > 0; }, null, { timeout: 10000 });
   const fabX = await shadowQ(xp, '.nd-fab');
   assert(!fabX.includes('Research-Noted-Gmgn') && fabX.includes('PROLOG') && fabX.includes('Robinhood'), 'nhãn gọn "PROLOG · Robinhood", không còn tiền tố dài: ' + fabX.trim());
   assert((await xp.$$('.noted-badge')).length === 0 && (await xp.$$('.noted-x-btn')).length === 0, 'không có nút nào trên từng bài');
@@ -576,7 +581,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
 
   // bôi đen chữ trong bài của @hoangtrank
   await xp.evaluate(() => { const el = document.querySelector('article [data-testid="tweetText"]'); const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
-  await xp.waitForFunction(() => { const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel'); return b && !b.hidden; }, null, { timeout: 5000 });
+  await xp.waitForFunction(() => { const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel'); return b && b.getClientRects().length > 0; }, null, { timeout: 5000 });
   assert((await shadowQ(xp, '.nd-sel')).includes('PROLOG'), 'bôi đen -> hiện nút "Save selection → PROLOG"');
   const selPos = await xp.evaluate(() => {
     const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getBoundingClientRect();
@@ -607,17 +612,17 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   const selBtn = (prop = 'hidden') => xp.evaluate(p => { const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel'); return p === 'cls' ? b.className : b[p]; }, prop);
   const pickPost = i => xp.evaluate(n => { const el = document.querySelectorAll('article [data-testid="tweetText"]')[n]; const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }, i);
   await pickPost(1);
-  await xp.waitForFunction(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length > 0, null, { timeout: 5000 });
   await xp.evaluate(() => getSelection().removeAllRanges());
-  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length === 0, null, { timeout: 5000 });
   assert(true, 'bỏ bôi đen thì nút lưu tự ẩn');
   await pickPost(1);
-  await xp.waitForFunction(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length > 0, null, { timeout: 5000 });
   await xp.mouse.click(60, 700);
-  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length === 0, null, { timeout: 5000 });
   assert(true, 'bấm ra ngoài thì nút lưu tự ẩn');
   await pickPost(1);
-  await xp.waitForFunction(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length > 0, null, { timeout: 5000 });
   // Bôi đen co lại còn 2 ký tự: nút phải biến mất, nếu không bấm vào sẽ lưu nhầm đoạn bôi đen cũ.
   await xp.evaluate(() => {
     const el = document.querySelectorAll('article [data-testid="tweetText"]')[1];
@@ -625,7 +630,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
     r.setStart(node, 0); r.setEnd(node, 2);
     const s = getSelection(); s.removeAllRanges(); s.addRange(r);
   });
-  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length === 0, null, { timeout: 5000 });
   assert(true, 'bôi đen còn quá ngắn thì nút cũng tự ẩn (không giữ lại đoạn cũ)');
   await xp.evaluate(() => getSelection().removeAllRanges());
 
@@ -642,45 +647,65 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert((await panelEmpty.$eval('.ne-symbol', e => e.value)) === 'PROLOG', 'chưa có phiên cho tab -> panel hỏi thẳng trang và hiện đúng dự án');
   await xp.bringToFront();
   await pickPost(1);
-  await xp.waitForFunction(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length > 0, null, { timeout: 5000 });
   await xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').click());
-  await xp.waitForFunction(() => { const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel'); return !b.hidden && b.className.includes('ok'); }, null, { timeout: 8000 });
+  await xp.waitForFunction(() => { const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel'); return b.getClientRects().length > 0 && b.className.includes('ok'); }, null, { timeout: 8000 });
   assert((await selBtn('textContent')).startsWith('✓'), 'lưu xong hiện xác nhận ✓ ngay tại chỗ bôi đen');
   await panelEmpty.waitForSelector('#mount:not([hidden]) .ne-entry--new', { timeout: 8000 });
   assert((await panelEmpty.$eval('.ne-entry--new .ne-etext', e => e.textContent)).includes('Big partnership'), 'panel đang rỗng cũng tự hiện mốc mới');
   await panelEmpty.close();
-  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
+  await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').getClientRects().length === 0, null, { timeout: 5000 });
   assert(true, 'xác nhận tự ẩn sau khoảng 2 giây');
+  const selBox = await xp.evaluate(() => {
+    const b = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel');
+    return { rects: b.getClientRects().length, display: getComputedStyle(b).display, cls: b.className };
+  });
+  assert(selBox.rects === 0 && selBox.display === 'none', 'nút biến mất hẳn khỏi màn hình, không phải chỉ đổi màu: ' + JSON.stringify(selBox));
   console.log('16d) Bấm nút nổi lần hai: tắt side panel của tab');
-  const panelOpen = await ctx.newPage();
-  await panelOpen.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${xTabId}`);
-  await panelOpen.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
-  await sw.evaluate(async id => chrome.sidePanel.setOptions({ tabId: id, enabled: true, path: 'src/panel/panel.html' }), xTabId);
-  await panelOpen.waitForTimeout(400);
   const panelEnabled = async () => sw.evaluate(async id => (await chrome.sidePanel.getOptions({ tabId: id })).enabled, xTabId);
+  const clickFab = () => xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+  await sw.evaluate(async id => chrome.sidePanel.setOptions({ tabId: id, enabled: true, path: 'src/panel/panel.html' }), xTabId);
   await xp.bringToFront();
-  await xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+  // Chạy có giao diện: dùng chính side panel thật. Chạy headless: Chrome không mở được side panel,
+  // nên mở trang panel như một tab thường — nó cũng báo trạng thái về background đúng như panel thật.
+  let panelOpen = null;
+  const showingHere = () => sw.evaluate(async id => !!([...panelState.values()].find(x => x.tabId === id) && panelWindows.size), xTabId);
+  const waitShowing = async want => { for (let i = 0; i < 60; i++) { if ((await showingHere()) === want) return true; await xp.waitForTimeout(100); } return false; };
+  if (panelLive) {
+    // Panel thật có thể đang mở sẵn từ bước trước: chỉ bấm mở khi nó chưa hiện token của tab này,
+    // nếu không cú bấm "mở" lại chính là cú đóng.
+    if (!(await showingHere())) {
+      await clickFab();
+      assert(await waitShowing(true), 'mở side panel thật cho tab đang xem');
+    }
+  } else {
+    panelOpen = await ctx.newPage();
+    await panelOpen.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${xTabId}`);
+    await panelOpen.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+    await panelOpen.waitForTimeout(400);
+    await xp.bringToFront();
+  }
+  await clickFab();
   await xp.waitForTimeout(700);
   assert((await panelEnabled()) === false, 'panel đang hiện đúng token -> bấm lần hai tắt panel của tab');
-  await panelOpen.close();  // panel đóng: port ngắt, background biết không còn panel nào
-  await xp.waitForTimeout(400);
-  await xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
-  await xp.waitForTimeout(700);
+  if (panelOpen) { await panelOpen.close(); await xp.waitForTimeout(400); }  // panel đóng: port ngắt, background biết không còn panel nào
+  await clickFab();
+  await xp.waitForTimeout(1200);
   assert((await panelEnabled()) === true, 'bấm lần ba mở lại panel cho tab');
   if (await xp.evaluate(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-drawer')?.hidden)) await xp.keyboard.press('Escape');
 
   const selCount = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x').length;
   assert(selCount === 2, 'hai đoạn bôi đen đã lưu thành hai mốc: ' + selCount);
   await xp.goto('https://x.com/search?q=%24EXTENSION&f=live');
-  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden && f.textContent.includes('EXTENSION'); }, null, { timeout: 10000 });
+  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && f.getClientRects().length > 0 && f.textContent.includes('EXTENSION'); }, null, { timeout: 10000 });
   assert(true, 'tìm theo $SYMBOL cũng nhận ra dự án đã ghi chú');
   await xp.goto(`https://x.com/search?q=${dexMock.MINT_A}`);
-  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && !f.hidden && f.textContent.includes('BONKZ'); }, null, { timeout: 15000 });
+  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && f.getClientRects().length > 0 && f.textContent.includes('BONKZ'); }, null, { timeout: 15000 });
   const fabNew = (await shadowQ(xp, '.nd-fab')).replace(/\s+/g, ' ').trim();
   assert(/^📝 ?Note ?BONKZ ?Solana$/.test(fabNew), 'địa chỉ chưa có ghi chú -> nhãn gọn "📝 Note BONKZ Solana", bấm là tạo ghi chú mới: ' + fabNew);
   await xp.goto('https://x.com/search?q=hello%20world');
   await xp.waitForTimeout(1200);
-  assert(await xp.evaluate(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return !f || f.hidden; }), 'tìm kiếm không liên quan -> không hiện gì');
+  assert(await xp.evaluate(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return !f || f.getClientRects().length === 0; }), 'tìm kiếm không liên quan -> không hiện gì');
   await xp.close();
   dexApi.server.close();
 
