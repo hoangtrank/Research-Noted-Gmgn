@@ -76,7 +76,9 @@ Bây giờ **bôi đen** đoạn nào bạn thấy đáng lưu trong một bài 
 
 ![Bôi đen chữ trong bài đăng trên X](02-x-select.png)
 
-Bấm nút đó. Đoạn chữ vào thẳng timeline của dự án, kèm **tên người nói** và link về bài gốc. Bảng ghi chú mở ra và **nháy vàng** ngay mốc vừa lưu để bạn thấy nó nằm đâu.
+Bấm nút đó. Nút đổi sang **màu xanh kèm dấu ✓** ngay tại chỗ để bạn biết đã lưu. Đoạn chữ vào thẳng timeline của dự án, kèm **tên người nói** và link về bài gốc. Bảng ghi chú mở ra và **nháy vàng** ngay mốc vừa lưu để bạn thấy nó nằm đâu.
+
+Bỏ bôi đen hoặc bấm ra chỗ khác thì nút tự biến mất.
 
 ![Đoạn vừa lưu được tô sáng trong bảng ghi chú](03-x-saved.png)
 

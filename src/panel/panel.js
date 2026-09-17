@@ -34,6 +34,12 @@
   // Kết nối tới background: còn kết nối = panel đang mở ở cửa sổ này (dùng cho bấm nút lần hai để đóng).
   try { if (windowId) chrome.runtime.connect({ name: `noted-panel:${windowId}` }); } catch (_) {}
 
+  // Nguồn sự thật là storage.session: panel tự nạp lại khi mục của tab thay đổi, nên không lỡ mốc mới
+  // dù message "noted:show" đến trước lúc panel kịp lắng nghe.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'session' && tabId && changes[SESSION_PREFIX + tabId]) refresh();
+  });
+
   const empty = $('#empty');
   const mount = $('#mount');
   let currentKey = null;

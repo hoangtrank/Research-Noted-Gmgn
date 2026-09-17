@@ -42,6 +42,9 @@
 .nd-fab.has .f-chain{color:#fde68a;background:rgba(250,204,21,.18)}
 .nd-sel{position:fixed;left:0;top:0;z-index:2147483001;display:flex;align-items:center;gap:7px;white-space:nowrap;max-width:min(340px,calc(100vw - 24px));padding:7px 13px;border-radius:999px;border:1px solid #facc15;background:#facc15;color:#111;font:700 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.45);cursor:pointer;transition:transform .1s}
 .nd-sel:hover{transform:translateY(-1px);background:#fde047}
+.nd-sel.busy{opacity:.7;cursor:default}
+.nd-sel.ok{background:#22c55e;border-color:#22c55e;color:#062d16;cursor:default;transform:none}
+.nd-sel.ok:hover{background:#22c55e}
 .nd-sel .s-txt{font-weight:400;color:#3f3a12;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
 .nd-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483002;padding:8px 14px;border-radius:999px;background:#20242d;color:#e6e8ec;border:1px solid #2b303a;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .15s;pointer-events:none}
 .nd-toast.show{opacity:1}
@@ -49,6 +52,7 @@
 
   let host, shadow, drawer, editor, tip, fab, toastEl, selBtn;
   let lastSelection = '';
+  let selConfirmUntil = 0;   // trong lúc hiện xác nhận "đã lưu" thì không để selectionchange ẩn nút đi
   let openKey = null;      // key đang mở trong drawer (chế độ overlay)
   let uiMode = 'panel';    // settings.ui: 'panel' | 'drawer'
   let listBadges = false;  // settings.listBadges: có gắn nút ✎ vào từng hàng token trong danh sách không (mặc định chỉ nút nổi)
@@ -155,6 +159,12 @@
       shadow.appendChild(selBtn);
       let selTimer = 0;
       document.addEventListener('selectionchange', () => { clearTimeout(selTimer); selTimer = setTimeout(refreshSelection, 200); });
+      // Bấm ra ngoài là ẩn nút, kể cả khi trang không phát sự kiện selectionchange.
+      document.addEventListener('mousedown', ev => {
+        if (!selBtn || selBtn.hidden || Date.now() < selConfirmUntil) return;
+        if (ev.target === host || (host && host.contains(ev.target))) return;
+        selBtn.hidden = true;
+      }, true);
     }
 
     (document.body || document.documentElement).appendChild(host);
@@ -164,7 +174,10 @@
       if (selBtn && !selBtn.hidden) { selBtn.hidden = true; return; }
       if (openKey) { ev.stopPropagation(); closeDrawer(); }
     }, true);
-    window.addEventListener('scroll', hideTip, { passive: true, capture: true });
+    window.addEventListener('scroll', () => {
+      hideTip();
+      if (selBtn && !selBtn.hidden && Date.now() >= selConfirmUntil) refreshSelection(); // cuộn thì nút bám theo, hoặc ẩn nếu bôi đen đã mất
+    }, { passive: true, capture: true });
   }
 
   function createEditor() {
@@ -441,7 +454,7 @@
 
   // ---------------- lưu đoạn chữ đang bôi đen vào timeline của token đang xem ----------------
   function refreshSelection() {
-    if (!selBtn) return;
+    if (!selBtn || Date.now() < selConfirmUntil) return;
     const sel = window.getSelection && window.getSelection();
     const text = sel && !sel.isCollapsed ? String(sel.toString() || '').trim() : '';
     if (!text) { selBtn.hidden = true; return; }
@@ -449,6 +462,7 @@
     lastSelection = text;
     const p = cache.get(pageToken.key);
     const sym = (p && p.symbol) || pageSymbol() || S.shortAddress(pageToken.address);
+    selBtn.className = 'nd-sel';
     selBtn.innerHTML = `＋ ${E.esc(t('sel_save', { symbol: sym }))}<span class="s-txt">${E.esc(text.slice(0, 48))}</span>`;
     selBtn.hidden = false;
     placeSelBtn(sel);
@@ -478,11 +492,22 @@
     const p = cache.get(pageToken.key);
     const symbol = (p && p.symbol) || pageSymbol() || pageToken.symbol || '';
     const text = author ? `${author}: ${lastSelection}` : lastSelection; // mở đầu bằng tên tài khoản của bài chứa đoạn bôi đen
-    selBtn.hidden = true;
+    selBtn.classList.add('busy');
     // openPanel: background mở side panel ngay trong cú bấm này (giữ user gesture) rồi hiện mốc vừa lưu.
     chrome.runtime.sendMessage({ type: 'noted:add-entry', token, symbol, entryType: 'research', text, url, sourceLabel: t('grok_source'), openPanel: true, mode: uiMode }, res => {
-      if (chrome.runtime.lastError || !res || !res.ok) { toast(t('grok_nothing')); refreshSelection(); return; }
-      toast(t('sel_saved', { symbol: res.symbol || symbol || S.shortAddress(token.address) }));
+      if (chrome.runtime.lastError || !res || !res.ok) {
+        selBtn.classList.remove('busy');
+        toast(t('sel_failed'));
+        return;
+      }
+      const sym = res.symbol || symbol || S.shortAddress(token.address);
+      // Xác nhận ngay tại chỗ bôi đen, giữ 1,8 giây rồi tự ẩn.
+      selConfirmUntil = Date.now() + 1800;
+      selBtn.className = 'nd-sel ok';
+      selBtn.innerHTML = `✓ ${E.esc(t('sel_saved', { symbol: sym }))}`;
+      selBtn.hidden = false;
+      setTimeout(() => { selConfirmUntil = 0; selBtn.hidden = true; selBtn.className = 'nd-sel'; }, 1800);
+      toast(t('sel_saved', { symbol: sym }));
       lastSelection = '';
       if (sel) sel.removeAllRanges();
     });

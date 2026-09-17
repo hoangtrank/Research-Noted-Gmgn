@@ -196,9 +196,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const addTabId = sender.tab && sender.tab.id;
       const wantPanel = !!msg.openPanel && !!addTabId && (msg.mode || uiMode) !== 'drawer' && !!chrome.sidePanel;
       // Mở panel NGAY trong lượt xử lý cú bấm (không await trước), rồi mới lưu bất đồng bộ.
+      let panelOpened = Promise.resolve(false);
       if (wantPanel && addToken) {
         chrome.sidePanel.setOptions({ tabId: addTabId, enabled: true, path: 'src/panel/panel.html' }).catch(() => {});
-        chrome.sidePanel.open({ tabId: addTabId }).catch(() => {});
+        panelOpened = chrome.sidePanel.open({ tabId: addTabId }).then(() => true).catch(() => false);
       }
       (async () => {
         const token = addToken;
@@ -214,9 +215,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         p = await NotedStore.save(p);
         // Cho người dùng thấy ngay mốc vừa lưu: panel (hoặc drawer) mở đúng dự án và tô sáng mốc đó.
         if (msg.openPanel && addTabId) {
+          const tk = { chain: p.chain, address: p.address, key: p.key };
           const ctx = { symbol: p.symbol, highlight: entry.id, force: entry.id };
-          if (wantPanel) await remember(addTabId, { chain: p.chain, address: p.address, key: p.key }, ctx);
-          else chrome.tabs.sendMessage(addTabId, { type: 'noted:open-drawer', token: { chain: p.chain, address: p.address, key: p.key }, ctx }).catch(() => {});
+          await remember(addTabId, tk, ctx);
+          // Không mở được side panel (hoặc người dùng chọn overlay) thì mở drawer trong trang để vẫn thấy mốc mới.
+          if (!(wantPanel && await panelOpened)) {
+            chrome.tabs.sendMessage(addTabId, { type: 'noted:open-drawer', token: tk, ctx }).catch(() => {});
+          }
         }
         sendResponse({ ok: true, key: p.key, symbol: p.symbol, entryId: entry.id });
       })();
