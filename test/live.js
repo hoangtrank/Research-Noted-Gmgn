@@ -84,7 +84,16 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
   // extension không lên thì tự mở lại bằng Chromium thay vì chết ở bước chờ service worker.
   const swOf = async c => c.serviceWorkers()[0] || await c.waitForEvent('serviceworker', { timeout: 15000 }).catch(() => null);
   const channel = arg('channel', 'chromium');
-  let ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel });
+  let ctx;
+  try {
+    ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel });
+  } catch (err) {
+    if (/Executable doesn't exist|npx playwright install/i.test(String(err && err.message))) {
+      console.error('\nThiếu trình duyệt của Playwright. Chạy:\n  npx playwright install chromium\n');
+      process.exit(1);
+    }
+    throw err;
+  }
   let sw = await swOf(ctx);
   if (!sw && channel !== 'chromium') {
     console.log(`  (kênh "${channel}" không nạp extension qua --load-extension, mở lại bằng Chromium của Playwright)`);

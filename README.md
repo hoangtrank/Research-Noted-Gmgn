@@ -205,6 +205,11 @@ npm run zip           # build the Web Store ZIP into dist/
 node test/shots.js    # regenerate the README and Store screenshots
 ```
 
+Running the suites needs Playwright's browser once: `npm i && npx playwright install chromium`.
+`test:live` deliberately launches Playwright's Chromium rather than branded Google Chrome —
+Chrome 137 and later silently ignore `--load-extension`, so the window opens but the extension
+is never loaded. Pass `--channel chrome` to try it anyway; the runner falls back on its own.
+
 Two console snippets for debugging against the real sites (they only read the page and
 send nothing anywhere): paste `scripts/grok-debug.js` into the console of a Grok tab for a
 report on why auto-save did or did not fire, and `scripts/grok-snapshot.js` to capture the
