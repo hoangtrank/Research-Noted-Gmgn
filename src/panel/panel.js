@@ -19,10 +19,9 @@
   let tabId = pinnedTab;
   let windowId = null;
 
+  try { const w = await chrome.windows.getCurrent(); windowId = w.id; } catch (_) {}
   if (!tabId) {
     try {
-      const w = await chrome.windows.getCurrent();
-      windowId = w.id;
       const [t] = await chrome.tabs.query({ active: true, windowId });
       tabId = t && t.id;
     } catch (_) {}
@@ -31,19 +30,28 @@
     }
   }
 
-  // Kết nối tới background: còn kết nối = panel đang mở ở cửa sổ này (dùng cho bấm nút lần hai để đóng).
-  try { if (windowId) chrome.runtime.connect({ name: `noted-panel:${windowId}` }); } catch (_) {}
-
   // Nguồn sự thật là storage.session: panel tự nạp lại khi mục của tab thay đổi, nên không lỡ mốc mới
   // dù message "noted:show" đến trước lúc panel kịp lắng nghe.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'session' && tabId && changes[SESSION_PREFIX + tabId]) refresh();
+    if (area === 'session' && tabId && changes[SESSION_PREFIX + tabId]) { refresh(); return; }
+    // Dự án đang mở bị nơi khác thêm/bớt mốc (Grok tự lưu, dashboard, tab khác): nạp lại cho khớp.
+    if (area !== 'local' || !currentKey || !currentToken) return;
+    const ch = changes[S.PREFIX + currentKey];
+    if (!ch) return;
+    const stored = ch.newValue;
+    const cur = editor.project;
+    const n = stored && Array.isArray(stored.timeline) ? stored.timeline.length : 0;
+    if (!cur || n === cur.timeline.length) return;
+    const newest = stored && stored.timeline ? [...stored.timeline].sort((a, b) => b.ts - a.ts)[0] : null;
+    show({ token: currentToken, ctx: { symbol: (stored && stored.symbol) || '', highlight: (newest && newest.id) || '', force: 'store:' + (stored ? stored.updatedAt : 0) } });
   });
 
   const empty = $('#empty');
   const mount = $('#mount');
   let currentKey = null;
+  let currentToken = null;
   let lastForce = '';   // id mốc vừa được thêm từ trang: khác giá trị cũ thì nạp lại dù cùng token
+  let port = null;      // port tới background (xem connect() bên dưới)
 
   const editor = E.create({
     showClose: true,
@@ -57,8 +65,10 @@
 
   function showEmpty() {
     currentKey = null;
+    currentToken = null;
     mount.hidden = true;
     empty.hidden = false;
+    sendState();
   }
 
   async function show(entry) {
@@ -70,22 +80,50 @@
     else if (force && force !== lastForce) await editor.flush();
     lastForce = force;
     currentKey = token.key;
+    currentToken = { chain: token.chain, address: token.address, key: token.key };
+    empty.hidden = true;
+    mount.hidden = false;
     let symbol = ctx.symbol || '';
     if (!symbol && tabId) {
       // Mở từ popup/phím tắt: hỏi content script symbol đang hiển thị trên trang.
       try { const r = await chrome.tabs.sendMessage(tabId, { type: 'noted:page-info', key: token.key }); symbol = (r && r.symbol) || ''; } catch (_) {}
     }
+    sendState();
     await editor.load({ ...token, symbol }, { mc: ctx.mc || null, highlight: ctx.highlight || '' });
-    empty.hidden = true;
-    mount.hidden = false;
     editor.focus();
   }
 
   async function refresh() {
     if (!tabId) { showEmpty(); return; }
     const r = await chrome.storage.session.get(SESSION_PREFIX + tabId);
-    await show(r[SESSION_PREFIX + tabId]);
+    let entry = r[SESSION_PREFIX + tabId];
+    // Tab chưa từng mở panel (vừa chuyển sang tab khác, hoặc trang vừa đổi token): hỏi thẳng content script
+    // token đang xem, để panel hiện đúng dự án thay vì màn hình trống.
+    if (!entry) {
+      try {
+        const info = await chrome.tabs.sendMessage(tabId, { type: 'noted:get-page-token' });
+        if (info && info.token) entry = { token: info.token, ctx: { symbol: info.symbol || '' } };
+      } catch (_) {}
+    }
+    await show(entry);
   }
+
+  // Kết nối tới background: còn kết nối = panel đang mở ở cửa sổ này, và báo luôn đang hiện token nào
+  // (bấm nút nổi lần hai cần biết điều này để đóng panel). Nhắc lại định kỳ để worker không ngủ mất trạng thái.
+  function sendState() {
+    if (!port) return;
+    try { port.postMessage({ type: 'noted:panel-state', tabId, key: currentKey || '' }); } catch (_) { port = null; }
+  }
+  function connect() {
+    if (!windowId) return;
+    try {
+      port = chrome.runtime.connect({ name: `noted-panel:${windowId}` });
+      port.onDisconnect.addListener(() => { port = null; setTimeout(connect, 1000); });
+      sendState();
+    } catch (_) { port = null; }
+  }
+  connect();
+  setInterval(sendState, 20000);
 
   chrome.runtime.onMessage.addListener(msg => {
     if (msg && msg.type === 'noted:show' && msg.tabId === tabId) show({ token: msg.token, ctx: msg.ctx });

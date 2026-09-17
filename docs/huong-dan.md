@@ -54,6 +54,8 @@ Trong bảng ghi chú, điền từ trên xuống:
 
 Mọi thứ **tự lưu** khi bạn gõ. Không có nút Save, không sợ quên.
 
+Bảng ghi chú **đi theo token bạn đang xem**: bấm sang token khác trên gmgn thì bảng tự nhảy sang ghi chú của token đó, không cần đóng mở lại. Bấm nút nổi **📝 Note {SYMBOL}** lần nữa là đóng bảng.
+
 **Timeline** là phần giá trị nhất. Mỗi khi biết thêm điều gì, gõ vào ô "Ghi chú mới", chọn loại (Ghi chú, Research, Tin tức, Mua, Bán, Cảnh báo) rồi bấm Thêm. Mỗi mốc tự ghi lại thời gian và **vốn hoá lúc đó**, nên sau này bạn biết mình mua ở mức nào, tin đó ra lúc dự án còn bao nhiêu.
 
 Bấm **📌** ở góc trên để ghim những dự án bạn đang bám sát.
@@ -103,6 +105,8 @@ Câu hỏi mặc định đã viết sẵn bằng tiếng Việt (theo ngôn ng�
 Muốn sửa câu hỏi: Dashboard → ⚙ Settings → ô **Mẫu prompt research**. Các biến dùng được: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {status} {notes} {gmgn_url} {dex_url} {x_url} {date}`. Riêng `{notes}` sẽ chèn 5 mốc gần nhất bạn đã ghi, để Grok bổ sung thêm chứ không nói lại thứ bạn đã biết.
 
 Lưu ý nhỏ: bạn **phải nhấn Enter một lần** để gửi câu hỏi, và **đừng đóng tab Grok** trước khi thấy dòng "Auto-saved". Sau đó bạn cứ đi làm việc khác, nó tự lưu.
+
+Dưới ô "Tự lưu câu trả lời" luôn có một dòng chữ nhỏ cho biết nó đang làm gì: *đang chờ bạn gửi prompt*, *đang đọc câu trả lời*, hay *tự lưu đang tắt*. Nếu vì lý do nào đó nó không bắt được câu trả lời, bấm **Bắt câu trả lời** rồi **Lưu** là xong.
 
 ---
 

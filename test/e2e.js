@@ -191,6 +191,16 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await panelF.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${gmgnTabId}`);
   await panelF.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
   assert((await panelF.$eval('.ne-symbol', e => e.value)) === 'FRONG', 'panel hiện đúng token đang xem');
+
+  console.log('7c) Panel đang mở: đổi sang token khác trong cùng tab -> panel nhảy theo (kể cả khi tab chưa có phiên)');
+  await sw.evaluate(async id => chrome.storage.session.remove('tab:' + id), gmgnTabId);
+  await page.bringToFront();
+  await page.goto('https://gmgn.ai/robinhood/token/0xaa40e79e987517f7462bf79315b8a118799b04e3');
+  await panelF.waitForFunction(() => document.querySelector('.ne-symbol') && document.querySelector('.ne-symbol').value === 'PROLOG', null, { timeout: 8000 });
+  assert(true, 'panel tự chuyển sang PROLOG khi trang đổi token');
+  await page.goto('https://gmgn.ai/robinhood/token/0x2222222222222222222222222222222222222222');
+  await panelF.waitForFunction(() => document.querySelector('.ne-symbol') && document.querySelector('.ne-symbol').value === 'FRONG', null, { timeout: 8000 });
+  assert(true, 'quay lại token trước, panel cũng nhảy theo');
   await panelF.close();
 
   console.log('8) Dashboard');
@@ -297,7 +307,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   const prompt = decodeURIComponent(gurl.split('text=')[1]);
   assert(prompt.includes('$PROLOG') && prompt.includes('0xaa40e79e987517f7462bf79315b8a118799b04e3') && prompt.includes('Robinhood') && prompt.includes('$10.64M'), 'prompt có symbol, chain, contract, market cap');
   assert(/1\. DEVELOPER/.test(prompt) && /2\. PROJECT/.test(prompt) && !/3\./.test(prompt), 'prompt chỉ có hai mục DEVELOPER và PROJECT');
-  assert((await grok.$eval('#composer', e => e.textContent)).includes('Research this token'), 'ô nhập của Grok nhận prompt');
+  assert((await grok.$eval('#composer', e => e.textContent)).includes('Research token'), 'ô nhập của Grok nhận prompt');
   await grok.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
   const gq = (sel, prop = 'textContent') => grok.evaluate(([s, p]) => { const el = document.getElementById('noted-grok-host').shadowRoot.querySelector(s); return el ? el[p] : null; }, [sel, prop]);
   const gclick = sel => grok.evaluate(s => document.getElementById('noted-grok-host').shadowRoot.querySelector(s).click(), sel);
@@ -340,6 +350,77 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await dash2.waitForTimeout(600);
   assert(dash2.url().includes('/src/dashboard/dashboard.html?open=robinhood%3A0xaa40'), '"Open in Dashboard" mở qua background: ' + dash2.url());
   await dash2.close();
+
+  console.log('12b) Panel gắn với tab Grok: câu trả lời tự lưu hiện ngay trong timeline');
+  const grokTabId = await sw.evaluate(async () => {
+    const all = await chrome.storage.session.get(null);
+    const k = Object.keys(all).filter(x => x.startsWith('grok:')).sort((a, b) => all[b].at - all[a].at)[0];
+    return Number(k.slice('grok:'.length));
+  });
+  const grokBind = await sw.evaluate(async id => (await chrome.storage.session.get('tab:' + id))['tab:' + id], grokTabId);
+  assert(grokBind && grokBind.token && grokBind.token.key === PROLOG, 'tab Grok được gắn sẵn dự án nên side panel đi theo đúng token');
+  const gpanel = await ctx.newPage();
+  gpanel.on('pageerror', e => console.log('GPANEL ERROR', e.message));
+  await gpanel.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${grokTabId}`);
+  await gpanel.waitForSelector('#mount:not([hidden]) .ne-entry', { timeout: 8000 });
+  assert((await gpanel.$eval('#empty', e => e.hidden)) === true, 'panel mở cùng tab Grok hiện luôn ghi chú (không kẹt ở màn hình trống)');
+  const gpBefore = await gpanel.$$eval('.ne-entry', els => els.length);
+  await grok.bringToFront();
+  await grok.click('#send');
+  await grok.waitForFunction(() => document.querySelectorAll('.msg.grok').length === 3);
+  await gpanel.waitForFunction(n => document.querySelectorAll('.ne-entry').length === n, gpBefore + 1, { timeout: 25000 });
+  assert(true, 'panel đang mở tự hiện câu trả lời Grok vừa tự lưu');
+  assert(await gpanel.$eval('.ne-entries', el => !!el.querySelector('.ne-entry--new')), 'mốc Grok mới được tô sáng trong panel');
+  await gpanel.close();
+
+  console.log('12c) Ghi đồng thời: bản cũ trong panel không nuốt mốc nơi khác vừa thêm');
+  const merged = await sw.evaluate(async k => {
+    const stale = await NotedStore.get(k);                       // bản panel đang giữ trong bộ nhớ
+    const other = await NotedStore.get(k);
+    other.timeline.push(NotedStore.newEntry('note', 'Moc tu noi khac', {}));
+    await NotedStore.save(other);                                // nơi khác ghi trước
+    stale.summary = 'Sua tu ban cu';
+    await NotedStore.save(stale);                                // bản cũ ghi sau
+    const now = await NotedStore.get(k);
+    return { has: now.timeline.some(e => e.text === 'Moc tu noi khac'), summary: now.summary, n: now.timeline.length };
+  }, PROLOG);
+  assert(merged.has && merged.summary === 'Sua tu ban cu', 'mốc của nơi khác còn nguyên, sửa từ bản cũ vẫn lưu được');
+  const removed = await sw.evaluate(async k => {
+    const p = await NotedStore.get(k);
+    const id = p.timeline[p.timeline.length - 1].id;
+    const other = await NotedStore.get(k);
+    other.summary = 'Cham vao truoc';
+    await NotedStore.save(other);                                // làm cho bản p thành cũ
+    p.timeline = p.timeline.filter(e => e.id !== id);
+    await NotedStore.save(p, { removedIds: [id] });
+    return (await NotedStore.get(k)).timeline.some(e => e.id === id);
+  }, PROLOG);
+  assert(removed === false, 'mốc người dùng xoá không bị gộp trở lại');
+  await sw.evaluate(async k => {
+    const p = await NotedStore.get(k);
+    p.summary = 'Launchpad cho AI agent, doi ex-Coinbase, TGE thang 10. Rui ro: unlock lon.';
+    await NotedStore.save(p);
+  }, PROLOG);
+
+  console.log('12d) Bố cục kiểu X (chữ nằm trong <span>, câu trả lời một khối): vẫn tự lưu được');
+  await dash.bringToFront();
+  const grokSpanPromise = ctx.waitForEvent('page');
+  await dash.click('.ne-grok');
+  const grokSpan = await grokSpanPromise;
+  grokSpan.on('pageerror', e => console.log('GROK-SPAN ERROR', e.message));
+  await grokSpan.waitForTimeout(500);
+  await grokSpan.goto((await grokUrlFor()).url + '&shape=span');
+  await grokSpan.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
+  const spanAuto = () => grokSpan.evaluate(() => { const el = document.getElementById('noted-grok-host').shadowRoot.querySelector('.autostat'); return el ? el.textContent : null; });
+  await grokSpan.waitForFunction(() => { const el = document.getElementById('noted-grok-host').shadowRoot.querySelector('.autostat'); return el && el.textContent.trim(); }, null, { timeout: 8000 });
+  assert((await spanAuto()).includes('send the prompt'), 'chưa gửi prompt: panel nói rõ tự lưu đang chờ — ' + (await spanAuto()));
+  await grokSpan.click('#send');
+  await grokSpan.waitForFunction(() => { const s = document.getElementById('noted-grok-host').shadowRoot.querySelector('.status'); return s.classList.contains('ok') && s.textContent.includes('Auto-saved'); }, null, { timeout: 25000 });
+  const geSpan = await grokEntries();
+  assert(geSpan.some(e => e.text.includes('Span layout answer.')), 'bắt đúng câu trả lời một khối nằm trong <span>');
+  assert(!geSpan.some(e => e.text.includes('Trends for you') || e.text.includes('Terms of Service')), 'không bắt nhầm sidebar/footer');
+  await grokSpan.close();
+
   await grok.close();
 
   console.log('13) Grok mở tay (chưa gắn token): gắn dự án rồi lưu phần bôi đen');
@@ -515,11 +596,17 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
   assert(true, 'bấm ra ngoài thì nút lưu tự ẩn');
 
-  console.log('16c) Panel đang rỗng vẫn tự hiện mốc mới (theo dõi storage.session)');
+  console.log('16c) Panel tự bắt token của tab, và mốc mới hiện ngay');
+  const panelNoTab = await ctx.newPage();
+  await panelNoTab.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=999999`);
+  await panelNoTab.waitForSelector('#empty:not([hidden])', { timeout: 8000 });
+  assert(true, 'tab không có token -> panel hiện màn hình trống');
+  await panelNoTab.close();
   await sw.evaluate(async id => chrome.storage.session.remove('tab:' + id), xTabId);
   const panelEmpty = await ctx.newPage();
   await panelEmpty.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${xTabId}`);
-  await panelEmpty.waitForSelector('#empty:not([hidden])', { timeout: 8000 });
+  await panelEmpty.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+  assert((await panelEmpty.$eval('.ne-symbol', e => e.value)) === 'PROLOG', 'chưa có phiên cho tab -> panel hỏi thẳng trang và hiện đúng dự án');
   await xp.bringToFront();
   await pickPost(1);
   await xp.waitForFunction(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
@@ -531,6 +618,24 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await panelEmpty.close();
   await xp.waitForFunction(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-sel').hidden, null, { timeout: 5000 });
   assert(true, 'xác nhận tự ẩn sau khoảng 2 giây');
+  console.log('16d) Bấm nút nổi lần hai: tắt side panel của tab');
+  const panelOpen = await ctx.newPage();
+  await panelOpen.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${xTabId}`);
+  await panelOpen.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+  await sw.evaluate(async id => chrome.sidePanel.setOptions({ tabId: id, enabled: true, path: 'src/panel/panel.html' }), xTabId);
+  await panelOpen.waitForTimeout(400);
+  const panelEnabled = async () => sw.evaluate(async id => (await chrome.sidePanel.getOptions({ tabId: id })).enabled, xTabId);
+  await xp.bringToFront();
+  await xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+  await xp.waitForTimeout(700);
+  assert((await panelEnabled()) === false, 'panel đang hiện đúng token -> bấm lần hai tắt panel của tab');
+  await panelOpen.close();  // panel đóng: port ngắt, background biết không còn panel nào
+  await xp.waitForTimeout(400);
+  await xp.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+  await xp.waitForTimeout(700);
+  assert((await panelEnabled()) === true, 'bấm lần ba mở lại panel cho tab');
+  if (await xp.evaluate(() => !document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-drawer')?.hidden)) await xp.keyboard.press('Escape');
+
   const selCount = (await sw.evaluate(async k => (await chrome.storage.local.get('p:' + k))['p:' + k], PROLOG)).timeline.filter(e => e.source === 'x').length;
   assert(selCount === 2, 'hai đoạn bôi đen đã lưu thành hai mốc: ' + selCount);
   await xp.goto('https://x.com/search?q=%24EXTENSION&f=live');

@@ -41,6 +41,7 @@ input{flex:1 1 160px}
 .status a{color:#60a5fa;text-decoration:none}
 .auto{display:flex;align-items:center;gap:6px;cursor:pointer}
 .auto input{margin:0}
+.autostat{font-size:11px;color:#6b7280;min-height:14px}
 `;
 
   let ctxInfo = null;          // { token, symbol, prompt }
@@ -72,7 +73,8 @@ input{flex:1 1 160px}
               <button class="sel" type="button">${esc(t('grok_selection'))}</button>
               <button class="save primary" type="button" ${linked ? '' : 'disabled'}>${esc(t('grok_save'))}</button>
             </div>
-            ${linked && ctxInfo.prompt ? `<label class="hint auto"><input type="checkbox" class="autochk" ${autoSave ? 'checked' : ''}> ${esc(t('grok_auto'))}</label>` : ''}
+            ${linked && ctxInfo.prompt ? `<label class="hint auto"><input type="checkbox" class="autochk" ${autoSave ? 'checked' : ''}> ${esc(t('grok_auto'))}</label>
+            <div class="autostat"></div>` : ''}
             <div class="status"></div>
           </div>
         </div>
@@ -87,6 +89,7 @@ input{flex:1 1 160px}
     const autochk = q('.autochk');
     if (autochk) autochk.addEventListener('change', async () => {
       autoSave = autochk.checked;
+      autoCheck();
       try { const r = await chrome.storage.local.get('settings'); await chrome.storage.local.set({ settings: { ...(r.settings || {}), grokAutoSave: autoSave } }); } catch (_) {}
     });
     if (!linked) {
@@ -149,18 +152,32 @@ input{flex:1 1 160px}
   }
 
   // ---- Tự lưu: sau khi prompt đã được gửi, câu trả lời mới nhất giữ nguyên ≥ 3s (hết streaming) thì lưu ----
-  // Bong bóng chứa prompt của người dùng (khối tối giản chứa 60 ký tự đầu của prompt), null nếu chưa gửi.
+  // Dấu nhận ra bong bóng prompt: 60 ký tự đầu, và địa chỉ contract — địa chỉ luôn nguyên vẹn dù giao diện
+  // xuống dòng hay rút gọn đoạn văn, nên bắt được cả khi phần chữ đầu bị cắt.
+  function promptSigs() {
+    if (!ctxInfo || !ctxInfo.prompt) return [];
+    const full = norm(ctxInfo.prompt);
+    const out = [];
+    const head = full.slice(0, 60);
+    if (head) out.push(head);
+    const addr = ctxInfo.token ? norm(ctxInfo.token.address) : '';
+    if (addr && addr.length >= 20 && full.includes(addr)) out.push(addr);
+    return out;
+  }
+
+  // Bong bóng chứa prompt của người dùng (khối tối giản đầu tiên khớp một dấu nhận), null nếu chưa gửi.
+  // Có xét cả <span>: trên X phần chữ nằm trong span, nếu chỉ xét div thì khối nào cũng bị coi là "còn sâu hơn".
   function promptBubble() {
-    if (!ctxInfo || !ctxInfo.prompt) return null;
-    const head = norm(ctxInfo.prompt).slice(0, 60);
-    if (!head) return null;
+    const sigs = promptSigs();
+    if (!sigs.length) return null;
     const composer = document.querySelector('[contenteditable="true"], textarea');
-    for (const el of document.querySelectorAll('div, p, article, section')) {
+    const hit = el => { const x = norm(el.textContent); return sigs.some(sig => x.includes(sig)); };
+    for (const el of document.querySelectorAll('div, p, article, section, span')) {
       if (host.contains(el) || el.closest('[contenteditable], textarea, form')) continue;
       if (composer && el.contains(composer)) continue;
-      if (!norm(el.textContent).includes(head)) continue;
+      if (!hit(el)) continue;
       let deeper = false;
-      for (const c of el.children) if (norm(c.textContent).includes(head)) { deeper = true; break; }
+      for (const c of el.children) if (hit(c)) { deeper = true; break; }
       if (deeper) continue;
       if (!el.getClientRects().length) continue;
       return el;
@@ -168,12 +185,31 @@ input{flex:1 1 160px}
     return null;
   }
 
+  // Prompt coi như đã gửi khi ô nhập không còn giữ nó (giao diện xoá ô nhập sau khi gửi).
+  function promptSent() {
+    const sigs = promptSigs();
+    if (!sigs.length) return false;
+    const composer = document.querySelector('[contenteditable="true"], textarea');
+    if (!composer) return true;
+    const v = norm(composer.value !== undefined ? composer.value : composer.textContent);
+    return !sigs.some(sig => v.includes(sig));
+  }
+
+  function setAuto(key) {
+    const el = shadow.querySelector('.autostat');
+    if (el) el.textContent = key ? t(key) : '';
+  }
+
   function autoCheck() {
-    if (!autoSave || !ctxInfo || !ctxInfo.token || !ctxInfo.prompt) return;
+    if (!ctxInfo || !ctxInfo.token || !ctxInfo.prompt) return;
+    if (!autoSave) { setAuto('grok_auto_off'); return; }
     const bubble = promptBubble();
-    if (!bubble) return; // prompt chưa được gửi
+    // Không thấy bong bóng prompt (giao diện đổi, prompt bị rút gọn): vẫn chạy nếu ô nhập đã được gửi đi,
+    // chỉ bỏ qua những khối có chứa chính prompt.
+    if (!bubble && !promptSent()) { setAuto('grok_auto_wait'); return; }
     const text = captureLastAnswer(bubble);
-    if (!text || text.length < 80) return;
+    if (!text || text.length < 80) { setAuto('grok_auto_read'); return; }
+    setAuto('grok_auto_read');
     const h = hashText(text);
     if (savedHashes.has(h)) return;
     const now = Date.now();
@@ -195,9 +231,9 @@ input{flex:1 1 160px}
     const promptHead = ctxInfo && ctxInfo.prompt ? norm(ctxInfo.prompt).slice(0, 60) : '';
     const after = afterEl || promptBubble();
     const cands = [];
-    for (const el of document.querySelectorAll('div, article, section, p, li')) {
+    for (const el of document.querySelectorAll('div, article, section, p, li, span')) {
       if (host.contains(el)) continue;
-      if (el.closest('[contenteditable], textarea, form, nav, header, footer')) continue;
+      if (el.closest('[contenteditable], textarea, form, nav, header, footer, aside, [role="navigation"], [role="complementary"], [role="banner"]')) continue;
       if (composer && el.contains(composer)) continue;
       const txt = el.textContent || '';
       const len = txt.trim().length;
@@ -207,6 +243,7 @@ input{flex:1 1 160px}
       if (dominated) continue;
       if (!el.getClientRects().length) continue;
       if (promptHead && norm(txt).includes(promptHead)) continue;
+      if (after && (el === after || el.contains(after))) continue;
       if (after && !(after.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue; // chỉ khối sau prompt
       cands.push(el);
     }

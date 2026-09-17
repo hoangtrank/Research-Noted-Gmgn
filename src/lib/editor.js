@@ -227,6 +227,7 @@
     let project = null;   // dự án đang mở (có thể chưa được lưu)
     let ctx = {};         // ngữ cảnh từ trang: { mc, highlight }
     let highlightId = ''; // id mốc vừa thêm từ nơi khác: tô sáng một lần cho người dùng thấy
+    let removedIds = []; // mốc người dùng vừa xoá, để lần ghi sau không bị gộp trở lại
     let persisted = false;
     let saveTimer = null;
     let destroyed = false;
@@ -234,6 +235,7 @@
     async function load(token, context = {}) {
       ctx = context || {};
       highlightId = ctx.highlight || '';
+      removedIds = [];
       const existing = await S.get(token.key);
       persisted = !!existing;
       project = existing || S.emptyProject(token.chain, token.address);
@@ -317,6 +319,7 @@
         }
         li.querySelector('.ne-edel').addEventListener('click', () => {
           project.timeline = project.timeline.filter(x => x.id !== e.id);
+          removedIds.push(e.id);
           if (e.image) S.removeImages([e.image]).catch(() => {});
           renderTimeline(); commit();
         });
@@ -362,7 +365,10 @@
     async function commit() {
       if (!project || destroyed) return;
       clearTimeout(saveTimer);
-      project = await S.save(project);
+      const before = project.timeline.length;
+      project = await S.save(project, { removedIds });
+      removedIds = [];
+      if (project.timeline.length !== before) renderTimeline(); // có mốc từ nơi khác được gộp vào
       persisted = true;
       renderTimes();
       flashSaved();

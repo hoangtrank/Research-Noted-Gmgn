@@ -11,12 +11,21 @@ const DEX_API = 'https://api.dexscreener.com';
 const pageTokens = new Map(); // tabId -> token đang xem (content script báo), dùng cho phím tắt trên site không có token trong URL
 const tabTokens = new Map();  // tabId -> key đang hiển thị trong side panel (bản trong bộ nhớ của storage.session)
 const panelWindows = new Set(); // windowId có side panel đang mở (panel giữ một port tới background)
+const panelState = new Map();   // windowId -> { tabId, key } panel đang hiển thị (panel tự báo qua port)
 chrome.runtime.onConnect.addListener(port => {
   if (!port.name.startsWith('noted-panel:')) return;
   const wid = Number(port.name.slice('noted-panel:'.length));
   if (!wid) return;
   panelWindows.add(wid);
-  port.onDisconnect.addListener(() => panelWindows.delete(wid));
+  // Panel gửi trạng thái mỗi lần đổi token và nhắc lại định kỳ: service worker ngủ dậy vẫn biết panel nào đang mở gì,
+  // nên bấm nút lần hai luôn đóng đúng panel (trước đây trạng thái chỉ nằm trong bộ nhớ nên mất khi worker ngủ).
+  port.onMessage.addListener(m => {
+    if (!m || m.type !== 'noted:panel-state') return;
+    const tid = Number(m.tabId) || 0;
+    if (tid) panelState.set(wid, { tabId: tid, key: String(m.key || '') });
+    else panelState.delete(wid);
+  });
+  port.onDisconnect.addListener(() => { panelWindows.delete(wid); panelState.delete(wid); });
 });
 const GROK_HOSTS = ['x.com', 'twitter.com', 'grok.com'];
 const X_HOSTS = ['x.com', 'twitter.com'];
@@ -69,7 +78,10 @@ function openNote({ tabId, windowId, token, ctx, mode, fromContent, toggle }, se
     sendResponse({ ok: true, mode: 'drawer' });
   };
   if ((mode || uiMode) === 'drawer' || !chrome.sidePanel) { drawer(); return; }
-  if (toggle && windowId && panelWindows.has(windowId) && tabTokens.get(tabId) === token.key) {
+  // Panel tự báo đang hiện gì; chỉ khi không có báo cáo mới dùng bản nhớ trong worker.
+  const ps = windowId ? panelState.get(windowId) : null;
+  const showing = ps ? (ps.tabId === tabId ? ps.key : '') : tabTokens.get(tabId);
+  if (toggle && windowId && panelWindows.has(windowId) && showing === token.key) {
     chrome.sidePanel.setOptions({ tabId, enabled: false })
       .then(() => { panelWindows.delete(windowId); sendResponse({ ok: true, mode: 'panel', closed: true }); })
       .catch(() => sendResponse({ ok: true, mode: 'panel', closed: false }));
@@ -106,6 +118,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const url = NotedResearch.urlFor(msg.target, msg.prompt || '');
       chrome.tabs.create({ url }).then(async tab => {
         await chrome.storage.session.set({ [GROK_PREFIX + tab.id]: { token: msg.token, symbol: msg.symbol || '', prompt: msg.prompt || '', at: Date.now() } });
+        // Panel đi theo tab đang xem, nên gắn luôn ghi chú này cho tab Grok vừa mở.
+        const tk = validToken(msg.token);
+        if (tk) await remember(tab.id, tk, { symbol: String(msg.symbol || '').slice(0, 32) });
         sendResponse({ ok: true, tabId: tab.id });
       }).catch(err => sendResponse({ ok: false, error: String(err && err.message) }));
       return true;
@@ -145,6 +160,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const entry = NotedStore.newEntry('research', body, { source: 'grok' });
         p.timeline.push(entry);
         p = await NotedStore.save(p);
+        // Panel của tab Grok hiện ngay mốc vừa tự lưu.
+        await remember(tabId, { chain: p.chain, address: p.address, key: p.key }, { symbol: p.symbol, highlight: entry.id, force: entry.id });
         sendResponse({ ok: true, key: p.key, symbol: p.symbol, entryId: entry.id, entries: p.timeline.length });
       })();
       return true;
@@ -154,14 +171,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (!tabId) { sendResponse({ ok: false }); return; }
       const token = validToken(msg.token);
       if (token) pageTokens.set(tabId, token); else pageTokens.delete(tabId);
-      // Theo dõi trang: nếu panel của tab này đã từng mở thì chuyển sang token mới (không tự mở panel).
+      // Theo dõi trang: panel đang mở trong cửa sổ này (hoặc tab này đã từng mở panel) thì chuyển sang token mới.
+      // Không tự mở panel nếu chưa mở.
       if (follow && token) {
+        const wid = sender.tab.windowId;
         chrome.storage.session.get(SESSION_PREFIX + tabId).then(async r => {
           const cur = r[SESSION_PREFIX + tabId];
-          if (!cur) return;
+          if (!cur && !panelWindows.has(wid)) return;
           const c = msg.ctx || {};
-          const ctx = { ...(cur.token && cur.token.key === token.key ? cur.ctx : {}), symbol: String(c.symbol || '').slice(0, 32), mc: c.mc ? String(c.mc).slice(0, 24) : null };
-          if (!ctx.symbol && cur.token && cur.token.key === token.key && cur.ctx) ctx.symbol = cur.ctx.symbol || '';
+          const same = cur && cur.token && cur.token.key === token.key;
+          const ctx = { ...(same ? cur.ctx : {}), symbol: String(c.symbol || '').slice(0, 32), mc: c.mc ? String(c.mc).slice(0, 24) : null };
+          if (!ctx.symbol && same && cur.ctx) ctx.symbol = cur.ctx.symbol || '';
           await remember(tabId, token, ctx);
         }).catch(() => {});
       }
@@ -186,7 +206,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!p) { sendResponse({ ok: false }); return; }
         const before = p.timeline.length;
         p.timeline = p.timeline.filter(e => !(e.id === id && e.source === 'grok'));
-        if (p.timeline.length !== before) await NotedStore.save(p);
+        if (p.timeline.length !== before) {
+          await NotedStore.save(p, { removedIds: [id] });
+          await remember(tabId, { chain: p.chain, address: p.address, key: p.key }, { symbol: p.symbol, force: 'undo:' + id });
+        }
         sendResponse({ ok: true, removed: before - p.timeline.length });
       })();
       return true;

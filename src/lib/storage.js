@@ -172,9 +172,21 @@
       .filter(Boolean);
   }
 
-  async function save(project) {
+  // Ghi dự án. Nếu bản trong máy không cũ hơn bản đang sửa (ví dụ Grok vừa tự lưu một mốc trong lúc panel đang mở),
+  // thì gộp timeline thay vì ghi đè — mốc của nơi khác không bị mất. opts.removedIds là những mốc người dùng
+  // chủ động xoá, để chúng không bị gộp trở lại: nơi gọi nào bỏ mốc khỏi timeline đều phải truyền danh sách này.
+  async function save(project, opts = {}) {
     const p = sanitize(project);
     if (!p) throw new Error('Invalid project (chain/address).');
+    const cur = await get(p.key);
+    if (cur && cur.updatedAt >= (Number(project.updatedAt) || 0)) {
+      const removed = new Set((opts.removedIds || []).map(String));
+      const byId = new Map();
+      for (const e of cur.timeline) if (!removed.has(e.id)) byId.set(e.id, e);
+      for (const e of p.timeline) byId.set(e.id, e);
+      p.timeline = [...byId.values()].sort((a, b) => a.ts - b.ts);
+      p.createdAt = Math.min(p.createdAt, cur.createdAt);
+    }
     p.updatedAt = now();
     await store.set({ [PREFIX + p.key]: p });
     return p;
