@@ -7,9 +7,9 @@
     "icons": "python3 scripts/make_icons.py",
     "test": "node test/e2e.js",
     "zip": "python3 scripts/pack.py",
-    "test:all": "node test/e2e.js",
     "shots": "node test/shots.js",
-    "audit": "python3 scripts/audit.py"
+    "audit": "python3 scripts/audit.py",
+    "test:panel": "HEADED=1 xvfb-run -a --server-args=\"-screen 0 1400x1000x24\" node test/e2e.js"
   },
   "devDependencies": {
     "playwright": "^1.56.1"

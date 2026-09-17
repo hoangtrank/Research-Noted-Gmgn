@@ -22,7 +22,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
 (async () => {
   const userDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'noted-prof-'));
   const ctx = await chromium.launchPersistentContext(userDir, {
-    channel: 'chromium', headless: true,
+    channel: 'chromium', headless: !process.env.HEADED, // HEADED=1 (kèm xvfb-run): Chrome mở thật, side panel thật hoạt động
     args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
     viewport: { width: 1100, height: 800 },
   });
@@ -54,7 +54,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
   await page.waitForTimeout(1200);
   const panelLive = await sw.evaluate(() => panelWindows.size > 0);
-  console.log('  side panel thật có mở trong headless:', panelLive);
+  console.log('  side panel thật có mở:', panelLive, process.env.HEADED ? '(cửa sổ Chrome thật)' : '(headless)'); // false -> chạy nhánh drawer dự phòng
   if (panelLive) {
     await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
     await page.waitForTimeout(800);
@@ -90,7 +90,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   const session = await sw.evaluate(async () => chrome.storage.session.get(null));
   const panelMode = !!session['tab:' + gmgnTabId];
   const drawerMode = await drawerOpen(page);
-  console.log('  chế độ thực tế:', panelMode ? 'Side Panel' : 'drawer dự phòng (headless không mở được side panel)');
+  console.log('  chế độ thực tế:', panelMode ? 'Side Panel' : 'drawer dự phòng (không mở được side panel)');
   assert(panelMode || drawerMode, 'bấm nút mở được panel hoặc drawer dự phòng');
   if (panelMode) assert(session['tab:' + gmgnTabId].ctx.symbol === 'PROLOG' && session['tab:' + gmgnTabId].ctx.mc === '$10.64M', 'background nhớ token + symbol + MC theo tab');
   assert((await page.evaluate(() => location.pathname)) === '/follow', 'bấm nút không điều hướng sang trang token');
