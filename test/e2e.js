@@ -145,6 +145,9 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await page.waitForFunction(k => document.querySelector(`.noted-badge[data-key="${k}"]`).classList.contains('noted-badge--pin'), PROLOG, { timeout: 5000 });
   const cls = await page.$eval(`.noted-badge[data-key="${PROLOG}"]`, b => b.className + '|' + b.textContent);
   assert(cls.includes('noted-badge--has') && cls.includes('noted-badge--pin') && cls.endsWith('2'), 'nút hiện đã ghi + pin + số mốc: ' + cls);
+  // Chuột còn nằm nguyên trên nút từ lần click ở bước 2: hover tới đúng toạ độ cũ không sinh chuyển động
+  // chuột nào nên không có mouseenter. Đưa chuột ra ngoài trước, như người dùng thật rê chuột vào nút.
+  await page.mouse.move(600, 600);
   await page.hover(`.noted-badge[data-key="${PROLOG}"]`);
   await page.waitForTimeout(200);
   const tipText = await shadowQ(page, '.nd-tip');
