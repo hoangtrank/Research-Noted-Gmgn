@@ -1,4 +1,8 @@
+<img src="icons/icon128.png" width="72" height="72" alt="Research-Noted-Gmgn icon: a three-entry timeline, the newest entry in yellow" align="right">
+
 # Research-Noted-Gmgn
+
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.8
 
 A Chrome extension that keeps one research note per token, right where you look at it: **gmgn.ai**, **DexScreener** and **X**.
 
@@ -54,7 +58,7 @@ The default prompt ships in English, Vietnamese and Chinese and follows the inte
 
 ## Settings
 
-Dashboard → **⚙ Settings**: interface language (English, Tiếng Việt, 中文), side panel or in-page overlay, whether the panel follows the token you open, the Grok prompt template and target, auto-save, and whether token lists also get a small ✎ button on every row (off by default).
+Dashboard → **⚙ Settings**: interface language (English, Tiếng Việt, 中文), side panel or in-page overlay, whether the panel follows the token you open, text size (A− / A+, 11–22 px, default 14, applied to the note editor everywhere at once), the Grok prompt template and target, auto-save, and whether token lists also get a small ✎ button on every row (off by default).
 
 ![Settings](docs/05-settings.png)
 
@@ -63,6 +67,10 @@ Dashboard → **⚙ Settings**: interface language (English, Tiếng Việt, 中
 ## Install
 
 Requires Chrome / Brave / Edge 116 or newer.
+
+**From the Chrome Web Store (recommended):** open the [Store page](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm), click **Add to Chrome**, then reload your gmgn.ai tab. Updates arrive on their own.
+
+**From source (for development, or to run a build before it reaches the Store):**
 
 1. Download the source (clone, or Download ZIP and extract).
 2. Open `chrome://extensions` and turn on **Developer mode**.
@@ -103,9 +111,12 @@ src/dashboard/           Dashboard (options page) and Settings
 src/popup/               Toolbar popup: stats, note-this-token, view mode, language
 src/viewer/              Image viewer page (for image entries carried in older exports)
 src/background.js        Service worker: opens/closes the side panel, remembers the token per tab (storage.session), follow-the-page, shortcut, Grok tabs, DexScreener pair→token resolver
-scripts/make_icons.py    Dependency-free icon generator
+scripts/make_icons.py    Dependency-free icon generator (the timeline mark, 16/32/48/128 px)
+scripts/store-assets.js  Store icon (128 px with margin) and small promo tile, rendered from the same mark
+scripts/audit.py         Capability audit: permissions, sites, outbound requests, dangerous APIs
 scripts/pack.py          Builds the Web Store ZIP (runtime files only)
-test/                    Mock gmgn / DexScreener / X / Grok pages + Playwright e2e against the real extension
+test/                    Mock gmgn / DexScreener / X / Grok pages + Playwright e2e against the real extension;
+                         live.js runs the same checks on the real sites, pw.js locates playwright
 ```
 
 Key decisions:
@@ -139,7 +150,7 @@ Entry types: `note`, `research`, `news`, `buy`, `sell`, `alert`, `link`. Statuse
 
 ## If the button does not appear
 
-gmgn.ai, dexscreener.com and x.com were blocked in the environment where this extension was developed, so everything was verified against mock pages that mirror their structure. If a real page shows no button:
+Every feature is covered by an e2e suite against mock pages that mirror the three sites, and `npm run test:live` drives the real extension on the real gmgn.ai, DexScreener and X (last run: floating button, side panel open/close, follow-the-token and DexScreener pair→token all pass on the live sites). Sites change their markup, though. If a real page shows no button:
 
 1. Open DevTools → Console on that page and filter for `Research-Noted-Gmgn`. The content script logs what it detected.
 2. Token pages, pair pages and X searches rely on the URL, not the DOM, so they should always work; the per-row buttons (optional) are the fragile part.
@@ -148,11 +159,13 @@ gmgn.ai, dexscreener.com and x.com were blocked in the environment where this ex
 ## Publishing to the Chrome Web Store
 
 1. Package: `python3 scripts/pack.py` (or `npm run zip`) creates `dist/research-noted-gmgn-<version>.zip` containing only `manifest.json`, `icons/`, `src/`, `_locales/`, with the manifest at the ZIP root.
-2. Go to https://chrome.google.com/webstore/devconsole, register a developer account (one-time 5 USD fee) → **New item** → upload the ZIP.
+2. Go to https://chrome.google.com/webstore/devconsole. First time: register a developer account (one-time 5 USD fee) → **New item** → upload the ZIP. For an update: open the existing item → **Package** → **Upload new package**.
 3. **Store listing**: title, description (copy-paste texts in `docs/store-listing.md`, in English, Vietnamese and Chinese), at least one 1280×800 screenshot (ready-made in `docs/store/`), category Productivity.
 4. **Privacy practices**: single purpose, per-permission justifications (table below), no remote code. Privacy policy: `PRIVACY.md`.
 5. **Distribution** → **Unlisted** for personal use (hidden from search, installable by link, auto-updates) or Public.
-6. **Submit for review** (usually 1–3 days). For updates: bump `version` in `manifest.json`, repackage, upload under the Package tab.
+6. **Submit for review** (usually 1–3 days). For updates: bump `version` in `manifest.json` and `package.json` (the Store rejects a ZIP whose version is not higher than the published one), repackage, upload under the Package tab.
+
+An update that adds sites or permissions (for example the step from 0.3.0, gmgn only, to a build with DexScreener, X and Grok) gets a longer review, needs the new rows of the justification table filled in under **Privacy practices**, and Chrome disables the extension for existing users until they accept the new permissions. Their notes are kept. The Store title follows the `name` in `_locales/*/messages.json`, so it changes with the package.
 
 | Permission | Justification |
 |---|---|
@@ -195,15 +208,19 @@ Threat model, mitigations and what leaves the device: [SECURITY.md](SECURITY.md)
 ## Development
 
 ```bash
+npm i && npx playwright install chromium   # once: the test runner and its browser
 npm test              # Playwright e2e against the real extension (mock sites, no network needed)
 npm run test:panel    # same suite with a real Chrome window (xvfb), so the real Side Panel is exercised
-npm run test:live     # runs against the real gmgn / X / DexScreener in your own Chrome (needs network + an X login)
+npm run test:live     # runs against the real gmgn / X / DexScreener (needs network + a one-time X login in the test window)
 node test/live.js --mock  # same script against the mock pages, to check the script itself before a real run
+node test/live.js --skip-x --token <gmgn url> --token2 <another gmgn url> --keep   # your own tokens, no X, leave the window open
 npm run audit         # capability audit: permissions, outbound requests, dangerous APIs
 npm run icons         # regenerate icons
 npm run zip           # build the Web Store ZIP into dist/
 node test/shots.js    # regenerate the README and Store screenshots
 ```
+
+`test:live` opens Playwright's Chromium (Chrome for Testing) with its own profile in `~/.noted-live-profile`, never your everyday Chrome profile. It does not use branded Google Chrome because Chrome 137 and later ignore `--load-extension`. Without `--dex` it asks the DexScreener API for the most liquid pair of the token under test.
 
 Two console snippets for debugging against the real sites (they only read the page and
 send nothing anywhere): paste `scripts/grok-debug.js` into the console of a Grok tab for a

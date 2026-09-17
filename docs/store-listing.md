@@ -16,9 +16,9 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Description**
 
-    Researching hundreds of tokens on gmgn.ai and can't remember what each project does? Research-Noted-Gmgn adds a note button right next to every token.
+    Researching hundreds of tokens on gmgn.ai and can't remember what each project does? Research-Noted-Gmgn puts one note button on the token you are looking at, on gmgn.ai, DexScreener and X.
 
-    • ✎ button next to the symbol in every list on gmgn.ai and DexScreener (watchlist, trending and more). Yellow = has a note, orange = pinned. Hover to see the summary.
+    • One floating button for the token on the page. Yellow = already noted, with the summary shown on it. Optional ✎ buttons on every row of token lists (off by default).
     • The same token on gmgn and DexScreener shares one note.
     • The side panel follows the token you open.
     • Notes open in Chrome's Side Panel, so nothing covers the gmgn page.
@@ -29,6 +29,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Export/import JSON for backup, export Markdown to feed an AI.
     • Research with Grok: one click opens Grok with a prompt built from your template (symbol, contract, market cap); the answer is saved into the token's timeline automatically (with Undo), or manually.
     • Research on X: searching a contract or $SYMBOL on X shows the token's note button; select text in a post to save it (with author and link) into the timeline.
+    • Adjustable text size.
     • Interface in English, Vietnamese and Chinese.
 
     Your data stays on your device. No server, no tracking, no account.
@@ -48,9 +49,9 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Description**
 
-    Bạn research hàng trăm token trên gmgn.ai và không còn nhớ dự án nào làm gì? Research-Noted-Gmgn thêm một nút ghi chú ngay cạnh mỗi token.
+    Bạn research hàng trăm token trên gmgn.ai và không còn nhớ dự án nào làm gì? Research-Noted-Gmgn đặt một nút ghi chú cho token bạn đang xem, trên gmgn.ai, DexScreener và X.
 
-    • Nút ✎ cạnh symbol trong mọi danh sách trên gmgn.ai và DexScreener (theo dõi, trending…). Vàng = đã ghi chú, cam = đã pin. Rê chuột là thấy tóm tắt.
+    • Một nút nổi cho token trên trang. Vàng = đã có ghi chú, hiện luôn tóm tắt. Tuỳ chọn thêm nút ✎ ở từng hàng trong danh sách token (mặc định tắt).
     • Cùng một token trên gmgn và DexScreener dùng chung một ghi chú.
     • Side panel tự chuyển theo token bạn đang mở.
     • Ghi chú mở trong Side Panel của Chrome, không che nội dung gmgn.
@@ -59,7 +60,9 @@ The Store lets you add one listing per language. Fill **English** first (default
     • Trang token: nút nổi hiện symbol + tóm tắt, phím tắt Alt+N.
     • Dashboard: tìm kiếm toàn văn, lọc theo tag / trạng thái / pin, sắp xếp, sửa tại chỗ, thêm từ URL gmgn.
     • Xuất/nhập JSON để backup, xuất Markdown để đưa cho AI tổng hợp.
-    • Research với Grok: một nút mở Grok với prompt dựng từ template của bạn (symbol, contract, market cap), và nút Lưu trên trang Grok đưa câu trả lời vào timeline của token.
+    • Research với Grok: một nút mở Grok với prompt dựng từ template của bạn (symbol, contract, market cap); câu trả lời tự động được lưu vào timeline của token (có Hoàn tác), hoặc lưu thủ công.
+    • Research trên X: tìm contract hoặc $SYMBOL trên X là thấy nút ghi chú của token; bôi đen một đoạn trong bài viết để lưu vào timeline (kèm tác giả và link).
+    • Chỉnh được cỡ chữ.
     • Giao diện tiếng Anh, tiếng Việt, tiếng Trung.
 
     Dữ liệu chỉ lưu trên máy bạn. Không máy chủ, không theo dõi, không tài khoản.
@@ -77,9 +80,9 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Description**
 
-    在 gmgn.ai 研究了上百个代币，却记不住每个项目是做什么的？Research-Noted-Gmgn 在每个代币旁边添加一个笔记按钮。
+    在 gmgn.ai 研究了上百个代币，却记不住每个项目是做什么的？Research-Noted-Gmgn 为你正在查看的代币提供一个笔记按钮，支持 gmgn.ai、DexScreener 和 X。
 
-    • gmgn.ai 和 DexScreener 上每个列表（自选、热门…）的代币符号旁都有 ✎ 按钮。黄色 = 已有笔记，橙色 = 已置顶。悬停即可查看摘要。
+    • 页面上的代币只有一个悬浮按钮。黄色 = 已有笔记，并直接显示摘要。可选：在代币列表的每一行显示 ✎ 按钮（默认关闭）。
     • 同一代币在 gmgn 和 DexScreener 上共享同一条笔记。
     • 侧边栏会跟随你打开的代币。
     • 笔记在 Chrome 侧边栏中打开，不会遮挡 gmgn 页面。
@@ -88,7 +91,9 @@ The Store lets you add one listing per language. Fill **English** first (default
     • 代币页：悬浮按钮显示符号和摘要，快捷键 Alt+N。
     • 仪表盘：全文搜索，按标签 / 状态 / 置顶筛选，排序，就地编辑，通过 gmgn 链接添加。
     • 导出/导入 JSON 备份，导出 Markdown 交给 AI 汇总。
-    • 用 Grok 研究：一键打开 Grok 并预填由你的模板生成的提示词（符号、合约、市值），Grok 页面上的保存按钮可将回答存入该代币的时间线。
+    • 用 Grok 研究：一键打开 Grok 并预填由你的模板生成的提示词（符号、合约、市值）；回答会自动存入该代币的时间线（可撤销），也可手动保存。
+    • 在 X 上研究：在 X 搜索合约或 $SYMBOL 时会出现该代币的笔记按钮；选中帖子中的文字即可存入时间线（附作者和链接）。
+    • 可调节字号。
     • 界面支持英文、越南文、中文。
 
     数据只保存在你的设备上。没有服务器、没有跟踪、没有账号。
@@ -109,7 +114,7 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 
 **Single purpose**
 
-    Personal research notes for tokens/projects the user views on gmgn.ai and DexScreener: a note button next to each token, a timeline of notes per project, one-click research with Grok, and a dashboard to search them. Everything is stored locally on the user's device.
+    Personal research notes for tokens/projects the user views on gmgn.ai, DexScreener and X search: a note button for the token being viewed, a timeline of notes per project, one-click research with Grok, and a dashboard to search them. Everything is stored locally on the user's device.
 
 **Permission justifications**
 
