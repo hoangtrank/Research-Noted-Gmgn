@@ -198,6 +198,7 @@ Threat model, mitigations and what leaves the device: [SECURITY.md](SECURITY.md)
 npm test              # Playwright e2e against the real extension (mock sites, no network needed)
 npm run test:panel    # same suite with a real Chrome window (xvfb), so the real Side Panel is exercised
 npm run test:live     # runs against the real gmgn / X / DexScreener in your own Chrome (needs network + an X login)
+node test/live.js --mock  # same script against the mock pages, to check the script itself before a real run
 npm run audit         # capability audit: permissions, outbound requests, dangerous APIs
 npm run icons         # regenerate icons
 npm run zip           # build the Web Store ZIP into dist/

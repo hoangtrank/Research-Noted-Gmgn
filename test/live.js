@@ -26,10 +26,15 @@ const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return
 const has = name => process.argv.includes('--' + name);
 
 const EXT = path.resolve(__dirname, '..');
-const PROFILE = arg('profile', path.join(os.homedir(), '.noted-live-profile'));
-const TOKEN_URL = arg('token', 'https://gmgn.ai/sol/token/So11111111111111111111111111111111111111112');
-const TOKEN_URL2 = arg('token2', '');
-const DEX_URL = arg('dex', 'https://dexscreener.com/solana/58oqchx4yjoykjjhuqbaaq3ucyzvsvjdmyq8wqbwpump');
+const MOCK = has('mock');  // --mock: chạy chính kịch bản này trên trang giả lập, để kiểm tra bản thân script
+const PROFILE = arg('profile', MOCK ? fs.mkdtempSync(path.join(os.tmpdir(), 'noted-mock-')) : path.join(os.homedir(), '.noted-live-profile'));
+const TOKEN_URL = arg('token', MOCK
+  ? 'https://gmgn.ai/robinhood/token/0xaa40e79e987517f7462bf79315b8a118799b04e3'
+  : 'https://gmgn.ai/sol/token/So11111111111111111111111111111111111111112');
+const TOKEN_URL2 = arg('token2', MOCK ? 'https://gmgn.ai/robinhood/token/0x2222222222222222222222222222222222222222' : '');
+const DEX_URL = arg('dex', MOCK
+  ? 'https://dexscreener.com/robinhood/0x1A2B3C00000000000000000000000000000000B2'
+  : 'https://dexscreener.com/solana/58oqchx4yjoykjjhuqbaaq3ucyzvsvjdmyq8wqbwpump');
 const OUT = path.join(os.tmpdir(), 'noted-live-shots');
 
 let pass = 0, fail = 0;
@@ -61,15 +66,46 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
   console.log('Hồ sơ     :', PROFILE, firstRun ? '(mới — sẽ cần đăng nhập X một lần)' : '');
   console.log('Ảnh chụp  :', OUT, '\n');
 
-  const ctx = await chromium.launchPersistentContext(PROFILE, {
-    channel: 'chrome', headless: false, viewport: null,
-    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
-  });
+  const launch = { headless: false, viewport: null, args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`] };
+  let ctx;
+  try {
+    ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel: MOCK ? 'chromium' : 'chrome' });
+  } catch (err) {
+    if (MOCK) throw err;
+    console.log('  (không mở được Google Chrome, thử Chromium của Playwright)');
+    ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel: 'chromium' });
+  }
+
+  let dexApi = null;
+  if (MOCK) {
+    const gmgnMock = require('./mock-gmgn');
+    const xMock = require('./mock-xsearch');
+    const dexMock = require('./mock-dexscreener');
+    const html = body => ({ status: 200, contentType: 'text/html; charset=utf-8', body });
+    await ctx.route('https://gmgn.ai/**', r => r.fulfill(html(gmgnMock.handle(r.request().url()))));
+    await ctx.route('https://x.com/**', r => r.fulfill(html(xMock.page(r.request().url()))));
+    await ctx.route('https://dexscreener.com/**', r => r.fulfill(html(dexMock.handle(r.request().url()))));
+    dexApi = await dexMock.startApi();
+  }
+
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 15000 });
-  console.log('extension id:', new URL(sw.url()).host, '\n');
+  console.log('extension id:', new URL(sw.url()).host, MOCK ? '(CHẾ ĐỘ GIẢ LẬP — chỉ kiểm tra bản thân script)' : '', '\n');
+  if (dexApi) await sw.evaluate(async base => {
+    const st = (await chrome.storage.local.get('settings')).settings || {};
+    await chrome.storage.local.set({ settings: { ...st, dexApiBase: base } });
+  }, dexApi.base);
 
   const page = ctx.pages()[0] || await ctx.newPage();
+
+  if (MOCK) {
+    // Trang tìm kiếm X nhận ra token qua ghi chú đã có (hoặc qua DexScreener). Hồ sơ giả lập là mới tinh
+    // nên phải tạo sẵn một ghi chú, đúng như máy bạn vốn đã có ghi chú cho token đang research.
+    const m = TOKEN_URL.match(/gmgn\.ai\/([^/]+)\/token\/([^/?#]+)/);
+    await sw.evaluate(async ([chain, address]) => {
+      await NotedStore.save(NotedStore.emptyProject(chain, address, { symbol: 'PROLOG' }));
+    }, [m[1], m[2]]);
+  }
 
   console.log('1) gmgn: nút nổi trên trang token');
   await page.goto(TOKEN_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -116,7 +152,7 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     console.log('4) X: tìm theo contract, lưu đoạn bôi đen');
     const ca = TOKEN_URL.split('/').pop();
     await page.goto('https://x.com/search?q=' + encodeURIComponent(ca) + '&f=live', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    if (firstRun || /\/i\/flow\/login|\/login/.test(page.url())) {
+    if (!MOCK && (firstRun || /\/i\/flow\/login|\/login/.test(page.url()))) {
       await ask('  → Hãy đăng nhập X trong cửa sổ vừa mở, rồi bấm Enter ở đây... ');
       await page.goto('https://x.com/search?q=' + encodeURIComponent(ca) + '&f=live', { waitUntil: 'domcontentloaded', timeout: 60000 });
     }
@@ -124,7 +160,8 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
       const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab');
       return f && f.getClientRects().length > 0;
     }, null, { timeout: 30000 }).then(() => true).catch(() => false);
-    ok(xFab, 'nút nổi nhận ra token trên trang tìm kiếm X', xFab ? '— ' + (await textOf(page, '.nd-fab')) : '');
+    ok(xFab, 'nút nổi nhận ra token trên trang tìm kiếm X',
+      xFab ? '— ' + (await textOf(page, '.nd-fab')) : '(token này cần đã có ghi chú, hoặc DexScreener phải biết nó)');
 
     const picked = await page.evaluate(() => {
       const el = [...document.querySelectorAll('article [data-testid="tweetText"]')].find(e => (e.textContent || '').trim().length > 40);
@@ -136,13 +173,16 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     if (ok(picked, 'bôi đen được một bài trên trang')) {
       let selUp = false;
       for (let i = 0; i < 25; i++) { if (await visible(page, '.nd-sel')) { selUp = true; break; } await page.waitForTimeout(200); }
-      ok(selUp, 'nút "Lưu đoạn bôi đen" hiện ra');
       await shot(page, '4-x-select');
-      await page.evaluate(() => getSelection().removeAllRanges());
-      let selGone = false;
-      for (let i = 0; i < 25; i++) { if (!(await visible(page, '.nd-sel'))) { selGone = true; break; } await page.waitForTimeout(200); }
-      ok(selGone, 'BỎ bôi đen thì nút biến mất (lỗi [hidden] đã sửa ở 0.9.6)');
-      await shot(page, '5-x-deselect');
+      if (ok(selUp, 'nút "Lưu đoạn bôi đen" hiện ra')) {
+        await page.evaluate(() => getSelection().removeAllRanges());
+        let selGone = false;
+        for (let i = 0; i < 25; i++) { if (!(await visible(page, '.nd-sel'))) { selGone = true; break; } await page.waitForTimeout(200); }
+        ok(selGone, 'BỎ bôi đen thì nút biến mất (lỗi [hidden] đã sửa ở 0.9.6)');
+        await shot(page, '5-x-deselect');
+      } else {
+        console.log('  – bỏ qua phép thử bỏ bôi đen (nút chưa từng hiện)');
+      }
     }
 
     console.log('5) X: tìm kiếm không liên quan thì không hiện gì');
@@ -165,5 +205,6 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
   console.log('Ảnh chụp từng bước:', OUT);
   if (has('keep')) await ask('Nhấn Enter để đóng trình duyệt... ');
   await ctx.close();
+  if (dexApi) dexApi.server.close();
   process.exit(fail === 0 ? 0 : 1);
 })().catch(async e => { console.error('\nLỖI:', e && e.message); process.exit(1); });
