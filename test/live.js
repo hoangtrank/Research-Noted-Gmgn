@@ -28,9 +28,24 @@ const TOKEN_URL = arg('token', MOCK
   ? 'https://gmgn.ai/robinhood/token/0xaa40e79e987517f7462bf79315b8a118799b04e3'
   : 'https://gmgn.ai/sol/token/So11111111111111111111111111111111111111112');
 const TOKEN_URL2 = arg('token2', MOCK ? 'https://gmgn.ai/robinhood/token/0x2222222222222222222222222222222222222222' : '');
-const DEX_URL = arg('dex', MOCK
-  ? 'https://dexscreener.com/robinhood/0x1A2B3C00000000000000000000000000000000B2'
-  : 'https://dexscreener.com/solana/58oqchx4yjoykjjhuqbaaq3ucyzvsvjdmyq8wqbwpump');
+// Trang thật: KHÔNG viết cứng một cặp — cặp viết cứng trước đây không tồn tại, DexScreener đứng mãi ở
+// "Loading pair…" và extension (đúng ra) không có gì để phân giải. Thay vào đó hỏi API lấy cặp thanh khoản
+// lớn nhất của chính token đang test (xem dexUrlFor bên dưới). Cặp dự phòng là SOL/USDC Raydium có thật.
+const DEX_FALLBACK = 'https://dexscreener.com/solana/58oqchx4ywmvkdwllzzbi4chocc2fqcuwbkwmihlyqo2';
+let DEX_URL = arg('dex', MOCK ? 'https://dexscreener.com/robinhood/0x1A2B3C00000000000000000000000000000000B2' : '');
+
+async function dexUrlFor(tokenUrl) {
+  const ca = tokenUrl.split(/[?#]/)[0].split('/').pop();
+  try {
+    const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + encodeURIComponent(ca), { signal: AbortSignal.timeout(20000) });
+    const lower = x => String(x || '').toLowerCase();
+    const pairs = (((await r.json()) || {}).pairs || []).filter(p => p.url && [p.baseToken, p.quoteToken].some(t => lower(t && t.address) === lower(ca)));
+    pairs.sort((a, b) => ((b.liquidity && b.liquidity.usd) || 0) - ((a.liquidity && a.liquidity.usd) || 0));
+    if (pairs[0]) return pairs[0].url;
+    console.log('  (DexScreener không biết token này, dùng cặp dự phòng SOL/USDC)');
+  } catch (err) { console.log('  (không hỏi được API DexScreener:', err && err.message, '— dùng cặp dự phòng SOL/USDC)'); }
+  return DEX_FALLBACK;
+}
 const OUT = path.join(os.tmpdir(), 'noted-live-shots');
 
 let pass = 0, fail = 0;
@@ -197,6 +212,8 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
   }
 
   console.log('6) DexScreener');
+  if (!DEX_URL) DEX_URL = await dexUrlFor(TOKEN_URL);
+  console.log('  trang pair:', DEX_URL);
   await page.goto(DEX_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
   const dexFab = await page.waitForFunction(() => {
     const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab');
