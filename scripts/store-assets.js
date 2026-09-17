@@ -9,43 +9,27 @@ const { chromium } = require('../test/pw');
 const OUT = path.join(__dirname, '..', 'docs', 'store');
 fs.mkdirSync(OUT, { recursive: true });
 
-// Biểu tượng: khối bo góc tối, tờ giấy vàng gấp góc với 3 dòng, ghim cam, ánh tím (màu nút ✎ khi chưa ghi).
+// Biểu tượng tối giản, phẳng (cùng hình với scripts/make_icons.py): nền bo góc tối, trục timeline ba mốc,
+// mốc mới nhất màu vàng. Toạ độ theo lưới 512 rồi thu về cỡ cần dùng.
 const MARK = (x, y, s) => `
-  <g transform="translate(${x} ${y}) scale(${s / 96})">
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3040"/><stop offset="1" stop-color="#111318"/></linearGradient>
-      <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#facc15"/></linearGradient>
-      <linearGradient id="pin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fb923c"/><stop offset="1" stop-color="#ea580c"/></linearGradient>
-      <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity="0.5"/></filter>
-      <clipPath id="clip"><rect x="0" y="0" width="96" height="96" rx="22"/></clipPath>
-    </defs>
-    <rect x="0" y="0" width="96" height="96" rx="22" fill="url(#bg)"/>
-    <g clip-path="url(#clip)">
-      <circle cx="14" cy="92" r="34" fill="#8b5cf6" fill-opacity="0.22"/>
-      <circle cx="90" cy="6" r="26" fill="#facc15" fill-opacity="0.10"/>
-    </g>
-    <rect x="0.5" y="0.5" width="95" height="95" rx="21.5" fill="none" stroke="#fff" stroke-opacity="0.09"/>
-    <path d="M24 14 h32 l16 16 v44 a8 8 0 0 1 -8 8 h-40 a8 8 0 0 1 -8 -8 v-52 a8 8 0 0 1 8 -8 z" fill="url(#paper)" filter="url(#shadow)"/>
-    <path d="M56 14 v12 a4 4 0 0 0 4 4 h12 z" fill="#ca8a04"/>
-    <rect x="26" y="40" width="32" height="5.5" rx="2.75" fill="#1a1d26"/>
-    <rect x="26" y="52" width="32" height="5.5" rx="2.75" fill="#1a1d26"/>
-    <rect x="26" y="64" width="19" height="5.5" rx="2.75" fill="#1a1d26"/>
-    <circle cx="72" cy="20" r="12" fill="url(#pin)" stroke="#111318" stroke-width="3"/>
-    <circle cx="68" cy="16" r="3" fill="#fff" fill-opacity="0.6"/>
+  <g transform="translate(${x} ${y}) scale(${s / 512})">
+    <rect width="512" height="512" rx="112" fill="#14161c"/>
+    <rect x="166" y="136" width="20" height="240" rx="10" fill="#3a4150"/>
+    <circle cx="176" cy="136" r="36" fill="#facc15"/>
+    <circle cx="176" cy="256" r="28" fill="#5b6475"/>
+    <circle cx="176" cy="376" r="28" fill="#5b6475"/>
+    <rect x="244" y="118" width="164" height="36" rx="18" fill="#facc15"/>
+    <rect x="244" y="238" width="124" height="36" rx="18" fill="#5b6475"/>
+    <rect x="244" y="358" width="84" height="36" rx="18" fill="#5b6475"/>
   </g>`;
 
 const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">${MARK(16, 16, 96)}</svg>`;
 
 const PROMO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280">
-  <defs>
-    <linearGradient id="pbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a1d27"/><stop offset="1" stop-color="#0b0d12"/></linearGradient>
-    <radialGradient id="glow" cx="0.2" cy="0.9" r="0.7"><stop offset="0" stop-color="#8b5cf6" stop-opacity="0.35"/><stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
-  </defs>
-  <rect width="440" height="280" fill="url(#pbg)"/>
-  <rect width="440" height="280" fill="url(#glow)"/>
+  <rect width="440" height="280" fill="#1c1f27"/>
   ${MARK(36, 78, 124)}
   <g font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" fill="#e6e8ec">
-    <text x="188" y="118" font-size="24" font-weight="700">Research-Noted-Gmgn</text>
+    <text x="188" y="118" font-size="21" font-weight="700" textLength="228" lengthAdjust="spacingAndGlyphs">Research-Noted-Gmgn</text>
     <text x="188" y="150" font-size="15" fill="#9aa3b2">Research notes for every token</text>
     <text x="188" y="172" font-size="15" fill="#9aa3b2">you view on gmgn.ai</text>
     <g transform="translate(188 192)">

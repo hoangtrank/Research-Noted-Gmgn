@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Sinh icons/icon{16,32,48,128}.png không cần thư viện ngoài (chỉ zlib + struct) và khai báo vào manifest.json.
-Icon: nền vuông bo góc tối, tờ giấy vàng với 3 dòng chữ và một chấm ghim cam."""
+Icon tối giản: nền vuông bo góc tối, một trục timeline với ba mốc; mốc mới nhất màu vàng, hai mốc cũ xám."""
 import struct, zlib, os, math
 
 SIZE = 512  # vẽ ở độ phân giải cao rồi thu nhỏ để có khử răng cưa
@@ -15,26 +15,24 @@ def circle(px, py, cx, cy, r):
     return math.hypot(px - cx, py - cy) - r
 
 def render():
-    BG = (24, 27, 34)
-    PAPER = (250, 204, 21)
-    INK = (24, 27, 34)
-    PIN = (249, 115, 22)
+    BG = (20, 22, 28)
+    RAIL = (58, 65, 80)     # trục timeline
+    DIM = (91, 100, 117)    # các mốc cũ
+    NOW = (250, 204, 21)    # mốc mới nhất
+    # (tâm y, bán kính chấm, mép phải của dòng chữ, màu) — dòng ngắn dần về quá khứ
+    ROWS = ((136, 36, 408, NOW), (256, 28, 368, DIM), (376, 28, 328, DIM))
     img = [[(0, 0, 0, 0)] * SIZE for _ in range(SIZE)]
     for y in range(SIZE):
         for x in range(SIZE):
             px, py = x + 0.5, y + 0.5
-            if rounded_rect(px, py, 0, 0, SIZE, SIZE, 110) > 0:
+            if rounded_rect(px, py, 0, 0, SIZE, SIZE, 112) > 0:
                 continue
             col = BG
-            if rounded_rect(px, py, 112, 76, 400, 436, 40) <= 0:
-                col = PAPER
-                for ly in (176, 256, 336):
-                    if rounded_rect(px, py, 168, ly - 16, 344 if ly != 336 else 280, ly + 16, 16) <= 0:
-                        col = INK
-            if circle(px, py, 392, 108, 62) <= 0:
-                col = BG
-            if circle(px, py, 392, 108, 46) <= 0:
-                col = PIN
+            if rounded_rect(px, py, 166, 136, 186, 376, 10) <= 0:
+                col = RAIL
+            for cy, r, x1, c in ROWS:
+                if circle(px, py, 176, cy, r) <= 0 or rounded_rect(px, py, 244, cy - 18, x1, cy + 18, 18) <= 0:
+                    col = c
             img[y][x] = (col[0], col[1], col[2], 255)
     return img
 
