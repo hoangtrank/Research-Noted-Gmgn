@@ -220,7 +220,7 @@ npm run zip           # build the Web Store ZIP into dist/
 node test/shots.js    # regenerate the README and Store screenshots
 ```
 
-`test:live` opens Playwright's Chromium (Chrome for Testing) with its own profile in `~/.noted-live-profile`, never your everyday Chrome profile. It does not use branded Google Chrome because Chrome 137 and later ignore `--load-extension`. Without `--dex` it asks the DexScreener API for the most liquid pair of the token under test.
+`test:live` opens Playwright's Chromium (Chrome for Testing) with its own profile in `~/.noted-live-profile`, never your everyday Chrome profile. It deliberately does not use branded Google Chrome: Chrome 137 and later silently ignore `--load-extension`, so the window opens but the extension is never loaded. Pass `--channel chrome` to try it anyway; the runner falls back on its own. Without `--dex` it asks the DexScreener API for the most liquid pair of the token under test.
 
 Two console snippets for debugging against the real sites (they only read the page and
 send nothing anywhere): paste `scripts/grok-debug.js` into the console of a Grok tab for a
