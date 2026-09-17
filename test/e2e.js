@@ -295,7 +295,8 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await grok.goto(gurl);
   assert(gurl.startsWith('https://x.com/i/grok?text='), 'mở tab Grok trên X với prompt điền sẵn: ' + gurl.slice(0, 60));
   const prompt = decodeURIComponent(gurl.split('text=')[1]);
-  assert(prompt.includes('$PROLOG') && prompt.includes('0xaa40e79e987517f7462bf79315b8a118799b04e3') && prompt.includes('Robinhood') && prompt.includes('gmgn.ai/robinhood/token/'), 'prompt có symbol, chain, contract, link gmgn');
+  assert(prompt.includes('$PROLOG') && prompt.includes('0xaa40e79e987517f7462bf79315b8a118799b04e3') && prompt.includes('Robinhood') && prompt.includes('$10.64M'), 'prompt có symbol, chain, contract, market cap');
+  assert(/1\. DEVELOPER/.test(prompt) && /2\. PROJECT/.test(prompt) && !/3\./.test(prompt), 'prompt chỉ có hai mục DEVELOPER và PROJECT');
   assert((await grok.$eval('#composer', e => e.textContent)).includes('Research this token'), 'ô nhập của Grok nhận prompt');
   await grok.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
   const gq = (sel, prop = 'textContent') => grok.evaluate(([s, p]) => { const el = document.getElementById('noted-grok-host').shadowRoot.querySelector(s); return el ? el[p] : null; }, [sel, prop]);
@@ -367,7 +368,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert((await dash.$eval('#research-template', e => e.value)).includes('1. DEVELOPER'), 'template mặc định hiện trong Settings');
   const tpls = await dash.evaluate(() => ({ en: NotedResearch.defaultTemplate('en'), vi: NotedResearch.defaultTemplate('vi'), zh: NotedResearch.defaultTemplate('zh') }));
   assert(tpls.en.includes('Answer in English') && tpls.vi.includes('Trả lời tiếng Việt') && tpls.zh.includes('用中文回答'), 'có ba bản prompt mặc định en/vi/zh');
-  assert(tpls.vi.includes('không dùng link markdown ẩn') && tpls.vi.includes('RED FLAGS') && tpls.vi.includes('KẾT LUẬN'), 'bản tiếng Việt có đủ mục DEVELOPER/PROJECT/RED FLAGS/KẾT LUẬN');
+  assert(tpls.vi.includes('không dùng link markdown ẩn') && tpls.vi.includes('1. DEVELOPER') && tpls.vi.includes('2. PROJECT'), 'bản tiếng Việt giữ đúng hai mục và yêu cầu link đầy đủ');
   await dash.click('#settings-close');
   await sw.evaluate(async () => { const st = (await chrome.storage.local.get('settings')).settings || {}; await chrome.storage.local.set({ settings: { ...st, lang: 'vi' } }); });
   await dash.waitForTimeout(400);

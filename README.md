@@ -50,7 +50,7 @@ When Grok finishes answering, the answer is **saved into the timeline automatica
 
 No API key: it runs in your own X account. Auto-save can be turned off on the Grok panel or in Settings.
 
-The default prompt ships in English, Vietnamese and Chinese and follows the interface language. It asks for five sections — developer and team, what the project actually does, traction, red flags, and a verdict with three things to re-check — and tells the model to write "not found" instead of guessing and to keep URLs plain so they stay clickable in the timeline. Edit it in Settings; placeholders available: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {status} {notes} {gmgn_url} {dex_url} {x_url} {date}`. `{notes}` injects your five latest timeline entries, so Grok builds on what you already wrote instead of repeating it.
+The default prompt ships in English, Vietnamese and Chinese and follows the interface language. It asks for two sections — the developer and team (links, background, previous projects, which KOLs are pushing it) and what the project actually does (product or idea, differentiation, meme origin) — and tells the model to write "not found" instead of guessing and to keep URLs plain so they stay clickable in the timeline. Edit it in Settings; placeholders available: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {status} {notes} {gmgn_url} {dex_url} {x_url} {date}`. `{notes}` injects your five latest timeline entries, so Grok builds on what you already wrote instead of repeating it.
 
 ## Settings
 
