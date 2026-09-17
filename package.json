@@ -9,7 +9,8 @@
     "zip": "python3 scripts/pack.py",
     "shots": "node test/shots.js",
     "audit": "python3 scripts/audit.py",
-    "test:panel": "HEADED=1 xvfb-run -a --server-args=\"-screen 0 1400x1000x24\" node test/e2e.js"
+    "test:panel": "HEADED=1 xvfb-run -a --server-args=\"-screen 0 1400x1000x24\" node test/e2e.js",
+    "test:live": "node test/live.js"
   },
   "devDependencies": {
     "playwright": "^1.56.1"
