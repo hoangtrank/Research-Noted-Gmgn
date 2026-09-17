@@ -4,7 +4,7 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium } = require('../test/pw');
 
 const OUT = path.join(__dirname, '..', 'docs', 'store');
 fs.mkdirSync(OUT, { recursive: true });

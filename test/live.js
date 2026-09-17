@@ -16,11 +16,7 @@ const fs = require('fs');
 const os = require('os');
 const readline = require('readline');
 
-let chromium;
-try { ({ chromium } = require('playwright')); }
-catch (_) { try { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); } catch (_2) {
-  console.error('Chưa có playwright. Chạy: npm i'); process.exit(1);
-} }
+const { chromium } = require('./pw');
 
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i > 0 ? process.argv[i + 1] : def; };
 const has = name => process.argv.includes('--' + name);

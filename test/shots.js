@@ -5,7 +5,7 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium } = require('./pw');
 const gmgnMock = require('./mock-gmgn');
 const dexMock = require('./mock-dexscreener');
 const xSearchMock = require('./mock-xsearch');

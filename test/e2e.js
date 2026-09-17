@@ -4,7 +4,7 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium } = require('./pw');
 const mock = require('./mock-gmgn');
 const grokMock = require('./mock-grok');
 const dexMock = require('./mock-dexscreener');
