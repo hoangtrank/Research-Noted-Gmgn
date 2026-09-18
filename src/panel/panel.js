@@ -75,7 +75,10 @@
     if (!entry || !entry.token) { showEmpty(); return; }
     const { token, ctx = {} } = entry;
     const force = String(ctx.force || '');
-    if (currentKey === token.key && !mount.hidden && (!force || force === lastForce)) return; // cùng token, không có gì mới: giữ nguyên editor đang gõ
+    if (currentKey === token.key && !mount.hidden && (!force || force === lastForce)) {
+      editor.fillSymbol(ctx.symbol, token.key); // cùng token, không có gì mới: giữ nguyên editor đang gõ, chỉ nhận symbol đến muộn
+      return;
+    }
     if (currentKey && currentKey !== token.key) await editor.flush();
     else if (force && force !== lastForce) await editor.flush();
     lastForce = force;
@@ -140,11 +143,17 @@
     if (!msg || msg.type !== 'noted:show') return;
     // Side panel là của cả cửa sổ: mở ghi chú cho tab nào trong cửa sổ này thì panel bám theo tab đó,
     // kể cả khi tab id tra được lúc panel mở đã cũ (không thì panel bỏ qua mọi thứ và bấm nút lần hai không đóng được).
-    if (msg.tabId !== tabId) {
-      if (!pinnedTab && windowId && msg.windowId === windowId) { tabId = msg.tabId; currentKey = null; }
-      else return;
-    }
-    show({ token: msg.token, ctx: msg.ctx });
+    if (msg.tabId === tabId) { show({ token: msg.token, ctx: msg.ctx }); return; }
+    if (pinnedTab || !windowId || msg.windowId !== windowId) return;
+    // …nhưng CHỈ khi đó đúng là tab người dùng đang nhìn. Tab nền cũng phát "noted:show" (Grok trả lời xong và tự
+    // lưu cho token A trong lúc bạn đã chuyển sang xem token B): bám theo nó thì panel lật sang ghi chú A ngay
+    // dưới tay người đang ghi cho B. Mốc của tab nền vẫn nằm trong storage.session, đổi sang tab đó là thấy.
+    chrome.tabs.query({ active: true, windowId }).then(([t]) => {
+      if (!t || t.id !== msg.tabId) return;
+      tabId = msg.tabId;
+      currentKey = null;
+      show({ token: msg.token, ctx: msg.ctx });
+    }).catch(() => {});
   });
 
   // Panel dùng chung cho cả cửa sổ: đổi tab thì hiện ghi chú của tab đó.

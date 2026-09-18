@@ -86,9 +86,9 @@ function notifyPanels(payload) {
 // lúc mở đã cũ (panel sống lâu hơn tab đang xem).
 async function remember(tabId, token, ctx, windowId) {
   tabTokens.set(tabId, token.key);
-  noteLast(token, ctx && ctx.symbol);
-  let wid = windowId;
-  if (!wid) { try { wid = (await chrome.tabs.get(tabId)).windowId; } catch (_) {} }
+  let wid = windowId, active = false;
+  try { const tab = await chrome.tabs.get(tabId); active = !!tab.active; if (!wid) wid = tab.windowId; } catch (_) {}
+  if (active) noteLast(token, ctx && ctx.symbol); // tab nền (Grok tự lưu xong) không phải là "token đang xem"
   await chrome.storage.session.set({ [SESSION_PREFIX + tabId]: { token, ctx: ctx || {}, at: Date.now() } });
   notifyPanels({ type: 'noted:show', tabId, windowId: wid || null, token, ctx: ctx || {} });
 }

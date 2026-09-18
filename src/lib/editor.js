@@ -499,8 +499,20 @@
     function focus() { (project && project.summary ? ui.newText : ui.summary).focus(); }
     function destroy() { destroyed = true; clearTimeout(saveTimer); root.remove(); }
 
+    // Symbol của trang thường đến muộn hơn token (title của gmgn đổi sau URL): điền vào khi ô còn trống và
+    // người dùng không đang gõ ở đó. Dự án đã lưu thì ghi luôn; dự án chưa lưu thì chỉ hiện, không tự tạo ghi chú.
+    function fillSymbol(sym, key) {
+      const v = String(sym || '').trim().slice(0, 32);
+      if (!v || !project || destroyed || project.symbol || (key && key !== project.key)) return;
+      if (root.getRootNode().activeElement === ui.symbol) return;
+      project.symbol = v;
+      ui.symbol.value = v;
+      ui.lX.href = xSearchUrl(project);
+      if (persisted) commitLater();
+    }
+
     return {
-      el: root, load, render, flush, focus, destroy,
+      el: root, load, render, flush, focus, destroy, fillSymbol,
       get project() { return project; },
       get isPersisted() { return persisted; },
     };

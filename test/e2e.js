@@ -762,6 +762,65 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await fdash.close();
   await fpanel.close();
 
+  console.log('18) Panel của cửa sổ chỉ bám theo tab đang nhìn: Grok tự lưu ở tab nền không được lật panel sang token khác');
+  // Tình huống thật: research token A bằng Grok, trong lúc Grok trả lời thì chuyển sang xem token B. Khi Grok
+  // xong và tự lưu (cho A), panel phải vẫn là B — nếu lật sang A, người dùng sẽ gõ ghi chú của B vào A.
+  const TOKEN_A = 'robinhood:0x5555555555555555555555555555555555555555';
+  const grokOf = async k => ((await sw.evaluate(async key => (await chrome.storage.local.get('p:' + key))['p:' + key] || null, k)) || { timeline: [] }).timeline.filter(e => e.source === 'grok');
+  const TOKEN_B = 'robinhood:0x2222222222222222222222222222222222222222';
+  for (const pg of ctx.pages()) if (pg !== page) await pg.close().catch(() => {});
+  await sw.evaluate(async () => chrome.storage.local.set({ settings: { ui: 'panel', follow: true, grokAutoSave: true, researchTarget: 'x', lang: 'en' } }));
+  await page.goto('https://gmgn.ai/robinhood/token/0x5555555555555555555555555555555555555555');
+  await page.waitForFunction(() => document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab')?.getClientRects().length > 0, null, { timeout: 8000 });
+  const wpanel = await ctx.newPage();                       // không có ?tab=: hành xử như side panel thật của cửa sổ
+  await wpanel.goto(`chrome-extension://${extId}/src/panel/panel.html`);
+  await page.bringToFront();
+  const winTabId = await sw.evaluate(() => [...pageTokens.entries()].find(([, t]) => t.key.endsWith('5555'))[0]);
+  await sw.evaluate(async t => { const tab = await chrome.tabs.get(t); await remember(t, validToken({ chain: 'robinhood', address: '0x5555555555555555555555555555555555555555' }), { symbol: '' }, tab.windowId); }, winTabId);
+  await wpanel.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+  const wstate = () => wpanel.evaluate(() => ({ symbol: document.querySelector('.ne-symbol').value, addr: document.querySelector('.ne-addr code').title }));
+  assert((await wstate()).addr.endsWith('5555'), 'panel của cửa sổ hiện token A của tab đang nhìn');
+  const beforeGrok = (await grokOf(TOKEN_A)).length;
+  const pagesBefore = new Set(ctx.pages());
+  await wpanel.evaluate(() => document.querySelector('.ne-grok').click());
+  await wpanel.waitForTimeout(1200);
+  const bgGrok = ctx.pages().find(pg => !pagesBefore.has(pg));
+  await bgGrok.goto((await grokUrlFor()).url);
+  await bgGrok.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
+  await bgGrok.click('#send');
+  await page.bringToFront();
+  await page.goto('https://gmgn.ai/robinhood/token/0x2222222222222222222222222222222222222222');
+  await wpanel.waitForFunction(() => document.querySelector('.ne-addr code')?.title.endsWith('2222'), null, { timeout: 8000 });
+  assert(true, 'chuyển sang token B -> panel theo sang B');
+  for (let i = 0; i < 60 && (await grokOf(TOKEN_A)).length === beforeGrok; i++) await page.waitForTimeout(500);
+  assert((await grokOf(TOKEN_A)).length === beforeGrok + 1, 'Grok ở tab nền tự lưu câu trả lời vào đúng token A');
+  await page.waitForTimeout(1500);
+  assert((await wstate()).addr.endsWith('2222'), 'panel VẪN là token B (tab đang nhìn), không bị lật sang A: ' + (await wstate()).addr.slice(0, 8));
+  assert((await grokOf(TOKEN_B)).length === 0, 'token B không nhận mốc Grok nào của A');
+  assert((await sw.evaluate(async () => (await chrome.storage.local.get('lastToken')).lastToken.token.key)) === TOKEN_B, 'token xem gần nhất là B, tab nền không ghi đè');
+  await bgGrok.bringToFront();
+  await wpanel.waitForFunction(() => document.querySelector('.ne-addr code')?.title.endsWith('5555') && document.querySelector('.ne-entry--new'), null, { timeout: 8000 });
+  assert(true, 'đổi sang tab Grok thì panel hiện A với mốc vừa tự lưu');
+
+  console.log('18b) Symbol đến muộn (title của gmgn đổi sau URL) vẫn được điền vào panel');
+  await page.bringToFront();
+  await wpanel.waitForFunction(() => document.querySelector('.ne-addr code')?.title.endsWith('2222'), null, { timeout: 8000 });
+  const lateTab = await sw.evaluate(() => [...pageTokens.entries()].find(([, t]) => t.key.endsWith('2222'))[0]);
+  const LATE = { chain: 'robinhood', address: '0x3333333333333333333333333333333333333333' };
+  const sendLate = symbol => sw.evaluate(async ([t, tk, sym]) => { const tab = await chrome.tabs.get(t); await remember(t, validToken(tk), { symbol: sym }, tab.windowId); }, [lateTab, LATE, symbol]);
+  await sendLate('');
+  await wpanel.waitForFunction(() => document.querySelector('.ne-addr code')?.title.endsWith('3333'), null, { timeout: 8000 });
+  assert((await wstate()).symbol === '', 'lần báo đầu chưa có symbol -> ô symbol còn trống');
+  await sendLate('LATE');
+  await wpanel.waitForFunction(() => document.querySelector('.ne-symbol').value === 'LATE', null, { timeout: 5000 });
+  assert(true, 'lần báo sau có symbol -> panel điền vào, không cần mở lại');
+  assert((await sw.evaluate(async () => (await chrome.storage.local.get('p:robinhood:0x3333333333333333333333333333333333333333'))['p:robinhood:0x3333333333333333333333333333333333333333'] || null)) === null, 'chỉ xem thôi thì không tự tạo ghi chú');
+  await wpanel.evaluate(() => { const el = document.querySelector('.ne-symbol'); el.focus(); el.value = 'MINE'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await sendLate('OTHER');
+  await wpanel.waitForTimeout(800);
+  assert((await wstate()).symbol === 'MINE', 'symbol người dùng tự gõ không bị ghi đè');
+  await wpanel.close();
+
   await ctx.close();
   console.log('\nALL PASSED');
 })().catch(async e => { console.error(e); process.exit(1); });
