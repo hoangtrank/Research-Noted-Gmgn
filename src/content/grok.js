@@ -29,19 +29,25 @@ textarea:focus{border-color:#4b5563}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 button{font:inherit;cursor:pointer;border:1px solid #2b303a;background:#20242d;color:#e6e8ec;border-radius:8px;padding:6px 10px}
 button:hover{background:#2a2f3a}
-button.primary{margin-left:auto;background:#facc15;border-color:#facc15;color:#111;font-weight:700}
+button.primary{background:#facc15;border-color:#facc15;color:#111;font-weight:700}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.actions button{width:100%;min-height:34px;padding:6px 8px;text-align:center;line-height:1.25}
+.actions .cap,.actions .sel{font-size:12px;color:#cbd5e1}
+.actions .primary{grid-column:1/-1;min-height:38px;font-size:13px}
 button.primary:hover{background:#fde047}
 button:disabled{opacity:.5;cursor:default}
 select,input{font:inherit;color:#e6e8ec;background:#181b22;border:1px solid #2b303a;border-radius:8px;padding:6px 8px;min-width:0}
 select{flex:1 1 160px}
-input{flex:1 1 160px}
+input:not([type=checkbox]){flex:1 1 160px}
 .status{font-size:12px;color:#9aa3b2;min-height:16px}
 .status.ok{color:#22c55e}
 .status.err{color:#f87171}
 .status a{color:#60a5fa;text-decoration:none}
-.auto{display:flex;align-items:center;gap:6px;cursor:pointer}
-.auto input{margin:0}
-.autostat{font-size:11px;color:#6b7280;min-height:14px}
+.foot{display:flex;flex-direction:column;gap:3px;padding-top:8px;border-top:1px solid #20242d}
+.auto{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;cursor:pointer;color:#cbd5e1}
+.auto input{flex:none;width:15px;height:15px;margin:0;padding:0;accent-color:#facc15;cursor:pointer}
+.autostat{font-size:11px;color:#6b7280;min-height:14px;padding-left:22px}
+.foot .status{padding-left:22px}
 `;
 
   let ctxInfo = null;          // { token, symbol, prompt }
@@ -68,14 +74,16 @@ input{flex:1 1 160px}
               <div class="row"><select class="recent"><option value="">${esc(t('grok_recent'))}</option></select></div>
               <div class="row"><input class="linkurl" placeholder="${esc(t('grok_link_ph'))}"><button class="linkbtn" type="button">${esc(t('grok_link'))}</button></div>`}
             <textarea class="text" placeholder="${esc(t('grok_empty'))}"></textarea>
-            <div class="row">
+            <div class="actions">
               <button class="cap" type="button">${esc(t('grok_capture'))}</button>
               <button class="sel" type="button">${esc(t('grok_selection'))}</button>
               <button class="save primary" type="button" ${linked ? '' : 'disabled'}>${esc(t('grok_save'))}</button>
             </div>
-            ${linked ? `<label class="hint auto"><input type="checkbox" class="autochk" ${autoSave ? 'checked' : ''}> ${esc(t('grok_auto'))}</label>
-            <div class="autostat"></div>` : ''}
-            <div class="status"></div>
+            <div class="foot">
+              ${linked ? `<label class="auto"><input type="checkbox" class="autochk" ${autoSave ? 'checked' : ''}><span>${esc(t('grok_auto'))}</span></label>
+              <div class="autostat"></div>` : ''}
+              <div class="status"></div>
+            </div>
           </div>
         </div>
       </div>`;
@@ -226,6 +234,51 @@ input{flex:1 1 160px}
     return answerMessage(block, promptMsg).querySelectorAll('button, [role="button"]').length >= 3;
   }
 
+  // Đọc chữ của một khối thay cho innerText. Trên X mỗi link trong câu trả lời là <div inline-flex><a block>, nên
+  // innerText chèn xuống dòng trước và sau link và chỉ lấy chữ hiển thị ("x.com/abc") — trong ghi chú link nằm lẻ
+  // một dòng và không bấm được. Ở đây link được giữ liền dòng và ghi bằng URL đầy đủ; @handle giữ nguyên;
+  // danh sách <ol> được đánh số, <ul> có bullet.
+  function readText(root) {
+    let out = '';
+    const BLOCK = /^(block|flex|grid|list-item|table|table-row|flow-root)$/;
+    const brk = () => { if (out && !out.endsWith('\n')) out += '\n'; };
+    const onlyLink = el => { const a = el.querySelector('a[href]'); return !!a && (el.textContent || '').trim() === (a.textContent || '').trim(); };
+    const linkText = a => {
+      const label = (a.textContent || '').replace(/\s+/g, ' ').trim();
+      let href = ''; try { href = new URL(a.getAttribute('href'), location.href).href; } catch (_) {}
+      if (!/^https?:\/\//.test(href) || /^@[A-Za-z0-9_]{1,20}$/.test(label)) return label;
+      const urlLike = !/\s/.test(label) && /[./]/.test(label);
+      return urlLike || !label ? href : `${label} ${href}`;
+    };
+    const walk = (node, pre) => {
+      if (node.nodeType === 3) { out += pre ? node.nodeValue : node.nodeValue.replace(/\s+/g, ' '); return; }
+      if (node.nodeType !== 1 || host.contains(node)) return;
+      const tag = node.tagName;
+      if (tag === 'BR') { out += '\n'; return; }
+      if (tag === 'A' && node.getAttribute('href')) {
+        const t = linkText(node);
+        if (t) { if (out && !/[\s(\[“"']$/.test(out)) out += ' '; out += t; }
+        return;
+      }
+      if (/^(SCRIPT|STYLE|BUTTON|SVG|IMG|VIDEO)$/i.test(tag)) return;
+      const cs = getComputedStyle(node);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return;
+      const block = BLOCK.test(cs.display) && !onlyLink(node);
+      if (block) brk();
+      if (tag === 'LI') {
+        const list = node.parentElement;
+        const bulleted = /^\s*[•·▪◦*-]/.test(node.textContent || '');
+        if (list && list.tagName === 'OL') out += `${[...list.children].indexOf(node) + 1}. `;
+        else if (!bulleted) out += '• ';
+      }
+      const keep = /^pre/.test(cs.whiteSpace);
+      for (const c of node.childNodes) walk(c, keep);
+      if (block) brk();
+    };
+    walk(root, /^pre/.test(getComputedStyle(root).whiteSpace));
+    return out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
   // Các bước "đang suy nghĩ" của Grok dính liền vào đầu câu trả lời, không có khoảng trắng sau dấu chấm
   // ("…tương tác thật.DEV"). Trong DÒNG ĐẦU, cắt tới ranh giới dính liền cuối cùng; văn bản bình thường luôn có
   // khoảng trắng sau dấu câu nên không bị đụng tới.
@@ -269,11 +322,11 @@ input{flex:1 1 160px}
     }
     const promptMsg = promptMessage(bubble);
     const block = captureLastAnswerBlock(promptMsg);
-    const text = block ? stripThinking((block.innerText || block.textContent || '').trim()) : '';
+    const text = block ? stripThinking(readText(block)) : '';
     if (!text || text.length < 80) { setAuto('grok_auto_read'); return; }
-    setAuto('grok_auto_read');
     const h = hashText(text);
-    if (savedHashes.has(h)) return;
+    if (savedHashes.has(h)) { setAuto(''); return; }   // đã lưu rồi: dòng "Đã tự lưu…" bên dưới nói đủ
+    setAuto('grok_auto_read');
     const now = Date.now();
     if (lastSeen.hash !== h) { lastSeen = { hash: h, since: now }; return; }
     // Có hàng nút dưới tin nhắn = Grok đã xong: chờ thêm 3 s cho chắc. Chưa có: Grok có thể đang dừng giữa các
@@ -294,7 +347,7 @@ input{flex:1 1 160px}
   // Tìm khối văn bản "tối giản" cuối cùng trước ô nhập, bỏ khối chứa prompt và khối chứa ô nhập.
   function captureLastAnswer(afterEl) {
     const block = captureLastAnswerBlock(afterEl || promptMessage(promptBubble()));
-    return block ? stripThinking((block.innerText || block.textContent || '').trim()) : '';
+    return block ? stripThinking(readText(block)) : '';
   }
 
   function captureLastAnswerBlock(afterEl) {
