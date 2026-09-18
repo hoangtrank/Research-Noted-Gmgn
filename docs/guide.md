@@ -4,7 +4,7 @@ Other languages: [Tiếng Việt](huong-dan.md)
 
 For everyday users. You do not need to know how to code.
 
-> New to gmgn.ai? It is a multi-chain token trading terminal. You can open it with this link: https://gmgn.ai/r/ZCSRo81H?chain=robinhood (referral link).
+> New to gmgn.ai? It is a multi-chain token trading terminal. You can open it with this link: https://gmgn.ai/r/ZCSRo81H?chain=robinhood
 
 ---
 

@@ -11,7 +11,7 @@
 - You can export all data as JSON/Markdown and delete it at any time from the Dashboard. Uninstalling the extension removes all data.
 - **X search pages** (`x.com/search`): the extension reads the search query to recognise a contract address or $SYMBOL you have noted (or asks DexScreener's public API which token an address is). Text you select and choose to save is stored locally with the post link and author handle. Nothing is uploaded.
 - **Research with Grok** (optional, only when you click the button): the extension opens x.com or grok.com in a new tab with a prefilled prompt containing the token's symbol, chain, contract address and market cap. That page is operated by X/xAI under their own privacy policy. On Grok tabs opened this way the extension adds a small "Research-Noted-Gmgn" panel and, once Grok has finished answering, saves the answer text into that token's timeline (with an Undo link). Auto-save can be turned off on the panel or in Settings, in which case only answers you choose to save are read. The text is stored locally like any other note and is never uploaded.
-- **Referral link.** For people who do not know gmgn.ai, the empty panel, the empty Dashboard and the toolbar popup show one link to gmgn.ai, labelled "referral link" (the author's referral link). The extension never opens it by itself and never adds a referral code to any page or URL. If you click it, gmgn.ai sees that you arrived through that link, under gmgn.ai's own privacy policy; the extension sends nothing.
+- **Referral link.** For people who do not know gmgn.ai, the empty panel, the empty Dashboard and the toolbar popup show one link to gmgn.ai. It is the author's referral link. The extension never opens it by itself and never adds a referral code to any page or URL. If you click it, gmgn.ai sees that you arrived through that link, under gmgn.ai's own privacy policy; the extension sends nothing.
 - No remote code is used.
 
 Contact: open an issue at https://github.com/hoangtrank/Research-Noted-Gmgn.
@@ -27,7 +27,7 @@ Contact: open an issue at https://github.com/hoangtrank/Research-Noted-Gmgn.
 - Bạn có thể xuất toàn bộ dữ liệu (JSON/Markdown) và xoá bất kỳ lúc nào trong Dashboard. Gỡ extension sẽ xoá toàn bộ dữ liệu.
 - **Trang tìm kiếm X** (`x.com/search`): extension đọc chuỗi tìm kiếm để nhận ra địa chỉ contract hoặc $SYMBOL bạn đã ghi chú (hoặc hỏi API công khai của DexScreener xem địa chỉ đó là token nào). Đoạn chữ bạn bôi đen và chọn lưu được lưu cục bộ kèm link bài và tên tài khoản. Không tải lên đâu cả.
 - **Research với Grok** (tuỳ chọn, chỉ khi bạn bấm nút): extension mở x.com hoặc grok.com trong tab mới với prompt điền sẵn gồm symbol, chain, địa chỉ contract và market cap của token. Trang đó do X/xAI vận hành theo chính sách riêng của họ. Trên tab Grok mở theo cách này, extension thêm một panel nhỏ "Research-Noted-Gmgn" và khi Grok trả lời xong thì lưu câu trả lời vào timeline của token đó (có nút Hoàn tác). Có thể tắt tự động lưu ngay trên panel hoặc trong Cài đặt; khi đó extension chỉ đọc câu trả lời bạn chọn lưu. Nội dung được lưu cục bộ như mọi ghi chú khác, không tải lên đâu cả.
-- **Link giới thiệu.** Panel trống, Dashboard trống và popup có một link tới gmgn.ai ghi rõ "link giới thiệu" (link giới thiệu của tác giả). Extension không tự mở và không gắn mã giới thiệu vào trang hay URL nào. Nếu bạn bấm, gmgn.ai biết bạn đến từ link đó theo chính sách riêng của gmgn.ai; extension không gửi gì cả.
+- **Link giới thiệu.** Panel trống, Dashboard trống và popup có một link tới gmgn.ai. Đó là link giới thiệu của tác giả. Extension không tự mở và không gắn mã giới thiệu vào trang hay URL nào. Nếu bạn bấm, gmgn.ai biết bạn đến từ link đó theo chính sách riêng của gmgn.ai; extension không gửi gì cả.
 - Không dùng mã từ xa.
 
 ## 隐私政策（中文）
@@ -39,5 +39,5 @@ Contact: open an issue at https://github.com/hoangtrank/Research-Noted-Gmgn.
 - 你可以随时在仪表盘中导出全部数据（JSON/Markdown）或删除。卸载扩展会删除全部数据。
 - **X 搜索页**（`x.com/search`）：扩展读取搜索词以识别你已记录的合约地址或 $SYMBOL（或向 DexScreener 公开 API 查询该地址对应的代币）。你选中并选择保存的文本会与帖子链接和作者一起保存在本地。不会上传。
 - **用 Grok 研究**（可选，仅在你点击按钮时）：扩展会在新标签页打开 x.com 或 grok.com，并预填包含代币符号、链、合约地址和市值的提示词。该页面由 X/xAI 按其自身隐私政策运营。在以此方式打开的 Grok 标签页上，扩展会添加一个小的“Research-Noted-Gmgn”面板，并在 Grok 回答完成后将回答文本存入该代币的时间线（可撤销）。可在面板或设置中关闭自动保存，此时只读取你选择保存的回答。文本像其他笔记一样只保存在本地，不会上传。
-- **邀请链接。** 空面板、空仪表盘和工具栏弹窗中有一个指向 gmgn.ai 的链接，标明“邀请链接”（作者的邀请链接）。扩展不会自动打开，也不会向任何页面或 URL 添加邀请码。如果你点击，gmgn.ai 会按其自身隐私政策知道你来自该链接；扩展不发送任何数据。
+- **邀请链接。** 空面板、空仪表盘和工具栏弹窗中有一个指向 gmgn.ai 的链接，这是作者的邀请链接。扩展不会自动打开，也不会向任何页面或 URL 添加邀请码。如果你点击，gmgn.ai 会按其自身隐私政策知道你来自该链接；扩展不发送任何数据。
 - 不使用远程代码。

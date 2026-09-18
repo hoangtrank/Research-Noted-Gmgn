@@ -2,7 +2,7 @@
 
 # Research-Noted-Gmgn
 
-**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.14
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.15
 
 A Chrome extension that keeps one research note per token, right where you look at it: **gmgn.ai**, **DexScreener** and **X**.
 
@@ -10,7 +10,7 @@ You research hundreds of tokens and forget what each one actually does. This kee
 
 📖 **[User guide](docs/guide.md)** — written for people who are not technical. Also in [Tiếng Việt](docs/huong-dan.md).
 
-**New to gmgn.ai?** It is a multi-chain token trading terminal, and the site this extension was built around. You can open it with [this link](https://gmgn.ai/r/ZCSRo81H?chain=robinhood) — it is the author's referral link, and the same link is shown (labelled *referral link*) in the extension's empty panel, empty Dashboard and toolbar popup. The extension never opens it by itself and adds no code to any page or URL.
+**New to gmgn.ai?** It is a multi-chain token trading terminal, and the site this extension was built around. You can open it with [this link](https://gmgn.ai/r/ZCSRo81H?chain=robinhood) — it is the author's referral link, and the same link is shown in the extension's empty panel, empty Dashboard and toolbar popup. The extension never opens it by itself and adds no code to any page or URL.
 
 ---
 

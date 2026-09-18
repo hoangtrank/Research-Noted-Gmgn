@@ -37,7 +37,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     Your data stays on your device. No server, no tracking, no account.
     Works with every chain that gmgn.ai supports.
 
-    Disclosure: for people who do not know gmgn.ai yet, the empty panel, the empty Dashboard and the toolbar popup show one link to gmgn.ai, labelled "referral link". It is the author's referral link. The extension never opens it by itself and never adds a referral code to any page or URL; it is only a link you may click.
+    Disclosure: for people who do not know gmgn.ai yet, the empty panel, the empty Dashboard and the toolbar popup show one link to gmgn.ai. It is the author's referral link. The extension never opens it by itself and never adds a referral code to any page or URL; it is only a link you may click.
 
 **Category**: Productivity (or "Workflow & Planning" in the new console)
 
@@ -72,7 +72,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     Dữ liệu chỉ lưu trên máy bạn. Không máy chủ, không theo dõi, không tài khoản.
     Hoạt động với mọi chain mà gmgn.ai hỗ trợ.
 
-    Công khai: với người chưa biết gmgn.ai, panel trống, Dashboard trống và popup có hiện một link tới gmgn.ai, ghi rõ "link giới thiệu". Đó là link giới thiệu của tác giả. Extension không tự mở link này và không gắn mã giới thiệu vào bất kỳ trang hay URL nào; đó chỉ là một link bạn có thể bấm.
+    Công khai: với người chưa biết gmgn.ai, panel trống, Dashboard trống và popup có hiện một link tới gmgn.ai. Đó là link giới thiệu của tác giả. Extension không tự mở link này và không gắn mã giới thiệu vào bất kỳ trang hay URL nào; đó chỉ là một link bạn có thể bấm.
 
 ## 中文（简体）
 
@@ -105,7 +105,7 @@ The Store lets you add one listing per language. Fill **English** first (default
     数据只保存在你的设备上。没有服务器、没有跟踪、没有账号。
     支持 gmgn.ai 上的所有链。
 
-    披露：对于还不了解 gmgn.ai 的用户，空面板、空仪表盘和工具栏弹窗中会显示一个指向 gmgn.ai 的链接，并标明“邀请链接”。这是作者的邀请链接。扩展不会自动打开它，也不会向任何页面或 URL 添加邀请码；它只是一个你可以点击的链接。
+    披露：对于还不了解 gmgn.ai 的用户，空面板、空仪表盘和工具栏弹窗中会显示一个指向 gmgn.ai 的链接。这是作者的邀请链接。扩展不会自动打开它，也不会向任何页面或 URL 添加邀请码；它只是一个你可以点击的链接。
 
 ## Store icon and promo tile
 
