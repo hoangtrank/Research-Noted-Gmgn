@@ -945,6 +945,27 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(nv.side && !nv.main, 'bấm quay lại: về danh sách');
   await ddash.close();
 
+  console.log('21b) Settings: khôi phục bản sao lưu tự động');
+  const bdash = await ctx.newPage();
+  await bdash.setViewportSize({ width: 1180, height: 800 });
+  await bdash.goto(`chrome-extension://${extId}/src/dashboard/dashboard.html`);
+  await bdash.waitForSelector('.card');
+  const BK = 'robinhood:0x9191919191919191919191919191919191919191';
+  const bkTs = await bdash.evaluate(() => NotedStore.createBackup('import'));
+  assert(bkTs > 0, 'có một bản sao lưu');
+  await bdash.evaluate(async k => { await NotedStore.remove(k); }, BK);
+  assert((await bdash.evaluate(k => NotedStore.get(k), BK)) === null, 'xoá nhầm một dự án sau khi đã có bản sao lưu');
+  await bdash.click('#open-settings');
+  await bdash.waitForFunction(() => document.querySelector('#backup-list').options.length > 0 && document.querySelector('#backup-list').value !== '');
+  assert(/project/i.test(await bdash.$eval('#backup-list', e => e.options[0].textContent)), 'Settings liệt kê bản sao lưu: ' + (await bdash.$eval('#backup-list', e => e.options[0].textContent)));
+  bdash.once('dialog', d => d.accept());
+  await bdash.click('#backup-restore');
+  await bdash.waitForFunction(() => /Restored \d+ projects/.test(document.querySelector('#settings-saved').textContent), null, { timeout: 8000 });
+  const back = await bdash.evaluate(k => NotedStore.get(k), BK);
+  assert(back && back.symbol === 'NOSUM' && back.timeline.length === 1, 'bấm Khôi phục: dự án đã xoá quay lại đủ nội dung');
+  assert((await bdash.evaluate(() => NotedStore.listBackups())).some(b => b.reason === 'before-restore'), 'trước khi khôi phục, trạng thái hiện tại cũng được sao lưu (khôi phục nhầm vẫn quay lại được)');
+  await bdash.close();
+
   console.log('22) Reload extension khi trang còn mở: content script cũ không ném lỗi, mà bảo người dùng tải lại trang (PHẢI là mục cuối)');
   for (const pg of ctx.pages()) if (pg !== page) await pg.close().catch(() => {});
   const oErrs = [];
