@@ -2,7 +2,7 @@
 // Ưu tiên Chrome Side Panel (nằm ngoài trang, trình duyệt tự thu hẹp gmgn nên không che gì);
 // nếu không mở được hoặc người dùng chọn "overlay" thì bảo content script mở drawer trong trang.
 'use strict';
-importScripts('lib/storage.js', 'lib/research.js');
+importScripts('lib/storage.js', 'lib/research.js', 'lib/sync.js', 'lib/drive.js', 'sync-controller.js');
 
 const SESSION_PREFIX = 'tab:';
 const GROK_PREFIX = 'grok:';

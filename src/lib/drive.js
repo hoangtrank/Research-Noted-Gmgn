@@ -1,9 +1,9 @@
 // NotedDrive: kho từ xa cho NotedSync, là MỘT file trong vùng dữ liệu riêng của ứng dụng trên Google Drive của
 // chính người dùng (spaces=appDataFolder, scope drive.appdata): ứng dụng không thấy file nào khác trong Drive, và
-// file này không hiện trong drive.google.com. CHƯA nằm trong gói Store (xem sync.js).
+// file này không hiện trong drive.google.com.
 //
 //   new NotedDrive({ token: async () => '<access token>', base?: 'http://127.0.0.1:<port>' })
-// token: giai đoạn 2 sẽ là chrome.identity.getAuthToken; base chỉ nhận chính Google hoặc máy cục bộ (Drive giả lập
+// token: trong extension là chrome.identity.getAuthToken (xem src/sync-controller.js); base chỉ nhận chính Google hoặc máy cục bộ (Drive giả lập
 // trong test) — không bao giờ gửi ghi chú tới nơi nào khác.
 (() => {
   'use strict';

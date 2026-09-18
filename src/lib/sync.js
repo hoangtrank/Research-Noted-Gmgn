@@ -1,6 +1,6 @@
 // NotedSync: đồng bộ ghi chú giữa nhiều máy qua một "kho từ xa" (remote) chỉ biết tải về / đẩy lên MỘT file.
 // File này không biết gì về Google: remote được truyền vào (xem drive.js), nên toàn bộ logic gộp test được bằng
-// một Drive giả lập. CHƯA nằm trong gói Store: wip/ không được pack.py đóng gói, audit.py cũng không quét tới.
+// một Drive giả lập.
 //
 // Nguyên tắc:
 //   - chrome.storage.local vẫn là nguồn chính; remote chỉ là điểm gặp nhau của các máy.
