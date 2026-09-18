@@ -16,6 +16,8 @@
     .hint{margin-top:10px;color:#6b7280;font-size:calc(var(--ne-fs,14px) - 2px)}
     .setting{display:block;margin-top:10px;font-size:calc(var(--ne-fs,14px) - 2px);color:#9aa3b2}
     select{display:block;width:100%;margin-top:4px;font:inherit;color:#e6e8ec;background:#181b22;border:1px solid #2b303a;border-radius:8px;padding:6px 8px}
+    .gmgn-new a{color:#60a5fa;text-decoration:none}.gmgn-new a:hover{text-decoration:underline}
+    .gmgn-new .ref{color:#6b7280;font-size:11px;border:1px solid #2b303a;border-radius:999px;padding:0 6px;margin-left:2px;white-space:nowrap}
     kbd{font:10px ui-monospace,Menlo,monospace;background:#181b22;border:1px solid #2b303a;border-bottom-width:2px;border-radius:4px;padding:0 4px}
   </style>
 </head>
@@ -36,6 +38,7 @@
       <select id="lang"></select>
     </label>
     <div class="hint" data-i18n="popup_hint"></div>
+    <div class="hint gmgn-new"><a data-gmgn-invite data-i18n="gmgn_new"></a> <span class="ref" data-i18n="gmgn_ref"></span></div>
   </div>
   <script src="../lib/storage.js"></script>
   <script src="../lib/i18n.js"></script>

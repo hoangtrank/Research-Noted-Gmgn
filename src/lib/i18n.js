@@ -29,7 +29,7 @@
     fab_note: 'Note', fab_title: 'Open the note for this token (Alt+N)',
     toast_open_token: 'Open a token page on gmgn, then press Alt+N or click the Research-Noted-Gmgn button.',
     panel_empty_1: 'Click the ✎ button next to a token on gmgn.ai, the floating button on a token page, or press Alt+N.',
-    panel_empty_2: 'This panel sits outside the page, so it never covers gmgn. Drag its edge to resize.',
+    panel_empty_2: 'This panel sits outside the page, so it never covers gmgn. Drag its edge to resize.', gmgn_new: 'New to gmgn.ai? Open it here', gmgn_ref: 'referral link',
     open_dashboard: '📚 Open Dashboard',
     note_this: '📝 Note this token', open_note: '📝 Open note: {name}', export_json: '⬇ Export JSON (backup)',
     popup_hint: 'On gmgn.ai: click ✎ next to a symbol, or press Alt+N on a token page.',
@@ -80,7 +80,7 @@
     fab_note: 'Ghi chú', fab_title: 'Mở ghi chú cho token này (Alt+N)',
     toast_open_token: 'Hãy mở một trang token trên gmgn rồi bấm Alt+N hoặc nút Research-Noted-Gmgn.',
     panel_empty_1: 'Bấm nút ✎ cạnh một token trên gmgn.ai, nút nổi trên trang token, hoặc Alt+N.',
-    panel_empty_2: 'Panel này nằm ngoài trang nên không che gmgn. Kéo mép để đổi độ rộng.',
+    panel_empty_2: 'Panel này nằm ngoài trang nên không che gmgn. Kéo mép để đổi độ rộng.', gmgn_new: 'Chưa biết gmgn.ai là gì? Mở tại đây', gmgn_ref: 'link giới thiệu',
     open_dashboard: '📚 Mở Dashboard',
     note_this: '📝 Ghi chú token đang xem', open_note: '📝 Mở ghi chú {name}', export_json: '⬇ Xuất JSON (backup)',
     popup_hint: 'Trên gmgn.ai: bấm nút ✎ cạnh symbol, hoặc Alt+N trên trang token.',
@@ -131,7 +131,7 @@
     fab_note: '笔记', fab_title: '打开该代币的笔记 (Alt+N)',
     toast_open_token: '请先在 gmgn 打开一个代币页面，再按 Alt+N 或点击 Research-Noted-Gmgn 按钮。',
     panel_empty_1: '在 gmgn.ai 点击代币旁的 ✎ 按钮、代币页的悬浮按钮，或按 Alt+N。',
-    panel_empty_2: '此面板位于页面之外，不会遮挡 gmgn。拖动边缘可调整宽度。',
+    panel_empty_2: '此面板位于页面之外，不会遮挡 gmgn。拖动边缘可调整宽度。', gmgn_new: '还不了解 gmgn.ai？从这里打开', gmgn_ref: '邀请链接',
     open_dashboard: '📚 打开仪表盘',
     note_this: '📝 记录当前代币', open_note: '📝 打开 {name} 的笔记', export_json: '⬇ 导出 JSON（备份）',
     popup_hint: '在 gmgn.ai：点击代币符号旁的 ✎，或在代币页按 Alt+N。',
@@ -177,6 +177,10 @@
     return s;
   }
 
+  // Link mời vào gmgn.ai cho người chưa biết gmgn là gì. Đây là link giới thiệu (referral) của tác giả: luôn hiện kèm
+  // nhãn "referral link", và chỉ là một link người dùng tự bấm — extension không tự mở, không gắn mã vào đâu khác.
+  const GMGN_INVITE = 'https://gmgn.ai/r/ZCSRo81H?chain=robinhood';
+
   // Áp bản dịch cho HTML tĩnh: data-i18n (text), data-i18n-html, data-i18n-ph (placeholder), data-i18n-title.
   function apply(root) {
     root = root || document;
@@ -184,6 +188,7 @@
     for (const el of root.querySelectorAll('[data-i18n-html]')) el.innerHTML = t(el.dataset.i18nHtml);
     for (const el of root.querySelectorAll('[data-i18n-ph]')) el.placeholder = t(el.dataset.i18nPh);
     for (const el of root.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+    for (const a of root.querySelectorAll('a[data-gmgn-invite]')) { a.href = GMGN_INVITE; a.target = '_blank'; a.rel = 'noopener noreferrer'; }
     if (root === document) document.documentElement.lang = lang;
   }
 
@@ -216,5 +221,5 @@
     });
   }
 
-  globalThis.NotedI18n = { LANGS, DEFAULT, t, apply, init, setLang, onChange, bindSelect, get lang() { return lang; } };
+  globalThis.NotedI18n = { LANGS, DEFAULT, GMGN_INVITE, t, apply, init, setLang, onChange, bindSelect, get lang() { return lang; } };
 })();
