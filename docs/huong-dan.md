@@ -16,7 +16,22 @@ Extension này cho bạn một **cuốn sổ tay gắn thẳng vào gmgn**. Mỗ
 
 Bạn cần trình duyệt Chrome, Brave hoặc Edge, bản 116 trở lên. Hầu hết máy đều đã đủ.
 
-1. **Tải mã nguồn về máy.** Vào trang GitHub của dự án, bấm nút xanh **Code** → **Download ZIP**. Giải nén ra một thư mục, ví dụ `D:\noted` hoặc trong thư mục Tài liệu. Nhớ chỗ để, vì sau này cập nhật sẽ dùng lại đúng thư mục này.
+### Khuyên dùng: cài từ Chrome Web Store
+
+Mở [trang trên Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm), bấm **Thêm vào Chrome**, rồi tải lại tab gmgn.ai. Hết. Bản mới về sau Chrome tự cập nhật.
+
+### Cách khác: tải mã nguồn và "Tải tiện ích đã giải nén"
+
+Dành cho người muốn tự chạy mã nguồn. **Lưu ý trước:** bản cài kiểu này **không đăng nhập Google được**, nên mục *Đồng bộ giữa các máy* sẽ không dùng được (lý do ở cuối phần này).
+
+1. **Tải mã nguồn về máy.** Vào trang GitHub của dự án, bấm nút xanh **Code** → **Download ZIP**. Giải nén ra một thư mục, ví dụ `D:\noted` hoặc trong thư mục Tài liệu. **Nhớ kỹ chỗ để và đừng bao giờ đổi tên hay di chuyển thư mục đó** — Chrome nhận dạng extension bằng chính đường dẫn, đổi chỗ là nó coi như một extension khác và ghi chú cũ không hiện ra nữa (chưa mất, nhưng phải Xuất/Nhập JSON mới thấy lại).
+
+   *Nếu máy bạn có `git`, dùng cách này thì cập nhật về sau chỉ còn một lệnh:*
+
+   ```bash
+   git clone -b claude/gmgn-project-notes-extension-dgkfnb \
+     https://github.com/hoangtrank/Research-Noted-Gmgn.git
+   ```
 
 2. **Mở trang quản lý extension.** Gõ vào thanh địa chỉ: `chrome://extensions` rồi Enter.
 
@@ -27,6 +42,13 @@ Bạn cần trình duyệt Chrome, Brave hoặc Edge, bản 116 trở lên. Hầ
 5. Xong. Mở lại tab gmgn.ai đang mở (hoặc bấm F5) là dùng được.
 
 > Nên ghim extension lên thanh công cụ: bấm icon hình mảnh ghép cạnh thanh địa chỉ, rồi bấm hình đinh ghim cạnh tên Research-Noted-Gmgn.
+
+**Bốn điều cần biết khi cài kiểu này:**
+
+- Mỗi lần mở Chrome có thể hiện bảng **"Tắt các tiện ích ở chế độ nhà phát triển"**. Bấm **X** để đóng, **đừng bấm Tắt**. Đây là cảnh báo mặc định của Chrome cho mọi extension cài tay.
+- **Không tự cập nhật** — xem mục "Cập nhật bản mới" ở phần Câu hỏi thường gặp.
+- Extension chỉ có trong **hồ sơ Chrome bạn đã cài**. Hồ sơ khác phải cài lại, và ghi chú không dùng chung giữa các hồ sơ (chuyển bằng Xuất/Nhập JSON).
+- **Đồng bộ qua Google Drive không chạy.** Khoá OAuth của Google gắn chặt với mã định danh của bản trên Store, mà bản cài tay có mã khác. Muốn vừa chạy mã nguồn vừa có đồng bộ thì phải chép `key` công khai từ Chrome Developer Dashboard vào `manifest.json` (xem `docs/DEVELOPMENT.md`) — làm vậy sẽ **đổi mã định danh và ghi chú hiện có sẽ không hiện ra nữa**, nên hãy Xuất JSON trước.
 
 ---
 
@@ -189,7 +211,12 @@ Máy cũ: Dashboard → Xuất JSON. Máy mới: cài extension → Dashboard �
 Có. Nên xuất JSON để dành trước khi gỡ.
 
 **Cập nhật bản mới thế nào mà không mất ghi chú?**
-Quan trọng: **thay file vào đúng thư mục cũ**, đừng chọn thư mục mới. Xoá các file cũ trong thư mục đó, giải nén bản mới vào đúng đó, rồi vào `chrome://extensions` bấm nút **Tải lại** (hình mũi tên tròn). Dữ liệu giữ nguyên.
+Cài từ Store thì Chrome tự lo. Cài tay thì quan trọng nhất là: **thay ruột vào đúng thư mục cũ**, đừng trỏ Chrome sang thư mục mới.
+
+- *Nếu bạn clone bằng git:* mở terminal, `cd` vào thư mục đó rồi `git pull`. Xong.
+- *Nếu bạn tải ZIP:* xoá các file cũ trong thư mục đó, giải nén bản mới vào đúng đó.
+
+Rồi vào `chrome://extensions` bấm nút **Tải lại** (hình mũi tên tròn) trên thẻ Research-Noted-Gmgn, và kiểm tra số phiên bản đã đổi. Dữ liệu giữ nguyên.
 Nếu lỡ chọn thư mục mới, dữ liệu vẫn chưa mất: bật lại mục cũ trong `chrome://extensions`, xuất JSON, rồi nhập vào mục mới.
 
 **Không thấy nút đâu cả?**

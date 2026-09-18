@@ -26,7 +26,9 @@ Open the [Chrome Web Store page](https://chromewebstore.google.com/detail/klmbon
 
 ### Alternative: download the source and use Load unpacked
 
-This way is for people who want to run the source code themselves.
+This way is for people who want to run the source code themselves. **Note first:** a build installed
+this way **cannot sign in to Google**, so *Sync between computers* will not work (why, at the end of
+this section).
 
 1. **Download the source code.** Go to the project's GitHub page, click the green **Code** button → **Download ZIP**. Unzip it into a folder, for example `D:\noted` or inside your Documents folder. Remember where you put it, because later updates will use this same folder.
 
@@ -39,6 +41,13 @@ This way is for people who want to run the source code themselves.
 5. Done. Reopen the gmgn.ai tab you have open (or press F5) and it is ready to use.
 
 > It is a good idea to pin the extension to the toolbar: click the puzzle-piece icon next to the address bar, then click the pin icon next to the name Research-Noted-Gmgn.
+
+**Four things to know about installing this way:**
+
+- Chrome may show a **"Disable developer mode extensions"** prompt each time it starts. Click the **X** to dismiss it, do not click Disable. Chrome shows this for every hand-installed extension.
+- **Nothing updates itself** — see "How do I update" in the FAQ.
+- The extension exists only in the **Chrome profile you added it to**. Another profile needs its own install, and notes are not shared between profiles (move them with Export/Import JSON).
+- **Sync through Google Drive does not work.** Google's OAuth client is bound to the Store build's extension ID, and a hand-installed build has a different one. To run the source *and* have sync, copy the public `key` from the Chrome Developer Dashboard into `manifest.json` (see `docs/DEVELOPMENT.md`) — that **changes the extension's ID, and your existing notes stop showing up**, so export them first.
 
 ---
 
@@ -202,7 +211,12 @@ Yes. Export JSON and keep the file before you remove it.
 
 **How do I update to a new version without losing my notes?**
 If you installed from the Chrome Web Store, updates arrive on their own. The steps below are for the source install.
-Important: **put the new files into the same old folder**. Do not choose a new folder. Delete the old files in that folder, unzip the new version into that same place, then go to `chrome://extensions` and click the **Reload** button (the circular arrow). Your data stays as it is.
+From the Store, Chrome handles it. Installed by hand, what matters is: **put the new files into the same old folder**, do not point Chrome at a new one.
+
+- *If you cloned with git:* open a terminal, `cd` into that folder and run `git pull`. Done.
+- *If you downloaded a ZIP:* delete the old files in that folder and unzip the new version into that same place.
+
+Then go to `chrome://extensions`, click the **Reload** button (the circular arrow) on the Research-Noted-Gmgn card, and check that the version number changed. Your data stays as it is.
 If you chose a new folder by mistake, the data is not lost yet: turn the old entry back on in `chrome://extensions`, export JSON, then import it into the new entry.
 
 **I cannot see the button anywhere?**
