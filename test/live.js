@@ -122,7 +122,8 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     const dexMock = require('./mock-dexscreener');
     const html = body => ({ status: 200, contentType: 'text/html; charset=utf-8', body });
     await ctx.route('https://gmgn.ai/**', r => r.fulfill(html(gmgnMock.handle(r.request().url()))));
-    await ctx.route('https://x.com/**', r => r.fulfill(html(xMock.page(r.request().url()))));
+    const grokMock = require('./mock-grok');
+    await ctx.route('https://x.com/**', r => { const u = r.request().url(); r.fulfill(html(new URL(u).pathname.startsWith('/i/grok') ? grokMock.page(u) : xMock.page(u))); });
     await ctx.route('https://dexscreener.com/**', r => r.fulfill(html(dexMock.handle(r.request().url()))));
     dexApi = await dexMock.startApi();
   }
@@ -217,6 +218,26 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
       for (let i = 0; i < 25; i++) { if (await visible(page, '.nd-sel')) { selUp = true; break; } await page.waitForTimeout(200); }
       await shot(page, '4-x-select');
       if (ok(selUp, 'nút "Lưu đoạn bôi đen" hiện ra')) {
+        // Bấm lưu thật: mốc phải vào đúng token, kèm @tác_giả và link bài — đọc từ DOM thật của X. Chỉ ghi vào
+        // storage của hồ sơ test; không đăng, không like, không gửi gì lên X.
+        const m4 = TOKEN_URL.match(/gmgn\.ai\/([^/]+)\/token\/([^/?#]+)/);
+        const entriesOf = () => sw.evaluate(async ([chain, address]) => { const k = NotedStore.keyOf(NotedStore.normalizeChain(chain), NotedStore.normalizeAddress(address)); const p = await NotedStore.get(k); return p ? p.timeline : []; }, [m4[1], m4[2]]);
+        const picked4 = await page.evaluate(() => (getSelection().toString() || '').replace(/\s+/g, ' ').trim());
+        const before4 = (await entriesOf()).length;
+        await clickShadow(page, '.nd-sel');
+        let added = null;
+        for (let i = 0; i < 30 && !added; i++) { const tl = await entriesOf(); if (tl.length > before4) added = tl[tl.length - 1]; else await page.waitForTimeout(200); }
+        if (ok(!!added, 'bấm nút thì có mốc mới trong ghi chú của token')) {
+          const flat = x => String(x || '').replace(/\s+/g, ' ');
+          ok(/^@[A-Za-z0-9_]{1,15}: /.test(added.text), 'mốc mở đầu bằng @tác_giả đọc từ bài viết', '— ' + added.text.slice(0, 40).replace(/\n/g, ' '));
+          ok(flat(added.text).includes(picked4.slice(0, 30)), 'mốc chứa đúng đoạn đã bôi đen');
+          ok(/https:\/\/(x|twitter)\.com\/[A-Za-z0-9_]+\/status\/\d+/.test(added.text), 'mốc kèm link tới đúng bài viết');
+          // dọn: gỡ mốc thử khỏi hồ sơ test để lần chạy sau không phình ra
+          await sw.evaluate(async ([chain, address, id]) => { const k = NotedStore.keyOf(NotedStore.normalizeChain(chain), NotedStore.normalizeAddress(address)); const p = await NotedStore.get(k); if (!p) return; p.timeline = p.timeline.filter(e => e.id !== id); await NotedStore.save(p, { removedIds: [id] }); }, [m4[1], m4[2], added.id]);
+        }
+        await page.waitForTimeout(2600);   // xác nhận ✓ tự ẩn sau ~2 giây
+        const el4 = await page.evaluate(() => { const e = [...document.querySelectorAll('article [data-testid="tweetText"]')].find(x => (x.textContent || '').trim().length > 40); if (!e) return false; const r = document.createRange(); r.selectNodeContents(e); const s = getSelection(); s.removeAllRanges(); s.addRange(r); return true; });
+        if (el4) for (let i = 0; i < 25 && !(await visible(page, '.nd-sel')); i++) await page.waitForTimeout(200);
         await page.evaluate(() => getSelection().removeAllRanges());
         let selGone = false;
         for (let i = 0; i < 25; i++) { if (!(await visible(page, '.nd-sel'))) { selGone = true; break; } await page.waitForTimeout(200); }
@@ -232,6 +253,54 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     await page.waitForTimeout(4000);
     ok(!(await visible(page, '.nd-fab')), 'không hiện nút nổi trên tìm kiếm không liên quan');
     await shot(page, '6-x-unrelated');
+  }
+
+  // CẢNH BÁO: trên X thật, mở x.com/i/grok?text=… là X TỰ GỬI prompt ngay (không chỉ điền vào ô nhập), tức mỗi lần
+  // chạy bước này tốn MỘT lượt Grok của tài khoản đang đăng nhập. Vì vậy trên trang thật bước này chỉ chạy khi có
+  // cờ --grok. Ở chế độ giả lập thì luôn chạy (không có gì bị gửi đi đâu).
+  if (MOCK || has('grok')) {
+    console.log('5b) Grok: Research with Grok -> tự lưu đúng MỘT mốc, chỉ sau khi Grok trả lời xong' + (MOCK ? '' : '  [tốn 1 lượt Grok]'));
+    const m5 = TOKEN_URL.match(/gmgn\.ai\/([^/]+)\/token\/([^/?#]+)/);
+    const grokOf = () => sw.evaluate(async ([chain, address]) => { const p = await NotedStore.get(NotedStore.keyOf(NotedStore.normalizeChain(chain), NotedStore.normalizeAddress(address))); return p ? p.timeline.filter(e => e.source === 'grok') : []; }, [m5[1], m5[2]]);
+    const before5 = (await grokOf()).length;
+    await page.goto(TOKEN_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const edit = await ctx.newPage();
+    await edit.goto(`chrome-extension://${new URL(sw.url()).host}/src/dashboard/dashboard.html`);
+    const known = new Set(ctx.pages());
+    // đi đúng đường của nút "Research with Grok": background mở tab, gắn token + prompt cho tab đó
+    await edit.evaluate(async ([chain, address]) => {
+      const st = (await chrome.storage.local.get('settings')).settings || {};
+      const tk = { chain: NotedStore.normalizeChain(chain), address: NotedStore.normalizeAddress(address) }; tk.key = NotedStore.keyOf(tk.chain, tk.address);
+      const project = (await NotedStore.get(tk.key)) || NotedStore.emptyProject(tk.chain, tk.address);
+      const prompt = NotedResearch.buildPrompt(st.researchTemplate || NotedResearch.defaultTemplate(NotedI18n.lang), NotedResearch.vars(project, {}));
+      await chrome.runtime.sendMessage({ type: 'noted:open-grok', target: 'x', prompt, token: tk, symbol: project.symbol || '' });
+    }, [m5[1], m5[2]]);
+    let gp = null;
+    for (let i = 0; i < 40 && !gp; i++) { gp = ctx.pages().find(x => !known.has(x)); if (!gp) await page.waitForTimeout(250); }
+    if (ok(!!gp, 'tab Grok được mở')) {
+      if (MOCK) { await gp.waitForURL(/i\/grok/, { timeout: 15000 }).catch(() => {}); await gp.waitForLoadState('load').catch(() => {}); await gp.waitForTimeout(500); await gp.goto((await sw.evaluate(async () => { const all = await chrome.storage.session.get(null); const v = Object.entries(all).filter(([k]) => k.startsWith('grok:')).map(([, x]) => x).sort((a, b) => b.at - a.at)[0]; return NotedResearch.urlFor('x', v.prompt); })) + '&shape=x'); await gp.waitForSelector('#send'); await gp.click('#send'); }
+      // theo dõi: lúc mốc ĐẦU TIÊN xuất hiện thì tin nhắn của Grok đã có hàng nút (đã xong) hay chưa
+      let first = null, buttonsAtSave = -1;
+      for (let i = 0; i < 720 && !first; i++) {
+        const tl = await grokOf();
+        if (tl.length > before5) { first = tl[tl.length - 1]; buttonsAtSave = await gp.evaluate(() => { const main = document.querySelector('main') || document.body; const msgs = [...main.querySelectorAll('div')].filter(d => d.querySelectorAll('button,[role="button"]').length >= 3 && (d.textContent || '').length > 200); return msgs.length; }).catch(() => -1); }
+        else await page.waitForTimeout(500);
+      }
+      if (ok(!!first, 'câu trả lời được tự lưu vào đúng token')) {
+        await page.waitForTimeout(8000);
+        const tl = await grokOf();
+        ok(tl.length === before5 + 1, 'đúng MỘT mốc (không lưu bản dở, không lưu hai lần)', '— ' + (tl.length - before5));
+        ok(buttonsAtSave > 0, 'lúc lưu, Grok đã trả lời xong (đã có hàng nút dưới tin nhắn)');
+        ok(!/OUTPUT (IN EXACTLY|ĐÚNG THỨ TỰ)|严格按以下顺序/.test(first.text), 'không lẫn các đoạn của chính prompt');
+        ok(!/[.!?…。]\p{Lu}/u.test(first.text.split('\n')[0]), 'dòng đầu không dính các bước "đang suy nghĩ"', '— ' + first.text.split('\n')[0].slice(0, 50));
+        ok(first.text.length > 300, 'mốc là câu trả lời đầy đủ', '— ' + first.text.length + ' ký tự');
+        await shot(gp, '6b-grok-saved');
+      }
+      await gp.close().catch(() => {});
+    }
+    await edit.close().catch(() => {});
+  } else if (!has('skip-x')) {
+    console.log('5b) (bỏ qua Grok thật — X TỰ GỬI prompt khi mở link, mỗi lần chạy tốn 1 lượt Grok; thêm --grok nếu bạn muốn chạy)');
   }
 
   console.log('6) DexScreener');

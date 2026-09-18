@@ -2,7 +2,7 @@
 
 # Research-Noted-Gmgn
 
-**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.12
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.13
 
 A Chrome extension that keeps one research note per token, right where you look at it: **gmgn.ai**, **DexScreener** and **X**.
 
@@ -216,6 +216,7 @@ npm run test:panel    # same suite with a real Chrome window (xvfb), so the real
 npm run test:live     # runs against the real gmgn / X / DexScreener (needs network + a one-time X login in the test window)
 node test/live.js --mock  # same script against the mock pages, to check the script itself before a real run
 node test/live.js --skip-x --token <gmgn url> --token2 <another gmgn url> --keep   # your own tokens, no X, leave the window open
+node test/live.js --grok  # also runs Research with Grok end to end on the real X. X SENDS the prompt as soon as the link opens, so each run costs one Grok query
 npm run audit         # capability audit: permissions, outbound requests, dangerous APIs
 npm run icons         # regenerate icons
 npm run zip           # build the Web Store ZIP into dist/
