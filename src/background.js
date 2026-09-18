@@ -326,13 +326,6 @@ chrome.tabs.onRemoved.addListener(tabId => {
   chrome.storage.session.remove([SESSION_PREFIX + tabId, GROK_PREFIX + tabId]).catch(() => {});
 });
 
-// ---- Lưu bài X: kiểm tra, chụp màn hình (cần activeTab), cắt và thu nhỏ bằng OffscreenCanvas, lưu ảnh + mốc ----
-function parseKey(key) {
-  const s = String(key || '');
-  const i = s.indexOf(':');
-  return i > 0 ? { chain: s.slice(0, i), address: s.slice(i + 1) } : null;
-}
-
 // ---- DexScreener: đổi địa chỉ pair -> token qua API công khai (không cần key), cache vĩnh viễn trong storage.local ----
 const QUOTE_SYMBOLS = new Set(['SOL', 'WSOL', 'USDC', 'USDT', 'USDC.E', 'USDBC', 'WETH', 'ETH', 'WBNB', 'BNB', 'DAI', 'WAVAX', 'AVAX', 'WMATIC', 'MATIC', 'POL', 'WBTC', 'BTC', 'WHYPE', 'HYPE', 'SUI', 'WTRX', 'TRX', 'FDUSD', 'USD1', 'CBBTC', 'WOKB', 'OKB', 'WBLAST', 'WMON', 'MON']);
 let dexCachePromise = null; // một promise dùng chung để các lần tra song song không tạo ra hai bản cache ghi đè nhau

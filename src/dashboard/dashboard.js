@@ -187,6 +187,8 @@
       grokAuto.checked = st.grokAutoSave !== false;
       listBadges.checked = !!st.listBadges;
       exportImages.checked = st.exportImages !== false;
+      // Extension không còn chụp ảnh bài viết; tuỳ chọn này chỉ có nghĩa khi ghi chú còn ảnh từ bản cũ / file import.
+      chrome.storage.local.get(null).then(all => { exportImages.closest('label').hidden = !Object.keys(all).some(k => k.startsWith('img:')); }).catch(() => {});
       fontSize.value = String(S.fontSize(st));
       target.value = st.researchTarget || 'x';
       tpl.value = st.researchTemplate || R.defaultTemplate(I.lang);
