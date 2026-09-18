@@ -37,9 +37,18 @@ FORBIDDEN = {
 # Quyền được phép có trong manifest.
 ALLOWED_PERMISSIONS = {'storage', 'unlimitedStorage', 'activeTab', 'sidePanel'}
 ALLOWED_HOST_PERMISSIONS = {'https://api.dexscreener.com/*'}
+# Đồng bộ qua Google Drive là TUỲ CHỌN: các quyền dưới đây chỉ được XIN lúc người dùng bấm bật sync trong Settings,
+# không có sẵn khi cài. Đúng hai quyền, đúng một tên miền, đúng một scope OAuth — khác đi là lỗi.
+ALLOWED_OPTIONAL_PERMISSIONS = {'identity', 'alarms'}
+ALLOWED_OPTIONAL_HOSTS = {'https://www.googleapis.com/*'}
+ALLOWED_OAUTH_SCOPES = {'https://www.googleapis.com/auth/drive.appdata'}
+# chrome.identity (lấy token đăng nhập Google) chỉ được xuất hiện ở hai nơi này, cho tính năng sync.
+IDENTITY_ALLOWED_IN = {os.path.join('src', 'sync-controller.js'), os.path.join('src', 'dashboard', 'dashboard.js')}
+SYNC_FETCH_ONLY_IN = os.path.join('src', 'lib', 'drive.js')
 ALLOWED_CONTENT_HOSTS = {'gmgn.ai', 'dexscreener.com', 'x.com', 'twitter.com', 'grok.com'}
 # Máy chủ duy nhất extension được gửi request tới.
 ALLOWED_FETCH_HOSTS = {'api.dexscreener.com', '127.0.0.1', 'localhost'}
+SYNC_FETCH_HOSTS = {'www.googleapis.com'}
 
 def js_files():
     for base in ('src', 'scripts'):
@@ -78,7 +87,24 @@ def main():
         problems.append(f'quyền ngoài danh sách cho phép: {sorted(extra)}')
     if hosts - ALLOWED_HOST_PERMISSIONS:
         problems.append(f'host_permissions ngoài danh sách: {sorted(hosts - ALLOWED_HOST_PERMISSIONS)}')
-    if any('<all_urls>' in x or '*://*/*' in x for x in perms | hosts):
+    opt_perms = set(m.get('optional_permissions', []))
+    opt_hosts = set(m.get('optional_host_permissions', []))
+    scopes = set((m.get('oauth2') or {}).get('scopes', []))
+    for p in sorted(opt_perms):
+        print(f'   tuỳ chọn        {p:<24} (chỉ xin khi bật sync)')
+    for h in sorted(opt_hosts):
+        print(f'   tuỳ chọn host   {h:<24} (chỉ xin khi bật sync)')
+    for sc in sorted(scopes):
+        print(f'   OAuth scope     {sc}')
+    if opt_perms - ALLOWED_OPTIONAL_PERMISSIONS:
+        problems.append(f'optional_permissions ngoài danh sách: {sorted(opt_perms - ALLOWED_OPTIONAL_PERMISSIONS)}')
+    if opt_hosts - ALLOWED_OPTIONAL_HOSTS:
+        problems.append(f'optional_host_permissions ngoài danh sách: {sorted(opt_hosts - ALLOWED_OPTIONAL_HOSTS)}')
+    if scopes - ALLOWED_OAUTH_SCOPES:
+        problems.append(f'OAuth scope ngoài danh sách (chỉ được drive.appdata — vùng dữ liệu riêng của extension): {sorted(scopes - ALLOWED_OAUTH_SCOPES)}')
+    if ALLOWED_OPTIONAL_PERMISSIONS & perms or ALLOWED_OPTIONAL_HOSTS & hosts:
+        problems.append('quyền của sync phải là TUỲ CHỌN (optional_*), không được nằm trong permissions/host_permissions')
+    if any('<all_urls>' in x or '*://*/*' in x for x in perms | hosts | opt_perms | opt_hosts):
         problems.append('có quyền trên MỌI trang web (<all_urls>)')
 
     print('\n2) TRANG WEB EXTENSION ĐƯỢC CHẠY VÀO (content scripts)')
@@ -110,8 +136,16 @@ def main():
             urls.add(u.split('//')[1])
     print('\n   Tên miền xuất hiện trong mã nguồn:')
     for u in sorted(urls):
-        kind = 'gửi request' if u in ALLOWED_FETCH_HOSTS else 'chỉ mở link/so khớp URL'
+        kind = 'gửi request' if u in ALLOWED_FETCH_HOSTS else 'gửi request — CHỈ KHI người dùng bật sync' if u in SYNC_FETCH_HOSTS else 'chỉ mở link/so khớp URL'
         print(f'     {u:<28} {kind}')
+    # Tên miền của sync chỉ được xuất hiện trong đúng một file (NotedDrive); nơi khác nhắc tới nó là đáng ngờ.
+    for rel in js_files():
+        if not rel.startswith('src') or rel == SYNC_FETCH_ONLY_IN:
+            continue
+        src = open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        code = '\n'.join(l for l in src.splitlines() if not l.strip().startswith('//'))
+        if any(h in code for h in SYNC_FETCH_HOSTS) and rel != os.path.join('src', 'dashboard', 'dashboard.js'):
+            problems.append(f'{rel} nhắc tới tên miền của Google ngoài {SYNC_FETCH_ONLY_IN}')
 
     print('\n4) API NGUY HIỂM')
     hits = []
@@ -121,6 +155,8 @@ def main():
             if line.strip().startswith('//') or line.strip().startswith('*'):
                 continue
             for pat, why in FORBIDDEN.items():
+                if pat == r'chrome\.identity' and rel in IDENTITY_ALLOWED_IN:
+                    continue
                 if re.search(pat, line, re.I):
                     hits.append(f'{rel}:{i}  {why}  ->  {line.strip()[:80]}')
     if hits:
@@ -159,6 +195,9 @@ def main():
         return 1
     print('KẾT QUẢ: ĐẠT — extension chỉ đọc 5 tên miền kể trên, chỉ gửi request tới')
     print('api.dexscreener.com, và lưu ghi chú trong máy bạn.')
+    if opt_hosts:
+        print('Nếu (và chỉ nếu) bạn bật "Đồng bộ giữa các máy" trong Settings, ghi chú còn được')
+        print('gửi tới MỘT nơi nữa: file ẩn của extension trong Google Drive của chính bạn.')
     for n in notes:
         print('  · lưu ý: ' + n)
     return 0
