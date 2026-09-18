@@ -73,8 +73,9 @@
     }
     for (const p of list) {
       const st = S.STATUSES.find(s => s.id === p.status) || S.STATUSES[0];
+      const last = [...p.timeline].sort((a, b) => b.ts - a.ts)[0];   // chưa viết tóm tắt thì cho xem mốc mới nhất
       const li = document.createElement('li');
-      li.className = 'card' + (p.key === selectedKey ? ' on' : '');
+      li.className = 'card' + (p.key === selectedKey ? ' on' : '') + (p.pinned ? ' card--pin' : '') + (!p.summary && !last ? ' card--blank' : '');
       li.dataset.key = p.key;
       li.innerHTML = `
         <div class="card-top">
@@ -83,9 +84,11 @@
           <span class="card-name">${E.esc(p.name || '')}</span>
           <span class="chain">${E.esc(S.chainLabel(p.chain))}</span>
         </div>
-        <div class="card-sum${p.summary ? '' : ' empty'}">${E.esc(p.summary || t('no_summary'))}</div>
+        ${p.summary ? `<div class="card-sum">${E.esc(p.summary)}</div>`
+          : last ? `<div class="card-sum card-sum--last">${E.esc(last.text.replace(/\s+/g, ' ').slice(0, 160))}</div>`
+          : `<div class="card-sum card-sum--none">${E.esc(t('no_summary'))}</div>`}
         <div class="card-meta">
-          <span>${st.icon} ${E.esc(S.statusLabel(p.status))}</span>
+          <span class="st st--${E.esc(st.id)}">${st.icon} ${E.esc(S.statusLabel(p.status))}</span>
           ${p.rating ? `<span class="stars">${'★'.repeat(p.rating)}</span>` : ''}
           ${p.tags.length ? `<span class="tags">${p.tags.slice(0, 5).map(t => '#' + E.esc(t)).join(' ')}</span>` : ''}
           <span class="right">${E.esc(t('entries_count', { n: p.timeline.length }))} · ${E.esc(E.relTime(p.updatedAt))}</span>
@@ -93,6 +96,15 @@
       li.addEventListener('click', () => select(p));
       ui.list.appendChild(li);
     }
+  }
+
+  async function closeEditor() {
+    if (editor) await editor.flush();
+    ui.mount.hidden = true;
+    ui.empty.hidden = false;
+    selectedKey = null;
+    document.querySelector('.app').classList.remove('app--editing');
+    reload();
   }
 
   async function select(token) {
@@ -104,7 +116,7 @@
         allTags: () => [...new Set(projects.flatMap(p => p.tags))].sort(),
         onChange: () => reload(),
         onDelete: () => { selectedKey = null; },
-        onClose: () => { ui.mount.hidden = true; ui.empty.hidden = false; selectedKey = null; reload(); },
+        onClose: () => closeEditor(),
       });
       ui.mount.appendChild(editor.el);
     } else {
@@ -112,6 +124,7 @@
     }
     ui.empty.hidden = true;
     ui.mount.hidden = false;
+    document.querySelector('.app').classList.add('app--editing');   // cửa sổ hẹp: bảng ghi chú chiếm trọn, xem CSS
     await editor.load(token);
     for (const li of ui.list.children) li.classList.toggle('on', li.dataset.key === selectedKey);
   }
@@ -126,6 +139,7 @@
 
   const stamp = () => new Date().toISOString().slice(0, 10);
 
+  $('#back-list').addEventListener('click', closeEditor);
   ui.search.addEventListener('input', render);
   ui.status.addEventListener('change', render);
   ui.sort.addEventListener('change', render);

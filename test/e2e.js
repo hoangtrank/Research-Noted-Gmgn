@@ -919,6 +919,32 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(imgRowShown === (imgKeys > 0), `ô "kèm ảnh khi export" ${imgKeys > 0 ? 'hiện vì có' : 'ẩn vì không có'} ảnh trong ghi chú (${imgKeys})`);
   await ipanel.close();
 
+  console.log('21) Dashboard: thẻ không có tóm tắt không bị độn khoảng trống; cửa sổ hẹp đi theo luồng danh sách -> ghi chú -> quay lại');
+  await sw.evaluate(async () => { for (const [a, sym] of [['0x9191919191919191919191919191919191919191', 'NOSUM'], ['0x9292929292929292929292929292929292929292', 'BLANK']]) { const p = NotedStore.emptyProject('robinhood', a, { symbol: sym }); p.symbol = sym; if (sym === 'NOSUM') p.timeline.push(NotedStore.newEntry('note', 'Mốc mới nhất dùng làm dòng xem trước')); await NotedStore.save(p); } });
+  const ddash = await ctx.newPage();
+  await ddash.setViewportSize({ width: 1180, height: 800 });
+  await ddash.goto(`chrome-extension://${extId}/src/dashboard/dashboard.html`);
+  await ddash.waitForSelector('.card');
+  const dcards = await ddash.evaluate(() => Object.fromEntries([...document.querySelectorAll('.card')].map(c => [c.querySelector('.card-sym').textContent, { h: Math.round(c.getBoundingClientRect().height), sum: c.querySelector('.card-sum').textContent, align: getComputedStyle(c.querySelector('.card-sum')).textAlign, pad: getComputedStyle(c.querySelector('.card-sum')).paddingTop }])));
+  assert(dcards.BLANK && dcards.BLANK.h < 90 && dcards.BLANK.pad === '0px' && dcards.BLANK.align !== 'center', 'thẻ chưa có tóm tắt cao ' + (dcards.BLANK && dcards.BLANK.h) + 'px, không bị căn giữa hay độn lề (trước đây dính CSS của màn hình trống)');
+  assert(dcards.NOSUM && dcards.NOSUM.sum.includes('Mốc mới nhất dùng làm dòng xem trước'), 'chưa có tóm tắt thì thẻ hiện mốc mới nhất');
+  const foot = await ddash.evaluate(() => [...document.querySelectorAll('.side-foot button')].map(b => Math.round(b.getBoundingClientRect().width)));
+  assert(foot[0] > foot[1] * 1.8 && Math.abs(foot[1] - foot[2]) <= 2 && Math.abs(foot[3] - foot[4]) <= 2, 'hàng nút cuối cân đối: nút chính trọn hàng, bốn nút phụ bằng nhau: ' + foot.join(','));
+  await ddash.setViewportSize({ width: 380, height: 800 });
+  await ddash.waitForTimeout(300);
+  const narrow = () => ddash.evaluate(() => ({ side: document.querySelector('.side').getClientRects().length > 0, main: document.querySelector('.main').getClientRects().length > 0, back: document.querySelector('#back-list').getClientRects().length > 0, listH: Math.round(document.querySelector('#list').getBoundingClientRect().height) }));
+  let nv = await narrow();
+  assert(nv.side && !nv.main && nv.listH > 350, 'cửa sổ hẹp, chưa chọn dự án: danh sách chiếm trọn chiều cao (' + nv.listH + 'px), không còn nửa màn hình trống');
+  await ddash.click('.card >> nth=0');
+  await ddash.waitForSelector('.ne-symbol');
+  nv = await narrow();
+  assert(!nv.side && nv.main && nv.back, 'chọn một dự án: bảng ghi chú chiếm trọn, có nút quay lại');
+  await ddash.click('#back-list');
+  await ddash.waitForTimeout(400);
+  nv = await narrow();
+  assert(nv.side && !nv.main, 'bấm quay lại: về danh sách');
+  await ddash.close();
+
   await ctx.close();
   console.log('\nALL PASSED');
 })().catch(async e => { console.error(e); process.exit(1); });
