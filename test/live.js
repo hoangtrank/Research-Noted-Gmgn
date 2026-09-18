@@ -102,6 +102,18 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     sw = await swOf(ctx);
   }
   if (!sw) throw new Error('extension không nạp được (không thấy service worker)');
+  // Hồ sơ bền giữ lại bản service worker đã đăng ký từ lần chạy trước: sửa src/background.js xong chạy lại thì
+  // Chrome vẫn chạy mã CŨ (content script thì luôn đọc từ đĩa) — test sẽ âm thầm kiểm tra nhầm bản. Reload
+  // extension một lần rồi mở lại trình duyệt để chắc chắn đang chạy đúng mã trên đĩa. Hồ sơ giả lập là mới tinh
+  // mỗi lần nên không cần.
+  if (!MOCK) {
+    await sw.evaluate(() => chrome.runtime.reload()).catch(() => {});
+    await new Promise(r => setTimeout(r, 1500));
+    await ctx.close();
+    ctx = await chromium.launchPersistentContext(PROFILE, { ...launch, channel: 'chromium' });
+    sw = await swOf(ctx);
+    if (!sw) throw new Error('extension không nạp lại được sau khi reload');
+  }
 
   let dexApi = null;
   if (MOCK) {
@@ -230,6 +242,28 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
   }, null, { timeout: 40000 }).then(() => true).catch(() => false);
   ok(dexFab, 'nút nổi hiện trên trang pair (pair -> token qua API)', dexFab ? '— ' + (await textOf(page, '.nd-fab')) : '');
   await shot(page, '7-dexscreener');
+
+  console.log('7) Tab không có token: panel hiện token xem gần nhất thay cho màn hình trống');
+  let last = null;
+  for (let i = 0; i < 40 && !last; i++) { last = await sw.evaluate(async () => (await chrome.storage.local.get('lastToken')).lastToken || null); if (!last) await page.waitForTimeout(250); }
+  if (ok(!!(last && last.token && last.token.key), 'background nhớ token xem gần nhất', last ? '— ' + last.token.key + (last.symbol ? ' (' + last.symbol + ')' : '') : '')) {
+    // Mở trang panel như một tab thường: tab đang hoạt động khi đó chính là nó — một tab không có token nào.
+    const panel = await ctx.newPage();
+    await panel.goto(`chrome-extension://${new URL(sw.url()).host}/src/panel/panel.html`);
+    let shown = null;
+    for (let i = 0; i < 40; i++) {
+      shown = await panel.evaluate(addr => ({
+        mount: document.querySelector('#mount').getClientRects().length > 0,
+        empty: document.querySelector('#empty').getClientRects().length > 0,
+        hasAddr: document.body.innerText.includes(NotedStore.shortAddress(addr)),
+      }), last.token.address).catch(() => null);
+      if (shown && shown.mount && shown.hasAddr) break;
+      await panel.waitForTimeout(250);
+    }
+    ok(!!(shown && shown.mount && shown.hasAddr && !shown.empty), 'panel hiện đúng token đó, không phải màn hình trống', JSON.stringify(shown));
+    try { await panel.screenshot({ path: path.join(OUT, '8-panel-last-token.png') }); } catch (_) {}
+    await panel.close();
+  }
 
   console.log(`\n${fail === 0 ? 'TẤT CẢ ĐỀU ĐẠT' : 'CÓ LỖI'} — đạt ${pass}, hỏng ${fail}`);
   console.log('Ảnh chụp từng bước:', OUT);
