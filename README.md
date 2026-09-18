@@ -2,7 +2,7 @@
 
 # Research-Noted-Gmgn
 
-**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.9
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.10
 
 A Chrome extension that keeps one research note per token, right where you look at it: **gmgn.ai**, **DexScreener** and **X**.
 
@@ -56,7 +56,7 @@ When Grok finishes answering, the answer is **saved into the timeline automatica
 
 No API key: it runs in your own X account. Auto-save can be turned off on the Grok panel or in Settings.
 
-The default prompt ships in English, Vietnamese and Chinese and follows the interface language. It asks for two sections — the developer and team (links, background, previous projects, which KOLs are pushing it) and what the project actually does (product or idea, differentiation, meme origin) — and tells the model to write "not found" instead of guessing and to keep URLs plain so they stay clickable in the timeline. Edit it in Settings; placeholders available: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {status} {notes} {gmgn_url} {dex_url} {x_url} {date}`. `{notes}` injects your five latest timeline entries, so Grok builds on what you already wrote instead of repeating it.
+The default prompt ships in English, Vietnamese and Chinese and follows the interface language. It fixes the order of the answer — **DEV** first (confirmed dev or lead with their X link, the token's account, GitHub/LinkedIn, anon or doxxed, previous projects, plus how to tell a real builder from an early follower), then **KOL**, then **PROJECT** written out in six sections (problem, solution, how it runs, design, current state, sourced design risks), then **MEME** only when it is one. It tells the model to write "not found" instead of guessing, not to repeat the address, chain or chart, and to keep X handles as plain `https://x.com/...` URLs so they stay clickable in the timeline. Edit it in Settings; placeholders available: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {status} {notes} {gmgn_url} {dex_url} {x_url} {date}`. `{notes}` injects your five latest timeline entries, so Grok builds on what you already wrote instead of repeating it.
 
 ## Settings
 

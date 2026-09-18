@@ -102,7 +102,7 @@ Grok trả lời xong, câu trả lời **tự động lưu vào timeline**. B�
 
 Hỏi tiếp trong cùng cuộc trò chuyện thì mỗi câu trả lời thành một mốc mới. Nội dung giống hệt không bao giờ bị lưu hai lần.
 
-Câu hỏi mặc định đã viết sẵn bằng tiếng Việt (theo ngôn ngữ giao diện bạn chọn) và yêu cầu Grok trả lời theo 2 mục: **DEVELOPER** (dev là ai, background, dự án trước, KOL nào đang đẩy) và **PROJECT** (giải quyết vấn đề gì, đã có sản phẩm chưa, khác gì đối thủ, nếu là meme thì câu chuyện gốc). Nó cũng dặn Grok ghi "không tìm thấy" thay vì đoán bừa, và để link dạng đầy đủ cho bạn bấm được từ trong ghi chú.
+Câu hỏi mặc định đã viết sẵn bằng tiếng Việt (theo ngôn ngữ giao diện bạn chọn) và yêu cầu Grok trả lời theo đúng thứ tự: **DEV** trước tiên (dev/lead đã xác nhận kèm link X, tài khoản của token, GitHub/LinkedIn, anon hay doxx, dự án cũ), rồi **KOL**, rồi **PROJECT** viết kỹ theo 6 mục (vấn đề, cách giải quyết, nền tảng hoạt động, thiết kế, hiện trạng, rủi ro thiết kế có nguồn), cuối cùng là **MEME** nếu đúng là meme. Nó cũng dặn Grok ghi "không tìm thấy" thay vì đoán bừa, không lặp lại địa chỉ/chain/chart, và để link X dạng đầy đủ `https://x.com/...` cho bạn bấm được từ trong ghi chú.
 
 Muốn sửa câu hỏi: Dashboard → ⚙ Settings → ô **Mẫu prompt research**. Các biến dùng được: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {status} {notes} {gmgn_url} {dex_url} {x_url} {date}`. Riêng `{notes}` sẽ chèn 5 mốc gần nhất bạn đã ghi, để Grok bổ sung thêm chứ không nói lại thứ bạn đã biết.
 
