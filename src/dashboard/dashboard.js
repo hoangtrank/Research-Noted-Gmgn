@@ -221,6 +221,29 @@
     grokAuto.addEventListener('change', () => patch({ grokAutoSave: grokAuto.checked }));
     listBadges.addEventListener('change', () => patch({ listBadges: listBadges.checked }));
     exportImages.addEventListener('change', () => patch({ exportImages: exportImages.checked }));
+
+    // Bản sao lưu tự động: liệt kê và khôi phục.
+    const backupList = $('#backup-list'), backupRestore = $('#backup-restore');
+    async function loadBackups() {
+      const list = await S.listBackups();
+      backupList.innerHTML = '';
+      for (const b of list) {
+        const o = document.createElement('option');
+        o.value = String(b.ts);
+        o.textContent = t('backup_item', { when: S.fmtDate(b.ts), n: b.count, reason: t({ import: 'backup_r_import', sync: 'backup_r_sync', 'before-restore': 'backup_r_restore' }[b.reason] || 'backup_r_import') });
+        backupList.appendChild(o);
+      }
+      if (!list.length) { const o = document.createElement('option'); o.value = ''; o.textContent = t('backup_none'); backupList.appendChild(o); }
+      backupList.disabled = backupRestore.disabled = !list.length;
+    }
+    $('#open-settings').addEventListener('click', loadBackups);
+    backupRestore.addEventListener('click', async () => {
+      if (!backupList.value || !confirm(t('backup_confirm'))) return;
+      const r = await S.restoreBackup(Number(backupList.value));
+      saved.textContent = t('backup_done', { n: r.restored });
+      await loadBackups();
+      reload();
+    });
     fontSize.addEventListener('change', () => patch({ fontSize: Number(fontSize.value) }));
     target.addEventListener('change', () => patch({ researchTarget: target.value }));
     let tplTimer = null;

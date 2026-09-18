@@ -82,3 +82,6 @@ kbd{font:11px ui-monospace,Menlo,monospace;background:var(--bg3);border:1px soli
 .gmgn-new{margin-top:14px;font-size:13px}
 .gmgn-new a{color:#60a5fa;text-decoration:none}
 .gmgn-new a:hover{text-decoration:underline}
+.backup-row{display:flex;gap:6px;margin-top:4px}
+.backup-row select{flex:1;min-width:0}
+.backup-row button:disabled{opacity:.5;cursor:default}
