@@ -71,16 +71,21 @@
     sendState();
   }
 
+  // show() chờ nhiều việc bất đồng bộ (ghi nốt ghi chú cũ, hỏi trang symbol, đọc storage) và được gọi từ nhiều
+  // nguồn (message, đổi tab, focus). Lần gọi sau cùng thắng: lần cũ thấy mình đã bị vượt thì dừng, không nạp gì nữa.
+  let showSeq = 0;
   async function show(entry) {
-    if (!entry || !entry.token) { showEmpty(); return; }
+    if (!entry || !entry.token) { showSeq++; showEmpty(); return; }
     const { token, ctx = {} } = entry;
     const force = String(ctx.force || '');
     if (currentKey === token.key && !mount.hidden && (!force || force === lastForce)) {
       editor.fillSymbol(ctx.symbol, token.key); // cùng token, không có gì mới: giữ nguyên editor đang gõ, chỉ nhận symbol đến muộn
       return;
     }
+    const seq = ++showSeq; // chỉ tăng khi thật sự nạp lại: lần gọi "cùng token" ở trên không được huỷ lần nạp đang dở
     if (currentKey && currentKey !== token.key) await editor.flush();
     else if (force && force !== lastForce) await editor.flush();
+    if (seq !== showSeq) return;
     lastForce = force;
     currentKey = token.key;
     currentToken = { chain: token.chain, address: token.address, key: token.key };
@@ -90,9 +95,11 @@
     if (!symbol && tabId) {
       // Mở từ popup/phím tắt: hỏi content script symbol đang hiển thị trên trang.
       try { const r = await chrome.tabs.sendMessage(tabId, { type: 'noted:page-info', key: token.key }); symbol = (r && r.symbol) || ''; } catch (_) {}
+      if (seq !== showSeq) return;
     }
     sendState();
     await editor.load({ ...token, symbol }, { mc: ctx.mc || null, highlight: ctx.highlight || '' });
+    if (seq !== showSeq) return;
     editor.focus();
   }
 

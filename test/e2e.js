@@ -821,6 +821,78 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert((await wstate()).symbol === 'MINE', 'symbol người dùng tự gõ không bị ghi đè');
   await wpanel.close();
 
+  console.log('19) X mở lại cuộc trò chuyện CŨ, không điền prompt: không được lưu câu trả lời cũ vào token đang research');
+  const wpanel2 = await ctx.newPage();
+  await wpanel2.goto(`chrome-extension://${extId}/src/panel/panel.html`);
+  await page.bringToFront();
+  await page.goto('https://gmgn.ai/robinhood/token/0x2222222222222222222222222222222222222222');
+  await wpanel2.waitForFunction(() => document.querySelector('.ne-addr code')?.title.endsWith('2222'), null, { timeout: 8000 });
+  const beforeStale = new Set(ctx.pages());
+  await wpanel2.evaluate(() => document.querySelector('.ne-grok').click());
+  await wpanel2.waitForTimeout(1200);
+  const staleGrok = ctx.pages().find(pg => !beforeStale.has(pg));
+  await staleGrok.goto('https://x.com/i/grok?stale=1');
+  await staleGrok.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
+  await staleGrok.waitForTimeout(8000);   // dư thời gian cho tự lưu chạy (3 s đứng yên + chu kỳ 2 s)
+  assert((await grokOf(TOKEN_B)).length === 0, 'câu trả lời của cuộc trò chuyện cũ (token khác) KHÔNG bị lưu vào token B');
+  assert(/contract/i.test(await staleGrok.evaluate(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.autostat').textContent)), 'dòng trạng thái nói rõ đang chờ thấy contract của token này');
+  // Người dùng dán prompt của B vào rồi gửi: lúc này mới lưu, và chỉ lưu câu trả lời SAU câu hỏi của B.
+  const promptB = (await sw.evaluate(async () => { const all = await chrome.storage.session.get(null); return Object.entries(all).filter(([k]) => k.startsWith('grok:')).map(([, v]) => v).sort((a, b) => b.at - a.at)[0].prompt; }));
+  assert(promptB.includes('0x2222222222222222222222222222222222222222'), 'tab Grok mang đúng prompt của token B');
+  await staleGrok.evaluate(t => { document.getElementById('composer').textContent = t; }, promptB);
+  await staleGrok.click('#send');
+  for (let i = 0; i < 60 && (await grokOf(TOKEN_B)).length === 0; i++) await staleGrok.waitForTimeout(500);
+  const savedB = await grokOf(TOKEN_B);
+  assert(savedB.length === 1 && savedB[0].text.includes(grokMock.ANSWER_P1) && !savedB[0].text.includes('OLDTOKEN'), 'gửi prompt của B rồi thì lưu đúng câu trả lời mới, không lẫn cuộc trò chuyện cũ');
+  await staleGrok.close();
+
+  console.log('19a) DOM như X thật: prompt nhiều đoạn, Grok "suy nghĩ" rồi ngừng 5 s, hàng nút chỉ hiện khi xong');
+  const TOKEN_X = 'robinhood:0x4444444444444444444444444444444444444444';
+  await page.bringToFront();
+  await page.goto('https://gmgn.ai/robinhood/token/0x4444444444444444444444444444444444444444');
+  await wpanel2.waitForFunction(() => document.querySelector('.ne-addr code')?.title.endsWith('4444'), null, { timeout: 8000 });
+  const beforeX = new Set(ctx.pages());
+  await wpanel2.evaluate(() => document.querySelector('.ne-grok').click());
+  await wpanel2.waitForTimeout(1200);
+  const xGrok = ctx.pages().find(pg => !beforeX.has(pg));
+  await xGrok.goto((await grokUrlFor()).url + '&shape=x');
+  await xGrok.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
+  assert((await xGrok.$eval('#composer', e => e.innerText)).includes('PROJECT (write in full'), 'ô nhập nhận đủ prompt dài');
+  await xGrok.click('#send');
+  assert((await xGrok.evaluate(() => document.querySelectorAll('.msg.user .paras > span').length)) >= 8, 'prompt hiện thành nhiều đoạn trong một tin nhắn, như X thật');
+  await xGrok.waitForTimeout(4600);   // đang ở quãng ngừng 5 s giữa các bước suy nghĩ: chữ đã đứng yên hơn 3 s
+  assert((await grokOf(TOKEN_X)).length === 0, 'Grok còn đang suy nghĩ (chưa có hàng nút) -> CHƯA lưu gì, dù chữ đứng yên hơn 3 s');
+  for (let i = 0; i < 60 && (await grokOf(TOKEN_X)).length === 0; i++) await xGrok.waitForTimeout(500);
+  await xGrok.waitForTimeout(5000);   // chờ thêm xem có lưu lần hai không
+  const xSaved = await grokOf(TOKEN_X);
+  assert(xSaved.length === 1, 'trả lời xong thì lưu đúng MỘT mốc: ' + xSaved.length);
+  assert(xSaved[0].text.startsWith('DEV') && xSaved[0].text.includes('not a meme'), 'mốc bắt đầu từ DEV và đủ tới hết câu trả lời');
+  assert(!xSaved[0].text.includes('I will check the explorer') && !xSaved[0].text.includes('checking GitHub'), 'không dính các bước "đang suy nghĩ" ở đầu');
+  assert(!xSaved[0].text.includes('MEME (only if it is a meme') && !xSaved[0].text.includes('OUTPUT IN EXACTLY'), 'không lưu nhầm các đoạn sau của chính prompt');
+  await xGrok.close();
+
+  console.log('19b) Đổi token dồn dập: editor và panel không được lệch nhau (chữ gõ sẽ vào nhầm dự án)');
+  await page.bringToFront();
+  const raceTab = await sw.evaluate(() => [...pageTokens.entries()].find(([, t]) => t.key.endsWith('4444'))[0]);
+  const RACE = ['0x6666666666666666666666666666666666666666', '0x7777777777777777777777777777777777777777', '0x8888888888888888888888888888888888888888'];
+  let mismatches = 0;
+  for (let i = 0; i < 18; i++) {
+    const a = RACE[i % 3], b = RACE[(i + 1) % 3];
+    // lần đầu không có symbol (panel phải hỏi trang -> chậm), lần sau có symbol (nhanh): lần chậm không được đè lần nhanh
+    await sw.evaluate(async ([t, x, y, gap]) => {
+      const ti = await chrome.tabs.get(t);
+      const p1 = remember(t, validToken({ chain: 'robinhood', address: x }), { symbol: '' }, ti.windowId);
+      await new Promise(r => setTimeout(r, gap));
+      await Promise.all([p1, remember(t, validToken({ chain: 'robinhood', address: y }), { symbol: 'S' + y.slice(2, 4) }, ti.windowId)]);
+    }, [raceTab, a, b, (i % 4) * 5]);
+    await wpanel2.waitForTimeout(600);
+    const shown = await wpanel2.evaluate(() => document.querySelector('.ne-addr code').title);
+    const believed = await sw.evaluate(() => [...panelState.values()].map(v => v.key).join(','));
+    if (shown !== b || !believed.includes(b)) mismatches++;
+  }
+  assert(mismatches === 0, 'sau 18 lần đổi token sát nhau, editor luôn hiện đúng token panel đang giữ (lệch: ' + mismatches + ')');
+  await wpanel2.close();
+
   await ctx.close();
   console.log('\nALL PASSED');
 })().catch(async e => { console.error(e); process.exit(1); });

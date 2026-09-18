@@ -265,11 +265,17 @@
     let saveTimer = null;
     let destroyed = false;
 
+    // Hai lần load sát nhau (đổi token nhanh): chỉ lần gọi SAU CÙNG được phép gán project. Không có chốt này,
+    // lần đọc storage của token cũ xong muộn sẽ đè lên token mới — editor hiện token A trong khi nơi gọi tin là B,
+    // và chữ người dùng gõ bị lưu vào nhầm dự án.
+    let loadSeq = 0;
     async function load(token, context = {}) {
+      const seq = ++loadSeq;
+      const existing = await S.get(token.key);
+      if (seq !== loadSeq || destroyed) return project;
       ctx = context || {};
       highlightId = ctx.highlight || '';
       removedIds = [];
-      const existing = await S.get(token.key);
       persisted = !!existing;
       project = existing || S.emptyProject(token.chain, token.address);
       if (!project.symbol && token.symbol) project.symbol = token.symbol;
