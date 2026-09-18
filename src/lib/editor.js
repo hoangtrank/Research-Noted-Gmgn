@@ -81,6 +81,9 @@
 .ne-eactions button{padding:0 5px;font-size:calc(var(--ne-fs,14px) - 1px)}
 .ne-etext{margin-top:3px;white-space:pre-wrap;word-break:break-word}
 .ne-etext a{word-break:break-all}
+.ne-h1{display:inline-block;margin-top:8px;padding:1px 8px;border-radius:6px;font-weight:700;letter-spacing:.05em;color:#111;background:var(--ne-acc)}
+.ne-h2{display:inline-block;margin-top:5px;font-weight:700;color:var(--ne-acc)}
+.ne-lb{font-weight:600;color:#c4b5fd}
 .ne-at{color:#f87171;font-weight:700}
 .ne-entry textarea{margin-top:4px}
 .ne-eimg{margin-top:6px}
@@ -122,6 +125,29 @@
       }
       return mentions(esc(part));
     }).join('');
+  }
+
+  // Mốc dài nhiều dòng (câu trả lời của Grok, ghi chú có cấu trúc) dễ đọc hơn khi tiêu đề và nhãn nổi lên:
+  //   H1  dòng toàn chữ hoa ("DEV", "KOL", "PROJECT", "MEME")
+  //   H2  dòng ngắn không có bullet, ngay sau nó là một dòng bullet ("Vấn đề", "1. Cách giải quyết")
+  //   nhãn  phần trước dấu hai chấm của một dòng bullet ("• Paid shill: …")
+  // Chỉ là cách tô màu lúc hiển thị: văn bản lưu trong ghi chú không đổi. Mốc một dòng thì để nguyên.
+  const BULLET = /^\s*(?:[•·▪◦*-]|\d{1,2}[.)])\s+/;
+  function rich(text) {
+    const lines = String(text ?? '').split('\n');
+    if (lines.length < 3) return linkify(text);
+    const nextBullet = i => { for (let j = i + 1; j < lines.length; j++) if (lines[j].trim()) return BULLET.test(lines[j]); return false; };
+    return lines.map((line, i) => {
+      const t = line.trim();
+      if (!t) return '';
+      const letters = t.replace(/\([^)]*\)/g, '').replace(/[^\p{L}]/gu, '');
+      if (t.length <= 40 && letters.length >= 2 && letters === letters.toUpperCase() && letters !== letters.toLowerCase() && !/https?:/.test(t)) return `<span class="ne-h1">${esc(t)}</span>`;
+      const bare = t.replace(/^\d{1,2}[.)]\s+/, '');
+      if (!/^[•·▪◦*-]\s/.test(t) && bare.length <= 60 && !/[.;,:]$/.test(bare) && !/https?:/.test(t) && nextBullet(i)) return `<span class="ne-h2">${esc(t)}</span>`;
+      const m = line.match(/^(\s*(?:[•·▪◦*-]|\d{1,2}[.)])\s+)([^:\n]{2,40}):(?=\s|$)/);
+      if (m) return `${esc(m[1])}<span class="ne-lb">${linkify(m[2])}:</span>${linkify(line.slice(m[0].length))}`;
+      return linkify(line);
+    }).join('\n');
   }
 
   function shortUrl(u) {
@@ -349,7 +375,7 @@
               <button class="ghost ne-edel" type="button" title="${esc(t('delete_entry'))}">×</button>
             </span>
           </div>
-          <div class="ne-etext">${linkify(e.text)}</div>
+          <div class="ne-etext">${rich(e.text)}</div>
           ${e.image ? `<div class="ne-eimg"><img alt="${esc(t('image_alt'))}" title="${esc(t('open_image'))}" loading="lazy"></div>` : ''}`;
         if (e.image) {
           const img = li.querySelector('.ne-eimg img');
@@ -524,5 +550,5 @@
     };
   }
 
-  globalThis.NotedEditor = { CSS, create, esc, linkify, relTime };
+  globalThis.NotedEditor = { CSS, create, esc, linkify, rich, relTime };
 })();
