@@ -893,6 +893,32 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(mismatches === 0, 'sau 18 lần đổi token sát nhau, editor luôn hiện đúng token panel đang giữ (lệch: ' + mismatches + ')');
   await wpanel2.close();
 
+  console.log('20) Link giới thiệu gmgn.ai: có ở ba nơi, đúng địa chỉ, có nhãn công khai; ô "kèm ảnh" chỉ hiện khi có ảnh');
+  const INVITE = 'https://gmgn.ai/r/ZCSRo81H?chain=robinhood';
+  const inviteOn = async (pg) => pg.evaluate(() => { const a = document.querySelector('a[data-gmgn-invite]'); const r = document.querySelector('.gmgn-new .ref'); return a ? { href: a.href, target: a.target, rel: a.rel, text: a.textContent.trim(), ref: r ? r.textContent.trim() : '', shown: a.getClientRects().length > 0 } : null; });
+  await sw.evaluate(async () => { await chrome.storage.local.remove('lastToken'); lastSeen = ''; });
+  const ipanel = await ctx.newPage();
+  await ipanel.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=999999`);
+  await ipanel.waitForSelector('#empty:not([hidden])', { timeout: 8000 });
+  const ip = await inviteOn(ipanel);
+  assert(ip && ip.href === INVITE && ip.shown && ip.target === '_blank' && /noopener/.test(ip.rel), 'panel trống có link gmgn đúng địa chỉ, mở tab mới');
+  assert(ip.text.length > 5 && /referral/i.test(ip.ref), 'link có nhãn công khai "referral link": ' + ip.ref);
+  await ipanel.goto(`chrome-extension://${extId}/src/popup/popup.html`);
+  await ipanel.waitForTimeout(500);
+  const ipop = await inviteOn(ipanel);
+  assert(ipop && ipop.href === INVITE && ipop.shown && /referral/i.test(ipop.ref), 'popup có link gmgn kèm nhãn');
+  await ipanel.goto(`chrome-extension://${extId}/src/dashboard/dashboard.html`);
+  await ipanel.waitForSelector('#empty', { timeout: 8000 });
+  const idash = await inviteOn(ipanel);
+  assert(idash && idash.href === INVITE && /referral/i.test(idash.ref), 'Dashboard (màn hình chưa chọn dự án) có link gmgn kèm nhãn');
+  const imgKeys = await sw.evaluate(async () => Object.keys(await chrome.storage.local.get(null)).filter(k => k.startsWith('img:')).length);
+  await ipanel.click('#open-settings');
+  await ipanel.waitForSelector('#settings:not([hidden])');
+  await ipanel.waitForTimeout(400);
+  const imgRowShown = await ipanel.evaluate(() => document.querySelector('#export-images').closest('label').getClientRects().length > 0);
+  assert(imgRowShown === (imgKeys > 0), `ô "kèm ảnh khi export" ${imgKeys > 0 ? 'hiện vì có' : 'ẩn vì không có'} ảnh trong ghi chú (${imgKeys})`);
+  await ipanel.close();
+
   await ctx.close();
   console.log('\nALL PASSED');
 })().catch(async e => { console.error(e); process.exit(1); });

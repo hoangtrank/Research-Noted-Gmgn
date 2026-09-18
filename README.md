@@ -2,13 +2,15 @@
 
 # Research-Noted-Gmgn
 
-**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.13
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.14
 
 A Chrome extension that keeps one research note per token, right where you look at it: **gmgn.ai**, **DexScreener** and **X**.
 
 You research hundreds of tokens and forget what each one actually does. This keeps a short summary and a dated timeline for every project, one click away from the chart.
 
-📖 **[Hướng dẫn sử dụng bằng tiếng Việt](docs/huong-dan.md)** — viết cho người không rành kỹ thuật.
+📖 **[User guide](docs/guide.md)** — written for people who are not technical. Also in [Tiếng Việt](docs/huong-dan.md).
+
+**New to gmgn.ai?** It is a multi-chain token trading terminal, and the site this extension was built around. You can open it with [this link](https://gmgn.ai/r/ZCSRo81H?chain=robinhood) — it is the author's referral link, and the same link is shown (labelled *referral link*) in the extension's empty panel, empty Dashboard and toolbar popup. The extension never opens it by itself and adds no code to any page or URL.
 
 ---
 
@@ -111,7 +113,7 @@ src/content/grok.js      Content script on x.com/i/grok and grok.com: auto-save 
 src/panel/               Side panel page (editor for the active tab's token)
 src/dashboard/           Dashboard (options page) and Settings
 src/popup/               Toolbar popup: stats, note-this-token, view mode, language
-src/viewer/              Image viewer page (for image entries carried in older exports)
+src/viewer/              Image viewer page (the extension no longer takes screenshots; this only shows images carried in older notes and exports)
 src/background.js        Service worker: opens/closes the side panel, remembers the token per tab (storage.session), follow-the-page, shortcut, Grok tabs, DexScreener pair→token resolver
 scripts/make_icons.py    Dependency-free icon generator (the timeline mark, 16/32/48/128 px)
 scripts/store-assets.js  Store icon (128 px with margin) and small promo tile, rendered from the same mark
@@ -194,11 +196,15 @@ Why your keys are out of reach: Chrome isolates extensions from each other, so t
 
 Users can check for themselves in two minutes — `chrome://extensions` → Details → Site access lists the five domains, and DevTools → Network shows no traffic beyond `api.dexscreener.com`. `scripts/pack.py` prints the SHA-256 of the Store ZIP so a published build can be matched against this source.
 
-👉 Người dùng không rành kỹ thuật: [Extension này có an toàn không?](docs/an-toan.md)
+👉 For people who are not technical: [Is this extension safe?](docs/safety.md) (also in [Tiếng Việt](docs/an-toan.md))
 
 ## Security (technical)
 
 Threat model, mitigations and what leaves the device: [SECURITY.md](SECURITY.md). Short version: every value from a page or API is escaped before rendering, messages are validated and tab-scoped, imported JSON is sanitized, extension pages have a strict CSP, and notes never leave `chrome.storage.local`.
+
+## Languages
+
+English is the language of the documentation, the Store listing and the code review surface (commit messages, README, `PRIVACY.md`, `SECURITY.md`). The interface ships in English, Vietnamese and Chinese; the Vietnamese guides in `docs/` and the Vietnamese/Chinese Store texts are optional extras and may lag behind the English ones.
 
 ## Roadmap ideas
 

@@ -94,7 +94,7 @@ Tên tài khoản như `@theunipcs` hiện **màu đỏ**, nên lướt timeline
 
 Trong bảng ghi chú, bấm **✨ Research with Grok**.
 
-Extension tự soạn sẵn câu hỏi gồm tên token, chain, địa chỉ contract, vốn hoá hiện tại và link gmgn, rồi mở Grok trên X với câu hỏi đã điền sẵn. Bạn chỉ cần **nhấn Enter**.
+Extension tự soạn sẵn câu hỏi gồm tên token, chain, địa chỉ contract, vốn hoá hiện tại và link gmgn, rồi mở Grok trên X với câu hỏi đã điền sẵn. **X tự gửi câu hỏi** ngay khi tab mở ra, nên mỗi lần bấm là tốn một lượt hỏi Grok. (Trên grok.com thì bạn nhấn Enter để gửi.)
 
 Grok trả lời xong, câu trả lời **tự động lưu vào timeline**. Bạn không phải copy paste gì cả. Có nút **Undo** nếu không muốn giữ.
 
@@ -106,7 +106,7 @@ Câu hỏi mặc định đã viết sẵn bằng tiếng Việt (theo ngôn ng�
 
 Muốn sửa câu hỏi: Dashboard → ⚙ Settings → ô **Mẫu prompt research**. Các biến dùng được: `{symbol} {chain} {address} {name} {mc} {summary} {tags} {status} {notes} {gmgn_url} {dex_url} {x_url} {date}`. Riêng `{notes}` sẽ chèn 5 mốc gần nhất bạn đã ghi, để Grok bổ sung thêm chứ không nói lại thứ bạn đã biết.
 
-Lưu ý nhỏ: bạn **phải nhấn Enter một lần** để gửi câu hỏi, và **đừng đóng tab Grok** trước khi thấy dòng "Auto-saved". Sau đó bạn cứ đi làm việc khác, nó tự lưu.
+Lưu ý nhỏ: **đừng đóng tab Grok** trước khi thấy dòng "Auto-saved". Câu trả lời chỉ được lưu khi Grok đã viết xong, không lưu lúc nó còn đang suy nghĩ. Sau đó bạn cứ đi làm việc khác, nó tự lưu.
 
 Dưới ô "Tự lưu câu trả lời" luôn có một dòng chữ nhỏ cho biết nó đang làm gì: *đang chờ bạn gửi prompt*, *đang đọc câu trả lời*, hay *tự lưu đang tắt*. Nếu vì lý do nào đó nó không bắt được câu trả lời, bấm **Bắt câu trả lời** rồi **Lưu** là xong.
 
@@ -181,7 +181,7 @@ Ba việc theo thứ tự: kiểm tra trong `chrome://extensions` xem extension 
 
 1. Thấy token lạ trên gmgn → bấm nút ghi chú → gõ 2 câu "dự án này làm gì" → gắn 1–2 tag.
 2. Bấm **X** để xem người ta nói gì → bôi đen câu đáng giá → lưu.
-3. Bấm **Research with Grok** → Enter → để đó, câu trả lời tự vào timeline.
+3. Bấm **Research with Grok** → để đó, câu trả lời tự vào timeline.
 4. Quyết định xong thì đổi **Trạng thái**, chấm **Conviction**, ghim 📌 nếu đang bám.
 5. Cuối tuần mở Dashboard, lọc những dự án đã ghim, đọc lại timeline rồi quyết định giữ hay bỏ.
 
