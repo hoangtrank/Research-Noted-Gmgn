@@ -1,6 +1,6 @@
 {
   "name": "research-noted-gmgn",
-  "version": "0.9.16",
+  "version": "0.9.17",
   "private": true,
   "description": "Chrome extension: ghi chú research theo timeline cho từng dự án trên gmgn.ai",
   "scripts": {

@@ -57,6 +57,21 @@ input:not([type=checkbox]){flex:1 1 160px}
   let lastSaved = null;        // { entryId, symbol } để Hoàn tác
   let autoTimer = 0;
 
+  // Extension vừa được reload/cập nhật: script này là bản CŨ còn sót trong tab, đã mất kết nối — mọi lệnh chrome.*
+  // ném "Extension context invalidated". Dừng hẳn vòng tự lưu và nói cho người dùng biết phải tải lại tab.
+  const alive = () => { try { return !!chrome.runtime.id; } catch (_) { return false; } };
+  let watchTimer = 0, watchObserver = null;
+  function orphaned() {
+    if (alive()) return false;
+    clearInterval(watchTimer); clearTimeout(autoTimer);
+    if (watchObserver) { watchObserver.disconnect(); watchObserver = null; }
+    try { setAuto(''); if (render.setStatus) render.setStatus(t('ext_reloaded'), 'err'); } catch (_) {}
+    return true;
+  }
+  // X là ứng dụng một trang: script nạp ở /i/grok vẫn sống khi người dùng chuyển sang /notifications, /home…
+  // Ở những trang đó không có gì để bắt cả.
+  const onGrokPage = () => /(^|\.)grok\.com$/.test(location.hostname) || /^\/i\/grok/.test(location.pathname);
+
   function hashText(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return `${h}:${s.length}`; }
   const host = document.createElement('div');
   host.id = 'noted-grok-host';
@@ -96,6 +111,7 @@ input:not([type=checkbox]){flex:1 1 160px}
     q('.save').addEventListener('click', () => save(text.value));
     const autochk = q('.autochk');
     if (autochk) autochk.addEventListener('change', async () => {
+      if (orphaned()) return;
       autoSave = autochk.checked;
       autoCheck();
       try { const r = await chrome.storage.local.get('settings'); await chrome.storage.local.set({ settings: { ...(r.settings || {}), grokAutoSave: autoSave } }); } catch (_) {}
@@ -121,6 +137,7 @@ input:not([type=checkbox]){flex:1 1 160px}
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
   function link(token) {
+    if (orphaned()) return;
     chrome.runtime.sendMessage({ type: 'noted:grok-link', token }, res => {
       if (chrome.runtime.lastError || !res || !res.ok) return;
       const keep = render.textEl ? render.textEl.value : '';
@@ -131,6 +148,7 @@ input:not([type=checkbox]){flex:1 1 160px}
   }
 
   function save(value, opts = {}) {
+    if (orphaned()) return;
     const text = String(value || '').trim();
     if (!text) { render.setStatus(t('grok_nothing'), 'err'); return; }
     savedHashes.add(hashText(text));
@@ -145,11 +163,11 @@ input:not([type=checkbox]){flex:1 1 160px}
       st.innerHTML = `${esc(label)}${res.duplicate ? '' : ` · <a href="#" class="undo">${esc(t('undo'))}</a>`} · <a href="#" class="opendash">${esc(t('grok_open_dashboard'))}</a>`;
       if (!res.duplicate) lastSaved = { entryId: res.entryId, symbol: sym };
       // Trang web không được điều hướng tới chrome-extension://, nên nhờ background mở tab dashboard.
-      st.querySelector('.opendash').addEventListener('click', ev => { ev.preventDefault(); chrome.runtime.sendMessage({ type: 'noted:open-dashboard', key: res.key }); });
+      st.querySelector('.opendash').addEventListener('click', ev => { ev.preventDefault(); if (!orphaned()) chrome.runtime.sendMessage({ type: 'noted:open-dashboard', key: res.key }); });
       const undo = st.querySelector('.undo');
       if (undo) undo.addEventListener('click', ev => {
         ev.preventDefault();
-        if (!lastSaved) return;
+        if (!lastSaved || orphaned()) return;
         chrome.runtime.sendMessage({ type: 'noted:grok-unsave', entryId: lastSaved.entryId }, r2 => {
           if (chrome.runtime.lastError || !r2 || !r2.ok) return;
           lastSaved = null; // giữ hash trong savedHashes để auto không lưu lại đúng nội dung vừa hoàn tác
@@ -307,6 +325,7 @@ input:not([type=checkbox]){flex:1 1 160px}
   }
 
   function autoCheck() {
+    if (orphaned() || !onGrokPage()) return;
     if (!ctxInfo || !ctxInfo.token || !promptSigs().length) return;
     if (!autoSave) { setAuto('grok_auto_off'); return; }
     const bubble = promptBubble();
@@ -339,9 +358,9 @@ input:not([type=checkbox]){flex:1 1 160px}
   }
 
   function startAutoWatch() {
-    const mo = new MutationObserver(() => { clearTimeout(autoTimer); autoTimer = setTimeout(autoCheck, 1500); });
-    mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-    setInterval(autoCheck, 2000);
+    watchObserver = new MutationObserver(() => { clearTimeout(autoTimer); autoTimer = setTimeout(autoCheck, 1500); });
+    watchObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    watchTimer = setInterval(autoCheck, 2000);
   }
 
   // Tìm khối văn bản "tối giản" cuối cùng trước ô nhập, bỏ khối chứa prompt và khối chứa ô nhập.

@@ -945,6 +945,31 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(nv.side && !nv.main, 'bấm quay lại: về danh sách');
   await ddash.close();
 
+  console.log('22) Reload extension khi trang còn mở: content script cũ không ném lỗi, mà bảo người dùng tải lại trang (PHẢI là mục cuối)');
+  for (const pg of ctx.pages()) if (pg !== page) await pg.close().catch(() => {});
+  const oErrs = [];
+  page.on('pageerror', e => oErrs.push('gmgn: ' + e.message));
+  await page.goto('https://gmgn.ai/robinhood/token/0x4444444444444444444444444444444444444444');
+  await page.waitForFunction(() => document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab')?.getClientRects().length > 0, null, { timeout: 8000 });
+  const oGrok = await ctx.newPage();
+  oGrok.on('pageerror', e => oErrs.push('grok: ' + e.message));
+  const oTab = await sw.evaluate(async () => (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0].id);
+  const oUrl = await sw.evaluate(async tabId => { const ADDR = '0x4545454545454545454545454545454545454545'; const prompt = NotedResearch.buildPrompt(NotedResearch.TEMPLATES.en, { symbol: 'ORPH', chain: 'Robinhood', address: ADDR, name: '', mc: '$1M' }); await chrome.storage.session.set({ ['grok:' + tabId]: { token: { chain: 'robinhood', address: ADDR, key: 'robinhood:' + ADDR }, symbol: 'ORPH', prompt, at: Date.now() } }); return NotedResearch.urlFor('x', prompt); }, oTab);
+  await oGrok.goto(oUrl + '&shape=x');
+  await oGrok.waitForFunction(() => document.getElementById('noted-grok-host')?.shadowRoot.querySelector('.pill'), null, { timeout: 8000 });
+  await sw.evaluate(() => chrome.runtime.reload()).catch(() => {});
+  await page.waitForTimeout(2500);
+  await oGrok.click('#send');                 // Grok trả lời: vòng tự lưu của script cũ sẽ muốn gọi sendMessage
+  await page.bringToFront();
+  await page.evaluate(() => document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-fab').click());
+  await page.waitForTimeout(300);
+  const oToast = await page.evaluate(() => { const el = document.getElementById('noted-gmgn-host').shadowRoot.querySelector('.nd-toast'); return { text: el ? el.textContent : '', shown: !!el && el.classList.contains('show') }; });
+  assert(oToast.shown && /reload this page/i.test(oToast.text), 'bấm nút nổi sau khi extension reload: hiện lời nhắc tải lại trang — ' + oToast.text);
+  await page.waitForTimeout(13000);
+  const oStatus = await oGrok.evaluate(() => document.getElementById('noted-grok-host').shadowRoot.querySelector('.status').textContent);
+  assert(/reload this page/i.test(oStatus), 'panel trên Grok cũng nhắc tải lại trang thay vì lặng lẽ hỏng');
+  assert(oErrs.length === 0, 'không có lỗi "Extension context invalidated" nào bị ném ra trang: ' + JSON.stringify(oErrs));
+
   await ctx.close();
   console.log('\nALL PASSED');
 })().catch(async e => { console.error(e); process.exit(1); });

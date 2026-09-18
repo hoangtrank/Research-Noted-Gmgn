@@ -212,8 +212,23 @@
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
   }
 
+  // Extension vừa được reload/cập nhật: trang đang mở vẫn chạy content script CŨ, nhưng bản cũ đã mất kết nối —
+  // mọi lệnh chrome.runtime/chrome.storage ném "Extension context invalidated". Không có cách nối lại; việc đúng
+  // là ngừng gọi, và nói cho người dùng biết phải tải lại trang (nếu không, bấm nút mà không có gì xảy ra).
+  const alive = () => { try { return !!chrome.runtime.id; } catch (_) { return false; } };
+  let orphanTold = 0;
+  function orphaned() {
+    if (alive()) return false;
+    if (Date.now() - orphanTold > 4000) { orphanTold = Date.now(); toast(t('ext_reloaded')); }
+    return true;
+  }
+  function send(msg, cb) {
+    if (orphaned()) return false;
+    try { chrome.runtime.sendMessage(msg, cb); return true; } catch (_) { orphaned(); return false; }
+  }
+
   function openDashboard() {
-    chrome.runtime.sendMessage({ type: 'noted:open-dashboard' });
+    send({ type: 'noted:open-dashboard' });
   }
 
   // ---------------- dữ liệu ----------------
@@ -227,6 +242,7 @@
   }
 
   async function loadAll() {
+    if (!alive()) return;
     const [all, r] = await Promise.all([S.getAll(), chrome.storage.local.get('settings')]);
     applySettings(r.settings);
     cache.clear();
@@ -367,13 +383,11 @@
 
   // Gửi background mở Side Panel. Gọi đồng bộ ngay trong click để giữ user gesture (sidePanel.open yêu cầu).
   function openNote(token, ctx, toggle) {
-    const fallback = () => openDrawer(token, ctx);
-    try {
-      chrome.runtime.sendMessage({ type: 'noted:open', token, ctx, mode: uiMode, toggle: !!toggle }, res => {
-        if (chrome.runtime.lastError || !res || res.mode !== 'panel') fallback();
-        else if (openKey) closeDrawer();
-      });
-    } catch (_) { fallback(); }
+    const fallback = () => { if (!orphaned()) openDrawer(token, ctx); };   // drawer cũng cần chrome.storage
+    send({ type: 'noted:open', token, ctx, mode: uiMode, toggle: !!toggle }, res => {
+      if (chrome.runtime.lastError || !res || res.mode !== 'panel') fallback();
+      else if (openKey) closeDrawer();
+    });
   }
 
   // ---------------- tooltip ----------------
@@ -523,6 +537,7 @@
     const p = cache.get(pageToken.key);
     const symbol = (p && p.symbol) || pageSymbol() || pageToken.symbol || '';
     const text = author ? `${author}: ${lastSelection}` : lastSelection; // mở đầu bằng tên tài khoản của bài chứa đoạn bôi đen
+    if (orphaned()) return;
     selBtn.classList.add('busy');
     // openPanel: background mở side panel ngay trong cú bấm này (giữ user gesture) rồi hiện mốc vừa lưu.
     chrome.runtime.sendMessage({ type: 'noted:add-entry', token, symbol, entryType: 'research', text, url, sourceLabel: t('grok_source'), openPanel: true, mode: uiMode }, res => {
