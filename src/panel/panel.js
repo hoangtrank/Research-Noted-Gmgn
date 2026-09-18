@@ -93,8 +93,19 @@
     editor.focus();
   }
 
+  // Tab này không có token nào (trang chủ X, tab mới…): hiện token xem gần nhất thay cho màn hình trống.
+  async function lastViewed() {
+    try {
+      const lt = (await chrome.storage.local.get('lastToken')).lastToken;
+      const chain = S.normalizeChain(lt && lt.token && lt.token.chain);
+      const address = S.normalizeAddress(lt && lt.token && lt.token.address);
+      if (!/^[a-z0-9-]{2,20}$/.test(chain) || !address) return null;
+      return { token: { chain, address, key: S.keyOf(chain, address) }, ctx: { symbol: String(lt.symbol || '').slice(0, 32) } };
+    } catch (_) { return null; }
+  }
+
   async function refresh() {
-    if (!tabId) { showEmpty(); return; }
+    if (!tabId) { await show(await lastViewed()); return; }
     const r = await chrome.storage.session.get(SESSION_PREFIX + tabId);
     let entry = r[SESSION_PREFIX + tabId];
     // Tab chưa từng mở panel (vừa chuyển sang tab khác, hoặc trang vừa đổi token): hỏi thẳng content script
@@ -105,7 +116,7 @@
         if (info && info.token) entry = { token: info.token, ctx: { symbol: info.symbol || '' } };
       } catch (_) {}
     }
-    await show(entry);
+    await show(entry || await lastViewed());
   }
 
   // Kết nối tới background: còn kết nối = panel đang mở ở cửa sổ này, và báo luôn đang hiện token nào

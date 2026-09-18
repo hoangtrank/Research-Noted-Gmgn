@@ -272,7 +272,7 @@
       }
       pageToken = pr ? (pr.pending ? resolved.get(pr.pending) || null : pr) : null;
       const key = pageToken ? pageToken.key : null;
-      if (key !== lastPageKey) { lastPageKey = key; announcePageToken(true); }
+      if (key !== lastPageKey) { lastPageKey = key; announcePageToken(0); }
       refreshFab();
     } finally {
       scanning = false;
@@ -281,16 +281,17 @@
   }
 
   // Báo background token của trang (để Side Panel "theo dõi" trang và phím tắt biết token). Symbol trên trang SPA
-  // có thể cập nhật muộn hơn URL, nên thử lại một lần sau 800ms nếu chưa có.
+  // cập nhật muộn hơn URL — trên gmgn thật có khi vài giây — nên thử lại thưa dần cho tới khi có symbol.
+  const ANNOUNCE_RETRY = [800, 2500, 6000];
   let announceTimer = 0;
-  function announcePageToken(retry) {
+  function announcePageToken(attempt) {
     clearTimeout(announceTimer);
     const tk = pageToken;
     const ctx = tk ? { symbol: pageSymbol(), mc: tk.mc || null } : {};
     try {
       chrome.runtime.sendMessage({ type: 'noted:page-token', token: tk ? { chain: tk.chain, address: tk.address, key: tk.key } : null, ctx }, () => void chrome.runtime.lastError);
     } catch (_) {}
-    if (retry && tk && !ctx.symbol) announceTimer = setTimeout(() => { if (pageToken && pageToken.key === tk.key) announcePageToken(false); }, 800);
+    if (tk && !ctx.symbol && attempt < ANNOUNCE_RETRY.length) announceTimer = setTimeout(() => { if (pageToken && pageToken.key === tk.key) announcePageToken(attempt + 1); }, ANNOUNCE_RETRY[attempt]);
   }
 
   const stop = ev => { ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation(); };

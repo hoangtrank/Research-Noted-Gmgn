@@ -66,6 +66,18 @@ function fromHost(sender, hosts) {
   try { const h = new URL(sender.url || sender.origin || '').hostname; return hosts.some(x => h === x || h.endsWith('.' + x)); } catch (_) { return false; }
 }
 
+// Token xem gần nhất: để side panel mở trên một tab không có token (trang chủ X, tab mới…) vẫn hiện ghi chú
+// bạn vừa xem thay vì màn hình trống. Lưu ở storage.local để sống qua lần khởi động lại trình duyệt.
+const LAST_KEY = 'lastToken';
+let lastSeen = '';
+function noteLast(token, symbol) {
+  const sym = String(symbol || '').slice(0, 32);
+  const sig = token.key + '|' + sym;
+  if (sig === lastSeen) return;
+  lastSeen = sig;
+  chrome.storage.local.set({ [LAST_KEY]: { token: { chain: token.chain, address: token.address, key: token.key }, symbol: sym, at: Date.now() } }).catch(() => {});
+}
+
 function notifyPanels(payload) {
   chrome.runtime.sendMessage(payload).catch(() => {});
 }
@@ -74,6 +86,7 @@ function notifyPanels(payload) {
 // lúc mở đã cũ (panel sống lâu hơn tab đang xem).
 async function remember(tabId, token, ctx, windowId) {
   tabTokens.set(tabId, token.key);
+  noteLast(token, ctx && ctx.symbol);
   let wid = windowId;
   if (!wid) { try { wid = (await chrome.tabs.get(tabId)).windowId; } catch (_) {} }
   await chrome.storage.session.set({ [SESSION_PREFIX + tabId]: { token, ctx: ctx || {}, at: Date.now() } });
@@ -196,6 +209,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (!tabId) { sendResponse({ ok: false }); return; }
       const token = validToken(msg.token);
       if (token) pageTokens.set(tabId, token); else pageTokens.delete(tabId);
+      if (token && sender.tab.active) noteLast(token, msg.ctx && msg.ctx.symbol); // tab nền tải trang không tính là "đang xem"
       // Theo dõi trang: panel đang mở trong cửa sổ này (hoặc tab này đã từng mở panel) thì chuyển sang token mới.
       // Không tự mở panel nếu chưa mở.
       if (follow && token) {

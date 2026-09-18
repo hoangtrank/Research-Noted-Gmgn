@@ -638,11 +638,25 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await xp.evaluate(() => getSelection().removeAllRanges());
 
   console.log('16c) Panel tự bắt token của tab, và mốc mới hiện ngay');
+  // Tab không có token (trang chủ X, tab mới…): panel hiện token xem gần nhất, không phải màn hình trống.
+  await xp.bringToFront();
+  await xp.reload();
+  await xp.waitForFunction(() => { const f = document.getElementById('noted-gmgn-host')?.shadowRoot.querySelector('.nd-fab'); return f && f.getClientRects().length > 0; }, null, { timeout: 8000 });
+  let last = null;
+  for (let i = 0; i < 25 && !(last && last.token && last.token.key === PROLOG); i++) { last = await sw.evaluate(async () => (await chrome.storage.local.get('lastToken')).lastToken || null); await xp.waitForTimeout(200); }
+  assert(last && last.token && last.token.key === PROLOG, 'background nhớ token xem gần nhất: ' + (last && last.token && last.token.key));
   const panelNoTab = await ctx.newPage();
   await panelNoTab.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=999999`);
-  await panelNoTab.waitForSelector('#empty:not([hidden])', { timeout: 8000 });
-  assert(true, 'tab không có token -> panel hiện màn hình trống');
+  await panelNoTab.waitForSelector('#mount:not([hidden]) .ne-symbol', { timeout: 8000 });
+  assert((await panelNoTab.$eval('.ne-symbol', e => e.value)) === 'PROLOG', 'tab không có token -> panel hiện token xem gần nhất');
+  assert((await panelNoTab.evaluate(() => document.querySelector('#empty').getClientRects().length)) === 0, 'và không còn màn hình trống');
   await panelNoTab.close();
+  await sw.evaluate(async () => { await chrome.storage.local.remove('lastToken'); lastSeen = ''; });
+  const panelFresh = await ctx.newPage();
+  await panelFresh.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=999999`);
+  await panelFresh.waitForSelector('#empty:not([hidden])', { timeout: 8000 });
+  assert((await panelFresh.evaluate(() => document.querySelector('#empty').getClientRects().length)) > 0, 'chưa từng xem token nào -> vẫn là màn hình trống');
+  await panelFresh.close();
   await sw.evaluate(async id => chrome.storage.session.remove('tab:' + id), xTabId);
   const panelEmpty = await ctx.newPage();
   await panelEmpty.goto(`chrome-extension://${extId}/src/panel/panel.html?tab=${xTabId}`);

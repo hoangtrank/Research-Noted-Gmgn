@@ -2,7 +2,7 @@
 
 # Research-Noted-Gmgn
 
-**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.8
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.9
 
 A Chrome extension that keeps one research note per token, right where you look at it: **gmgn.ai**, **DexScreener** and **X**.
 
@@ -21,6 +21,8 @@ Open a token on gmgn (or a pair on DexScreener). A single button appears at the 
 Write what the project does, add tags, set a status and a conviction score, and add timeline entries as you learn things. Everything saves as you type.
 
 ![Token page on gmgn with the note open in the side panel](docs/01-token-note.png)
+
+Open the side panel on a tab that has no token — the X home page, a new tab — and it shows the token you viewed last instead of an empty screen, so the note you were working on is always one click away.
 
 The same note follows the token everywhere: gmgn, DexScreener, X. Once a note exists the button turns yellow and shows the summary, so you recognise a project you already looked at before clicking.
 
