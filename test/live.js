@@ -203,6 +203,8 @@ const shot = async (page, name) => { try { await page.screenshot({ path: path.jo
     ok(xFab, 'nút nổi nhận ra token trên trang tìm kiếm X',
       xFab ? '— ' + (await textOf(page, '.nd-fab')) : '(token này cần đã có ghi chú, hoặc DexScreener phải biết nó)');
 
+    // Nút nổi hiện ngay từ URL, còn bài viết trên X thật tải sau đó 1–3 giây: chờ có bài rồi mới bôi đen.
+    await page.waitForFunction(() => [...document.querySelectorAll('article [data-testid="tweetText"]')].some(e => (e.textContent || '').trim().length > 40), null, { timeout: 20000 }).catch(() => {});
     const picked = await page.evaluate(() => {
       const el = [...document.querySelectorAll('article [data-testid="tweetText"]')].find(e => (e.textContent || '').trim().length > 40);
       if (!el) return false;
