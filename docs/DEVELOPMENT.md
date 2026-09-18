@@ -63,9 +63,13 @@ Entry types: `note`, `research`, `news`, `buy`, `sell`, `alert`, `link`. Statuse
 
 Merging two copies of the notes (Import JSON, and the sync that is being built) is a union, so anything deleted on one side would come back from the other. Deletions are therefore recorded: a deleted entry as `project.removed = { <entry id>: <deleted at> }`, a deleted project in the storage key `deleted = { <project key>: <deleted at> }`. Marks expire after 90 days. `NotedStore.mergeProject(a, b, { tags })` is the single merge used by import (`tags: 'union'`) and by sync (`tags: 'newer'`, so removing a tag propagates): the more recently updated side wins the scalar fields as a block, timelines are united by entry id minus the deletion marks. A project edited after it was deleted elsewhere comes back. `NotedStore.createBackup / listBackups / restoreBackup` keep the last five snapshots, taken before an import or before a sync changes local notes; a restore gives resurrected entries new ids and stamps the projects as newest, so it also wins later merges.
 
-### Sync (work in progress, not in the Store build)
+### Sync
 
-`wip/sync/sync.js` (NotedSync: download → merge → apply locally → upload only if the remote differs; retries on a write conflict; remote data goes through `sanitize`) and `wip/sync/drive.js` (NotedDrive: one JSON file in the user's own Google Drive `appDataFolder`, refuses any base URL other than Google or localhost). Both live outside `src/`, so `scripts/pack.py` does not package them and `scripts/audit.py` does not see a Google request in the shipped code. `npm run test:sync` runs two browsers with separate profiles against `test/mock-drive.js`. Still to do: sign-in with `chrome.identity` as an optional permission, the Settings UI, and moving the two files into `src/` together with the audit, privacy policy and Store listing changes.
+Optional and off by default (`settings.sync === true` turns it on). `src/lib/sync.js` (NotedSync) does one round: download → merge with local (`mergeProject`, deletion marks) → write the differences locally → upload only if the remote differs, so two machines in agreement make no writes. It retries on a write conflict, skips a project the user edited while the round ran, treats remote data as untrusted (`sanitize`), never overwrites a remote file it cannot parse, and takes a backup before another machine's data changes local notes. `src/lib/drive.js` (NotedDrive) is the remote: one JSON file in the user's own Drive `appDataFolder` (scope `drive.appdata`), and it refuses any base URL other than Google or localhost. `src/sync-controller.js` runs in the service worker: token from `chrome.identity.getAuthToken`, triggers on browser start, 8 s after a note changes, every 15 minutes (`chrome.alarms`) and on **Sync now**; it only accepts commands from the extension's own pages.
+
+`identity`, `alarms` and `https://www.googleapis.com/*` are **optional** permissions, requested inside the click on *Sign in with Google and turn on sync* and removed again by *Turn off*; an update therefore shows no new permission warning. `scripts/audit.py` enforces exactly these two optional permissions, this one host, the single `drive.appdata` scope, `chrome.identity` only in `src/sync-controller.js` and `src/dashboard/dashboard.js`, and the Google host only in `src/lib/drive.js`.
+
+The OAuth client (`oauth2.client_id` in the manifest) is of type *Chrome Extension* and bound to the Store item ID, so Google sign-in works only in a build that has that ID: the Store build, or an unpacked build carrying the Store's public `key` (see below). For tests, `settings.driveApiBase` (localhost only) plus `settings.syncTestToken` point the controller at `test/mock-drive.js` and skip Google. `npm run test:sync` runs two browser profiles through the engine and through the real Settings buttons and background.
 
 ## Running the tests
 
@@ -77,7 +81,7 @@ npm run test:live     # runs against the real gmgn / X / DexScreener (needs netw
 node test/live.js --mock  # same script against the mock pages, to check the script itself before a real run
 node test/live.js --skip-x --token <gmgn url> --token2 <another gmgn url> --keep   # your own tokens, no X, leave the window open
 node test/live.js --grok  # also runs Research with Grok end to end on the real X. X SENDS the prompt as soon as the link opens, so each run costs one Grok query
-npm run test:sync     # two browser profiles syncing through a mock Google Drive (wip/sync)
+npm run test:sync     # two browser profiles syncing through a mock Google Drive
 npm run audit         # capability audit: permissions, outbound requests, dangerous APIs
 npm run icons         # regenerate icons
 npm run zip           # build the Web Store ZIP into dist/

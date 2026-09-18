@@ -4,11 +4,12 @@
 const http = require('http');
 
 function start() {
-  const state = { files: new Map(), nextId: 1, token: 'test-token', uploads: 0, downloads: 0, failWith: null, beforeUpload: null };
+  const state = { files: new Map(), nextId: 1, token: 'test-token', uploads: 0, downloads: 0, requests: 0, failWith: null, beforeUpload: null };
   const server = http.createServer(async (req, res) => {
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS' };
     const send = (status, body, type = 'application/json') => { res.writeHead(status, { ...cors, 'content-type': type }); res.end(typeof body === 'string' ? body : JSON.stringify(body)); };
     if (req.method === 'OPTIONS') return send(204, '');
+    state.requests++;
     const u = new URL(req.url, 'http://x');
     const chunks = []; for await (const c of req) chunks.push(c);
     const raw = Buffer.concat(chunks).toString('utf8');

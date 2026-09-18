@@ -5,7 +5,8 @@
 **Research-Noted-Gmgn** is a personal research-notes extension for tokens/projects you view on gmgn.ai, DexScreener and X search.
 
 - All notes (summary, tags, status, timeline) are stored **only on your device**, in the browser's `chrome.storage.local`.
-- The extension does **not** collect and does **not** transmit any data to the developer or any third party. There is no server, no analytics, no account.
+- The extension does **not** collect and does **not** transmit any data to the developer. There is no developer server, no analytics, no account.
+- **Sync between computers (optional, off by default).** If, and only if, you turn on *Sync between computers* in Settings and sign in with Google, your notes are also written to one file in the hidden app-data area of **your own Google Drive** (OAuth scope `drive.appdata`: the extension can read and write only its own file there, and cannot see any other file in your Drive). That file is what your other computers merge with. The developer never receives it. Google handles it under Google's privacy policy. Turning sync off stops all requests to Google and removes the permissions; **Delete the copy on Drive** in Settings removes the file, and you can also remove it in Google Drive → Settings → Manage apps. Until you turn sync on, the extension does not request the Google permissions and sends nothing to Google.
 - It runs on `gmgn.ai` and `dexscreener.com` to add a note button next to tokens; it reads the token address and symbol from the page to know which project you are annotating. It does not read wallets, balances or credentials.
 - On DexScreener, links point to trading pairs, so the extension sends the pair address to DexScreener's public API (`api.dexscreener.com`) to learn which token it is. No personal data is sent; the result is cached locally.
 - You can export all data as JSON/Markdown and delete it at any time from the Dashboard. Uninstalling the extension removes all data.
@@ -20,8 +21,9 @@ Contact: open an issue at https://github.com/hoangtrank/Research-Noted-Gmgn.
 
 ## Chính sách quyền riêng tư (Tiếng Việt)
 
-- Mọi ghi chú chỉ được lưu **trên máy của bạn** (`chrome.storage.local`).
-- Extension **không** thu thập, **không** gửi bất kỳ dữ liệu nào tới nhà phát triển hay bên thứ ba. Không máy chủ, không analytics, không tài khoản.
+- Mọi ghi chú được lưu **trên máy của bạn** (`chrome.storage.local`).
+- **Đồng bộ giữa các máy (tuỳ chọn, mặc định tắt).** Chỉ khi bạn bật *Đồng bộ giữa các máy* trong Settings và đăng nhập Google, ghi chú mới được ghi thêm vào một file trong vùng dữ liệu ẩn của ứng dụng trên **Google Drive của chính bạn** (scope `drive.appdata`: extension chỉ đọc/ghi được file của nó, không thấy file nào khác trong Drive). Nhà phát triển không bao giờ nhận được file đó; Google xử lý nó theo chính sách của Google. Tắt đồng bộ là dừng mọi request tới Google và gỡ quyền; nút **Xoá bản trên Drive** xoá file đó.
+- Extension **không** thu thập, **không** gửi bất kỳ dữ liệu nào tới nhà phát triển. Không có máy chủ của nhà phát triển, không analytics, không tài khoản.
 - Extension chạy trên `gmgn.ai` và `dexscreener.com` để gắn nút ghi chú; nó đọc địa chỉ token và symbol từ trang để biết bạn đang ghi chú cho dự án nào. Không đọc ví, số dư hay thông tin đăng nhập.
 - Trên DexScreener, link trỏ tới cặp giao dịch, nên extension gửi địa chỉ cặp tới API công khai của DexScreener (`api.dexscreener.com`) để biết đó là token nào. Không gửi dữ liệu cá nhân; kết quả được cache cục bộ.
 - Bạn có thể xuất toàn bộ dữ liệu (JSON/Markdown) và xoá bất kỳ lúc nào trong Dashboard. Gỡ extension sẽ xoá toàn bộ dữ liệu.
@@ -32,8 +34,9 @@ Contact: open an issue at https://github.com/hoangtrank/Research-Noted-Gmgn.
 
 ## 隐私政策（中文）
 
-- 所有笔记仅保存在**你的设备上**（`chrome.storage.local`）。
-- 本扩展**不**收集、**不**向开发者或任何第三方发送任何数据。没有服务器、没有分析统计、没有账号。
+- 所有笔记保存在**你的设备上**（`chrome.storage.local`）。
+- **多台电脑同步（可选，默认关闭）。** 只有当你在设置中开启同步并登录 Google 后，笔记才会另外写入**你自己的 Google Drive** 隐藏应用数据区中的一个文件（权限范围 `drive.appdata`：扩展只能读写自己的文件，看不到你 Drive 中的其他文件）。开发者永远不会收到该文件；Google 按其自身隐私政策处理。关闭同步即停止所有对 Google 的请求并移除权限；“删除 Drive 上的副本”会删除该文件。
+- 本扩展**不**收集、**不**向开发者发送任何数据。没有开发者服务器、没有分析统计、没有账号。
 - 在 `gmgn.ai` 和 `dexscreener.com` 上运行，用于在代币旁添加笔记按钮；它从页面读取代币地址和符号以确定你在为哪个项目做笔记。不读取钱包、余额或登录凭据。
 - 在 DexScreener 上，链接指向交易对，因此扩展会把交易对地址发送到 DexScreener 的公开 API（`api.dexscreener.com`）以确定对应的代币。不发送任何个人数据；结果在本地缓存。
 - 你可以随时在仪表盘中导出全部数据（JSON/Markdown）或删除。卸载扩展会删除全部数据。

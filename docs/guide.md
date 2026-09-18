@@ -157,6 +157,26 @@ Dashboard → **⚙ Settings**:
 
 ---
 
+## Sync between two computers (optional)
+
+Use this if you work on more than one computer, for example a Windows PC and a Mac, with the same Google account in Chrome.
+
+1. On each computer, install the extension **from the Chrome Web Store**. Sign-in only works with the Store build.
+2. Open the **Dashboard → ⚙ Settings → Sync between computers** and click **Sign in with Google and turn on sync**. Chrome asks for permission once, then Google asks you to allow the extension to keep *its own data* in your Drive. It cannot see your other files.
+3. Do the same on the second computer. Its notes and the first computer's notes are combined. Nothing is lost: both timelines are kept.
+
+After that it runs by itself: when Chrome starts, a few seconds after you edit a note, and every 15 minutes. **Sync now** does it at once.
+
+Good to know:
+
+- If you edit the *same project* on both computers before they sync, the timelines are combined, but for the summary, status, rating and tags the more recent edit wins.
+- An entry or project you delete is deleted on the other computer too.
+- Before another computer's notes change yours, the extension takes a backup. **Settings → Automatic backups → Restore** brings it back.
+- **Turn off** stops sync and gives the permissions back. **Delete the copy on Drive** removes the file from your Drive; the notes on your computer stay.
+- The status line says what is wrong when something is: not signed in, Drive full, no connection.
+
+---
+
 ## Frequently asked questions
 
 **Is it dangerous to install an unknown extension? Can it get my wallet?**

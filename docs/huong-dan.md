@@ -145,6 +145,26 @@ Dashboard → **⚙ Settings**:
 
 ---
 
+## Đồng bộ giữa hai máy (tuỳ chọn)
+
+Dùng khi bạn làm việc trên nhiều máy, ví dụ một máy Windows và một máy Mac, cùng một tài khoản Google trong Chrome.
+
+1. Trên mỗi máy, cài extension **từ Chrome Web Store**. Đăng nhập Google chỉ chạy với bản cài từ Store.
+2. Mở **Dashboard → ⚙ Cài đặt → Đồng bộ giữa các máy**, bấm **Đăng nhập Google và bật đồng bộ**. Chrome hỏi quyền một lần, rồi Google hỏi bạn có cho extension lưu *dữ liệu của riêng nó* trong Drive không. Nó không thấy các file khác của bạn.
+3. Làm y như vậy trên máy thứ hai. Ghi chú của hai máy được gộp lại, không mất gì: timeline của cả hai đều được giữ.
+
+Sau đó nó tự chạy: khi mở Chrome, vài giây sau khi bạn sửa ghi chú, và mỗi 15 phút. **Sync ngay** thì làm liền.
+
+Nên biết:
+
+- Nếu bạn sửa *cùng một dự án* trên cả hai máy trước khi chúng kịp sync, timeline được gộp, còn tóm tắt, trạng thái, điểm và tag thì lần sửa sau thắng.
+- Mốc hay dự án bạn xoá cũng bị xoá ở máy kia.
+- Trước khi ghi chú của máy khác làm thay đổi ghi chú của bạn, extension tự sao lưu. **Cài đặt → Bản sao lưu tự động → Khôi phục** để lấy lại.
+- **Tắt** là dừng đồng bộ và trả lại quyền. **Xoá bản trên Drive** xoá file khỏi Drive; ghi chú trên máy vẫn còn.
+- Dòng trạng thái nói rõ khi có trục trặc: chưa đăng nhập, Drive đầy, mất mạng.
+
+---
+
 ## Câu hỏi thường gặp
 
 **Cài extension lạ vào máy có nguy hiểm không? Nó có lấy được ví của tôi không?**

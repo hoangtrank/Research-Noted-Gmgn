@@ -1,6 +1,6 @@
 // Test sync giữa HAI MÁY: hai trình duyệt, hai hồ sơ riêng, cùng nạp extension thật, cùng sync qua một Google Drive
-// giả lập (test/mock-drive.js). Bộ máy sync còn nằm ở wip/sync/ (chưa vào gói Store) nên được nạp vào trang
-// Dashboard của extension bằng thẻ <script>.
+// giả lập (test/mock-drive.js). Mục 1–13 gọi thẳng bộ máy (src/lib/sync.js, drive.js) từ trang Dashboard cho nhanh;
+// mục 14 đi đường thật: nút trong Settings -> service worker (src/sync-controller.js) -> Drive giả lập.
 //   node test/sync.js
 'use strict';
 const path = require('path');
@@ -22,7 +22,7 @@ async function machine(name, base) {
   const page = await ctx.newPage();
   page.on('pageerror', e => console.log(`  [${name}] PAGE ERROR`, e.message));
   await page.goto(`chrome-extension://${new URL(sw.url()).host}/src/dashboard/dashboard.html`);
-  for (const f of ['sync.js', 'drive.js']) await page.addScriptTag({ url: `chrome-extension://${new URL(sw.url()).host}/wip/sync/${f}` });
+  for (const f of ['sync.js', 'drive.js']) await page.addScriptTag({ url: `chrome-extension://${new URL(sw.url()).host}/src/lib/${f}` });
   await page.evaluate(b => { window.__drive = (token = 'test-token') => new NotedDrive({ base: b, token: async () => token }); }, base);
   const m = {
     name, ctx, page,
@@ -182,6 +182,58 @@ async function machine(name, base) {
   console.log('13) NotedDrive chỉ chịu nói chuyện với Google hoặc máy cục bộ');
   const bad = await A.page.evaluate(() => { try { new NotedDrive({ base: 'https://evil.example.com', token: async () => 'x' }); return 'accepted'; } catch (e) { return e.code; } });
   assert(bad === 'bad-base', 'địa chỉ lạ bị từ chối ngay khi khởi tạo');
+
+  console.log('14) Đường thật: nút trong Settings -> background -> Drive. Tắt thì không có request nào ra ngoài');
+  await A.page.evaluate(() => window.__drive().wipe());
+  const useMock = m => m.page.evaluate(async b => { const st = (await chrome.storage.local.get('settings')).settings || {}; await chrome.storage.local.set({ settings: { ...st, lang: 'en', driveApiBase: b, syncTestToken: 'test-token' } }); }, drive.base);
+  await useMock(A); await useMock(B);
+  for (const m of [A, B]) { await m.page.reload(); await m.page.waitForSelector('#open-settings'); await m.page.click('#open-settings'); await m.page.waitForSelector('#settings:not([hidden])'); }
+  const stateOf = m => m.page.evaluate(() => ({ text: document.querySelector('#sync-state').textContent, cls: document.querySelector('#sync-state').className, on: !document.querySelector('#sync-on').hidden, now: !document.querySelector('#sync-now').hidden }));
+  assert((await stateOf(A)).on && /off/i.test((await stateOf(A)).text), 'mặc định: đồng bộ TẮT, chỉ có nút bật');
+  const req0 = drive.state.requests;
+  await A.addEntry(KEY1, 'A: sửa khi sync đang tắt');
+  await wait(10500);
+  assert(drive.state.requests === req0, 'sync tắt: sửa ghi chú xong chờ 10 giây, KHÔNG có request nào tới Drive');
+  await A.page.evaluate(() => chrome.storage.local.remove('sync'));   // bỏ trạng thái của các mục trước, để "Last sync" chỉ có thể đến từ lượt sync thật
+  await B.page.evaluate(() => chrome.storage.local.remove('sync'));
+  await A.page.click('#sync-on');
+  await A.page.waitForFunction(() => /Last sync/.test(document.querySelector('#sync-state').textContent) && !document.querySelector('#sync-now').hidden, null, { timeout: 15000 });
+  assert(drive.state.files.size === 1 && (await stateOf(A)).now, 'A bấm bật: background sync ngay, Drive có file, giao diện hiện "Last sync" + nút Sync now');
+  await B.page.click('#sync-on');
+  await B.page.waitForFunction(() => /Last sync/.test(document.querySelector('#sync-state').textContent), null, { timeout: 15000 });
+  assert((await B.texts(KEY1)).includes('A: sửa khi sync đang tắt'), 'B bấm bật: nhận luôn ghi chú của A');
+  const up14 = drive.state.uploads;
+  await A.addEntry(KEY1, 'A: tự động sync sau khi sửa');
+  for (let i = 0; i < 40 && drive.state.uploads === up14; i++) await wait(500);
+  assert(drive.state.uploads === up14 + 1, 'A sửa ghi chú: vài giây sau background TỰ đẩy lên (đúng 1 lần)');
+  await wait(9500);
+  assert(drive.state.uploads === up14 + 1, 'lần ghi của chính lượt sync không kích hoạt thêm lượt đẩy nào');
+  await B.page.click('#sync-now');
+  await B.page.waitForFunction(() => /Last sync/.test(document.querySelector('#sync-state').textContent), null, { timeout: 15000 });
+  for (let i = 0; i < 20 && !(await B.texts(KEY1)).includes('A: tự động sync sau khi sửa'); i++) await wait(300);
+  assert((await B.texts(KEY1)).includes('A: tự động sync sau khi sửa'), 'B bấm Sync now: nhận mốc mới của A');
+  drive.state.failWith = 'quota';
+  await B.addEntry(KEY1, 'B: ghi lúc Drive đầy (UI)');
+  await B.page.click('#sync-now');
+  await B.page.waitForFunction(() => /Drive is full/i.test(document.querySelector('#sync-state').textContent), null, { timeout: 15000 });
+  assert(/err/.test((await stateOf(B)).cls), 'Drive đầy: Settings báo lỗi dễ hiểu, tô đỏ — ' + (await stateOf(B)).text);
+  drive.state.failWith = null;
+  await B.page.click('#sync-now');             // B đẩy nốt mốc bị kẹt, rồi chờ B yên hẳn: bộ đếm request của Drive giả lập là chung
+  await B.page.waitForFunction(() => /Last sync/.test(document.querySelector('#sync-state').textContent), null, { timeout: 15000 });
+  await wait(10000);
+  await A.page.click('#sync-off');
+  await A.page.waitForFunction(() => !document.querySelector('#sync-on').hidden, null, { timeout: 8000 });
+  const req1 = drive.state.requests;
+  await A.addEntry(KEY1, 'A: sửa sau khi tắt sync');
+  await wait(10500);
+  assert(drive.state.requests === req1, 'A tắt sync: sửa tiếp cũng không còn request nào tới Drive');
+  B.page.once('dialog', d => d.accept());
+  await B.page.click('#sync-wipe');
+  await B.page.waitForFunction(() => /deleted/i.test(document.querySelector('#sync-state').textContent), null, { timeout: 15000 });
+  assert(drive.state.files.size === 0, 'B bấm "Delete the copy on Drive": file sync biến mất khỏi Drive, ghi chú trong máy vẫn còn (' + (await B.all()).length + ' dự án)');
+  const swA = A.ctx.serviceWorkers()[0];
+  const gate = await swA.evaluate(() => ({ page: fromExtensionPage({ id: chrome.runtime.id, url: chrome.runtime.getURL('src/dashboard/dashboard.html') }), content: fromExtensionPage({ id: chrome.runtime.id, url: 'https://gmgn.ai/sol/token/x', tab: { id: 1 } }), other: fromExtensionPage({ id: 'abcdefghijklmnopabcdefghijklmnop', url: chrome.runtime.getURL('x.html') }) }));
+  assert(gate.page === true && gate.content === false && gate.other === false, 'lệnh bật/tắt/xoá sync chỉ nhận từ trang của chính extension, không nhận từ content script hay extension khác');
 
   await A.ctx.close(); await B.ctx.close(); drive.server.close();
   console.log(`\nALL PASSED — ${pass} phép thử`);

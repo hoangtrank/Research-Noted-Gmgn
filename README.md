@@ -2,7 +2,7 @@
 
 # Research-Noted-Gmgn
 
-**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.9.18
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/klmbonadppdmggifjlolbbpaaafkmplm)** · version 0.10.0
 
 A Chrome extension that keeps one research note per token, right where you look at it: **gmgn.ai**, **DexScreener** and **X**.
 
@@ -91,11 +91,15 @@ Notes live in `chrome.storage.local`, which is tied to the extension's ID. For a
 
 ### Where your data lives
 
-On your machine, in the browser, and nowhere else. No server, no account, no analytics. Two things leave the device, both only when you ask: the research prompt when you click Research with Grok, and pair addresses sent to DexScreener's public API to work out which token a pair is. See [PRIVACY.md](PRIVACY.md).
+On your machine, in the browser. No developer server, no account, no analytics. Unless you turn on sync (below), two things leave the device, both only when you ask: the research prompt when you click Research with Grok, and pair addresses sent to DexScreener's public API to work out which token a pair is. See [PRIVACY.md](PRIVACY.md).
 
 ### Backups and moving notes between computers
 
-**Export JSON** in the Dashboard saves every note to a file; **Import JSON** on another computer merges that file into the notes already there: for each project the more recently edited side wins the summary, status and rating, and the timelines are combined entry by entry. An entry or a project you deleted stays deleted after a merge. Before every import the extension takes an automatic backup; **Settings → Automatic backups → Restore** brings it back. Automatic sync between computers through your own Google Drive is being built and will be optional.
+**Export JSON** in the Dashboard saves every note to a file; **Import JSON** on another computer merges that file into the notes already there: for each project the more recently edited side wins the summary, status and rating, and the timelines are combined entry by entry. An entry or a project you deleted stays deleted after a merge. Before every import the extension takes an automatic backup; **Settings → Automatic backups → Restore** brings it back.
+
+### Sync between computers (optional)
+
+**Settings → Sync between computers → Sign in with Google and turn on sync.** Your notes are then kept the same on every computer where you use Chrome with the same Google account. They travel through one hidden file in **your own Google Drive** that only this extension can read (it cannot see anything else in your Drive); there is no server of ours in between. It syncs when the browser starts, a few seconds after you edit a note, every 15 minutes, and when you press **Sync now**. Both computers' timelines are combined, deletions carry over, and for the summary, status, rating and tags the more recent edit wins. Sync is off by default: until you turn it on the extension does not even ask for the Google permissions. **Turn off** stops it and drops the permissions; **Delete the copy on Drive** removes the file. It needs Google Chrome and the build installed from the Chrome Web Store (sign-in is tied to the Store ID).
 
 ---
 
