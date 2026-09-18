@@ -253,7 +253,9 @@
       .map(line => ({ out: fill(line), had: PLACEHOLDERS.some(k => line.includes(`{${k}}`)) }))
       .filter(x => !(x.had && /^[^:\n]{1,40}:\s*$/.test(x.out.trim())))
       .map(x => x.out).join('\n');
-    return s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    // "({name} | ${symbol})" khi chưa có tên ra "( | $PAIR)": bỏ vế rỗng quanh dấu gạch đứng trong ngoặc.
+    return s.replace(/\(\s*\|\s*/g, '(').replace(/\s*\|\s*\)/g, ')')
+      .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
 
   function urlFor(target, prompt) {

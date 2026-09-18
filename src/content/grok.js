@@ -187,6 +187,57 @@ input{flex:1 1 160px}
     return null;
   }
 
+  // Trên X thật, prompt nhiều đoạn hiện thành MỘT tin nhắn gồm nhiều khối con (span/ol cho từng đoạn), còn
+  // promptBubble() chỉ trả về khối nhỏ nhất chứa dấu nhận — tức đoạn đầu. Nếu chỉ loại đoạn đầu, các đoạn sau của
+  // chính prompt (ví dụ mục MEME dài 168 ký tự) bị coi là "câu trả lời" và bị lưu. Leo lên tới cả tin nhắn.
+  function promptMessage(bubble) {
+    if (!bubble) return null;
+    const len = el => (el.textContent || '').trim().length;
+    const promptLen = ctxInfo && ctxInfo.prompt ? norm(ctxInfo.prompt).length : 0;
+    const composer = document.querySelector('[contenteditable="true"], textarea');
+    // Khối cha còn là prompt khi cả ĐẦU lẫn ĐUÔI chữ của nó nằm trong prompt (bỏ hết khoảng trắng vì các đoạn bị
+    // nối liền). Chỉ so độ dài là sai: câu trả lời ngắn hơn prompt nhiều thì cả cuộc trò chuyện vẫn "vừa" và bị
+    // coi là prompt, không bao giờ được lưu.
+    const flat = x => String(x || '').replace(/\s+/g, '').toLowerCase();
+    const pp = promptLen ? flat(ctxInfo.prompt) : '';
+    const partOfPrompt = node => { const tx = flat(node.textContent); return tx.length <= pp.length * 1.25 + 50 && pp.includes(tx.slice(0, 32)) && pp.includes(tx.slice(-32)); };
+    let el = bubble;
+    for (let p = el.parentElement; p && p !== document.body && !host.contains(p); p = el.parentElement) {
+      if (composer && p.contains(composer)) break;
+      if (promptLen) { if (len(p) > len(el) * 1.02 + 2 && !partOfPrompt(p)) break; }
+      // Không biết prompt (tab gắn tay): tin nhắn của người dùng không có nút nào, còn tin nhắn của Grok thì có.
+      else if (p.querySelector('button, [role="button"]')) break;
+      el = p;
+    }
+    return el;
+  }
+
+  // Tin nhắn của Grok chứa khối trả lời: leo lên tới ngay dưới khối chung với tin nhắn prompt.
+  function answerMessage(block, promptMsg) {
+    let el = block;
+    while (el.parentElement && el.parentElement !== document.body && !(promptMsg && el.parentElement.contains(promptMsg))) el = el.parentElement;
+    return el;
+  }
+
+  // Grok trả lời xong thì X mới gắn hàng nút dưới tin nhắn (Tạo lại, Sao chép, Chia sẻ, Thích, Không thích…); lúc
+  // còn đang tra cứu/viết thì chỉ có nhiều nhất nút "Suy nghĩ". Nhãn nút đổi theo ngôn ngữ nên chỉ đếm số nút.
+  function answerFinished(block, promptMsg) {
+    if (!block || !promptMsg) return false;
+    return answerMessage(block, promptMsg).querySelectorAll('button, [role="button"]').length >= 3;
+  }
+
+  // Các bước "đang suy nghĩ" của Grok dính liền vào đầu câu trả lời, không có khoảng trắng sau dấu chấm
+  // ("…tương tác thật.DEV"). Trong DÒNG ĐẦU, cắt tới ranh giới dính liền cuối cùng; văn bản bình thường luôn có
+  // khoảng trắng sau dấu câu nên không bị đụng tới.
+  function stripThinking(text) {
+    const nl = text.indexOf('\n');
+    const first = nl < 0 ? text : text.slice(0, nl);
+    let cut = -1;
+    const re = /[.!?…。](?=\p{Lu})/gu;
+    for (let m; (m = re.exec(first));) cut = m.index + 1;
+    return cut > 0 ? text.slice(cut).trim() : text;
+  }
+
   // Prompt coi như đã gửi khi ô nhập không còn giữ nó (giao diện xoá ô nhập sau khi gửi).
   function promptSent() {
     const sigs = promptSigs();
@@ -208,20 +259,28 @@ input{flex:1 1 160px}
     const bubble = promptBubble();
     const hasPrompt = !!String(ctxInfo.prompt || '').trim();
     if (!bubble) {
-      // Tab mở từ nút Research with Grok: prompt đã gửi là đủ, kể cả khi không nhận ra bong bóng
-      // (giao diện đổi, prompt bị rút gọn). Tab gắn dự án bằng tay: phải thấy địa chỉ contract trên
-      // trang mới dám lưu — nếu không, một câu hỏi không liên quan cũng bị ghi vào timeline.
-      if (!hasPrompt) { setAuto('grok_auto_ca'); return; }
-      if (!promptSent()) { setAuto('grok_auto_wait'); return; }
+      // Không thấy câu hỏi của CHÍNH token này trên trang (60 ký tự đầu của prompt, hoặc địa chỉ contract) thì
+      // không lưu gì cả — kể cả với tab mở từ nút Research with Grok. Trước đây tab loại đó chỉ cần "ô nhập không
+      // còn chứa prompt" là coi như đã gửi; nhưng X có lúc mở lại cuộc trò chuyện CŨ và không điền prompt mới
+      // (URL dài, vừa đăng nhập lại): ô nhập trống bị hiểu là đã gửi, và câu trả lời về token trước bị lưu vào
+      // token này. Địa chỉ contract nằm ngay đầu prompt nên bong bóng bị rút gọn vẫn nhận ra được.
+      setAuto(hasPrompt && !promptSent() ? 'grok_auto_wait' : 'grok_auto_ca');
+      return;
     }
-    const text = captureLastAnswer(bubble);
+    const promptMsg = promptMessage(bubble);
+    const block = captureLastAnswerBlock(promptMsg);
+    const text = block ? stripThinking((block.innerText || block.textContent || '').trim()) : '';
     if (!text || text.length < 80) { setAuto('grok_auto_read'); return; }
     setAuto('grok_auto_read');
     const h = hashText(text);
     if (savedHashes.has(h)) return;
     const now = Date.now();
     if (lastSeen.hash !== h) { lastSeen = { hash: h, since: now }; return; }
-    if (now - lastSeen.since < 3000) return;
+    // Có hàng nút dưới tin nhắn = Grok đã xong: chờ thêm 3 s cho chắc. Chưa có: Grok có thể đang dừng giữa các
+    // bước tra cứu (đứng yên hơn 3 s là chuyện thường) — lưu lúc này là lưu dòng "đang suy nghĩ". Chỉ khi chữ đứng
+    // yên rất lâu mới coi là xong, cho những giao diện không có hàng nút.
+    const quiet = answerFinished(block, promptMsg) ? 3000 : 45000;
+    if (now - lastSeen.since < quiet) return;
     if (render.textEl) render.textEl.value = text;
     save(text, { auto: true });
   }
@@ -234,9 +293,14 @@ input{flex:1 1 160px}
 
   // Tìm khối văn bản "tối giản" cuối cùng trước ô nhập, bỏ khối chứa prompt và khối chứa ô nhập.
   function captureLastAnswer(afterEl) {
+    const block = captureLastAnswerBlock(afterEl || promptMessage(promptBubble()));
+    return block ? stripThinking((block.innerText || block.textContent || '').trim()) : '';
+  }
+
+  function captureLastAnswerBlock(afterEl) {
     const composer = document.querySelector('[contenteditable="true"], textarea');
     const promptHead = ctxInfo && ctxInfo.prompt ? norm(ctxInfo.prompt).slice(0, 60) : '';
-    const after = afterEl || promptBubble();
+    const after = afterEl || promptMessage(promptBubble());
     const cands = [];
     for (const el of document.querySelectorAll('div, article, section, p, li, span')) {
       if (host.contains(el)) continue;
@@ -250,7 +314,7 @@ input{flex:1 1 160px}
       if (dominated) continue;
       if (!el.getClientRects().length) continue;
       if (promptHead && norm(txt).includes(promptHead)) continue;
-      if (after && (el === after || el.contains(after))) continue;
+      if (after && (el === after || el.contains(after) || after.contains(el))) continue;
       if (after && !(after.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue; // chỉ khối sau prompt
       cands.push(el);
     }
@@ -258,7 +322,7 @@ input{flex:1 1 160px}
     let pick = null;
     if (composer) for (const b of top) { if (composer.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_PRECEDING) pick = b; }
     if (!pick && top.length) pick = top[top.length - 1];
-    return pick ? (pick.innerText || pick.textContent || '').trim() : '';
+    return pick || null;
   }
 
   function norm(s) { return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
