@@ -222,6 +222,52 @@
     listBadges.addEventListener('change', () => patch({ listBadges: listBadges.checked }));
     exportImages.addEventListener('change', () => patch({ exportImages: exportImages.checked }));
 
+    // ---- Đồng bộ qua Google Drive (tuỳ chọn, mặc định tắt) ----
+    const syncOn = $('#sync-on'), syncNow = $('#sync-now'), syncOff = $('#sync-off'), syncWipe = $('#sync-wipe'), syncState = $('#sync-state');
+    const SYNC_ERR = { 'signed-out': 'sync_err_signed_out', quota: 'sync_err_quota', forbidden: 'sync_err_forbidden', network: 'sync_err_network', 'bad-remote': 'sync_err_bad_remote', 'newer-schema': 'sync_err_newer' };
+    const send = msg => new Promise(res => chrome.runtime.sendMessage(msg, r => res(chrome.runtime.lastError ? { ok: false, code: 'error', error: chrome.runtime.lastError.message } : r)));
+    async function renderSync(working) {
+      const all = await chrome.storage.local.get(['settings', 'sync']);
+      const on = !!(all.settings && all.settings.sync === true), stt = all.sync || {};
+      syncOn.hidden = on; syncNow.hidden = syncOff.hidden = syncWipe.hidden = !on;
+      syncState.className = 'sync-state';
+      if (working) { syncState.textContent = t('sync_state_working'); return; }
+      if (!on) { syncState.textContent = t('sync_state_off'); return; }
+      const last = stt.lastResult;
+      if (last && !last.ok) { syncState.classList.add('err'); syncState.textContent = SYNC_ERR[last.code] ? t(SYNC_ERR[last.code]) : t('sync_err_other', { msg: last.error || last.code }); return; }
+      if (stt.lastAt) { syncState.classList.add('ok'); syncState.textContent = t('sync_state_ok', { when: E.relTime(stt.lastAt), n: (last && last.projects) || 0 }); return; }
+      syncState.textContent = t('sync_state_never');
+    }
+    chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && (ch.sync || ch.settings)) renderSync(); });
+    $('#open-settings').addEventListener('click', () => renderSync());
+    syncOn.addEventListener('click', async () => {
+      const st0 = (await chrome.storage.local.get('settings')).settings || {};
+      const local = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(String(st0.driveApiBase || ''));   // Drive giả lập trong test: không cần Google
+      if (!local) {
+        // Xin quyền NGAY trong cú bấm (Chrome chỉ cho hỏi khi có thao tác của người dùng), rồi mới đăng nhập.
+        let granted = false;
+        try { granted = await chrome.permissions.request({ permissions: ['identity', 'alarms'], origins: ['https://www.googleapis.com/*'] }); } catch (_) {}
+        if (!granted) { syncState.className = 'sync-state err'; syncState.textContent = t('sync_denied'); return; }
+        try { await chrome.identity.getAuthToken({ interactive: true }); }
+        catch (err) { syncState.className = 'sync-state err'; syncState.textContent = t('sync_err_other', { msg: String((err && err.message) || err) }); return; }
+      }
+      await renderSync(true);
+      await send({ type: 'noted:sync-set', enabled: true });
+      await renderSync(); reload();
+    });
+    syncNow.addEventListener('click', async () => { await renderSync(true); await send({ type: 'noted:sync-now' }); await renderSync(); reload(); });
+    syncOff.addEventListener('click', async () => {
+      await send({ type: 'noted:sync-set', enabled: false });
+      try { await chrome.permissions.remove({ permissions: ['identity', 'alarms'], origins: ['https://www.googleapis.com/*'] }); } catch (_) {}
+      await renderSync();
+    });
+    syncWipe.addEventListener('click', async () => {
+      if (!confirm(t('sync_wipe_confirm'))) return;
+      const r = await send({ type: 'noted:sync-wipe' });
+      if (r && r.ok) { syncState.className = 'sync-state'; syncState.textContent = t('sync_wiped'); }
+      else { syncState.className = 'sync-state err'; syncState.textContent = t('sync_err_other', { msg: (r && (r.error || r.code)) || '' }); }
+    });
+
     // Bản sao lưu tự động: liệt kê và khôi phục.
     const backupList = $('#backup-list'), backupRestore = $('#backup-restore');
     async function loadBackups() {

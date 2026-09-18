@@ -63,6 +63,16 @@
       <label class="field chk-row"><input type="checkbox" id="follow"> <span data-i18n="follow_page"></span></label>
       <label class="field chk-row"><input type="checkbox" id="grok-auto"> <span data-i18n="grok_auto_setting"></span></label>
       <label class="field chk-row"><input type="checkbox" id="export-images"> <span data-i18n="export_images"></span></label>
+      <div class="field sync-box"><span data-i18n="sync_title"></span>
+        <small class="muted" data-i18n="sync_desc"></small>
+        <div class="sync-row">
+          <button id="sync-on" class="primary" data-i18n="sync_on_btn"></button>
+          <button id="sync-now" data-i18n="sync_now" hidden></button>
+          <button id="sync-off" data-i18n="sync_off_btn" hidden></button>
+          <button id="sync-wipe" data-i18n="sync_wipe" hidden></button>
+        </div>
+        <div class="sync-state" id="sync-state"></div>
+      </div>
       <div class="field"><span data-i18n="backups"></span>
         <div class="backup-row"><select id="backup-list"></select><button id="backup-restore" data-i18n="backup_restore"></button></div>
       </div>

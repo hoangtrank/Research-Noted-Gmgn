@@ -85,3 +85,8 @@ kbd{font:11px ui-monospace,Menlo,monospace;background:var(--bg3);border:1px soli
 .backup-row{display:flex;gap:6px;margin-top:4px}
 .backup-row select{flex:1;min-width:0}
 .backup-row button:disabled{opacity:.5;cursor:default}
+.sync-box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;gap:6px}
+.sync-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.sync-state{font-size:calc(var(--ne-fs,14px) - 1px);color:var(--fg2);min-height:18px;margin-top:4px}
+.sync-state.err{color:#f87171}
+.sync-state.ok{color:#86efac}
