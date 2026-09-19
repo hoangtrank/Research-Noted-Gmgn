@@ -77,7 +77,7 @@ Everything **saves automatically** as you type. There is no Save button, and not
 
 The note panel **follows the token you are viewing**: click another token on gmgn and the panel jumps to that token's note. You do not need to close and reopen it. Click the floating **📝 Note {SYMBOL}** button again to close the panel.
 
-The **Timeline** is the most valuable part. Each time you learn something new, type it into the "New note…" box, choose a type (Note, Research, News / Update, Buy, Sell, Alert), then click Add. Each entry records the time and the **market cap at that moment**. So later you know at what level you bought, and how big the project was when that news came out.
+The **Timeline** is the most valuable part. It reads forward in time: **oldest at the top, newest at the bottom**, and opening a note scrolls straight to the newest entry. Each time you learn something new, type it into the "New note…" box under the list, choose a type (Note, Research, News / Update, Buy, Sell, Alert), then click Add. Each entry records the time and the **market cap at that moment**. So later you know at what level you bought, and how big the project was when that news came out.
 
 Click **📌** in the top corner to pin the projects you are following closely.
 

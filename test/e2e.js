@@ -123,7 +123,18 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   await panel.selectOption('.ne-newtype', 'buy'); await panel.press('.ne-newtext', 'Control+Enter');
   await panel.waitForTimeout(700);
   const entries = await panel.$$eval('.ne-entry', els => els.map(e => e.dataset.type));
-  assert(entries.length === 2 && entries[0] === 'buy', 'timeline trong panel có 2 mốc, mới nhất ở trên: ' + entries.join(','));
+  assert(entries.length === 2 && entries[1] === 'buy', 'timeline đọc xuôi thời gian, mốc mới nhất ở đáy: ' + entries.join(','));
+  // Ô nhập nằm DƯỚI danh sách: gõ xong là mốc hiện ngay bên trên chỗ đang nhìn.
+  assert(await panel.evaluate(() => {
+    const list = document.querySelector('.ne-entries'), box = document.querySelector('.ne-compose');
+    return !!(list && box && (list.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING));
+  }), 'ô nhập mốc mới nằm dưới danh sách');
+  // Mở ghi chú là đã cuộn sẵn xuống chỗ mới nhất, không phải tự kéo.
+  const atBottom = await panel.evaluate(() => {
+    const b = document.querySelector('.ne-body');
+    return b.scrollHeight - b.clientHeight < 8 || b.scrollTop + b.clientHeight >= b.scrollHeight - 8;
+  });
+  assert(atBottom, 'mở ra đã ở sẵn đáy timeline');
   assert(await panel.$eval('.ne-entries', el => !!el.querySelector('a[href="https://x.com/example/status/123"]')), 'URL trong mốc được biến thành link');
   await panel.setViewportSize({ width: 380, height: 800 });
   await panel.screenshot({ path: path.join(OUT, '5-side-panel.png') });

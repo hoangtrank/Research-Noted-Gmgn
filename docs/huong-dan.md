@@ -78,7 +78,7 @@ Mọi thứ **tự lưu** khi bạn gõ. Không có nút Save, không sợ quên
 
 Bảng ghi chú **đi theo token bạn đang xem**: bấm sang token khác trên gmgn thì bảng tự nhảy sang ghi chú của token đó, không cần đóng mở lại. Bấm nút nổi **📝 Note {SYMBOL}** lần nữa là đóng bảng.
 
-**Timeline** là phần giá trị nhất. Mỗi khi biết thêm điều gì, gõ vào ô "Ghi chú mới", chọn loại (Ghi chú, Research, Tin tức, Mua, Bán, Cảnh báo) rồi bấm Thêm. Mỗi mốc tự ghi lại thời gian và **vốn hoá lúc đó**, nên sau này bạn biết mình mua ở mức nào, tin đó ra lúc dự án còn bao nhiêu.
+**Timeline** là phần giá trị nhất. Nó đọc xuôi theo thời gian: **mốc cũ ở trên, mốc mới nhất ở dưới cùng**, và mở ghi chú ra là đã cuộn sẵn xuống chỗ mới nhất. Mỗi khi biết thêm điều gì, gõ vào ô "Ghi chú mới" ngay dưới danh sách, chọn loại (Ghi chú, Research, Tin tức, Mua, Bán, Cảnh báo) rồi bấm Thêm. Mỗi mốc tự ghi lại thời gian và **vốn hoá lúc đó**, nên sau này bạn biết mình mua ở mức nào, tin đó ra lúc dự án còn bao nhiêu.
 
 Bấm **📌** ở góc trên để ghim những dự án bạn đang bám sát.
 

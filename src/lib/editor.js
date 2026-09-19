@@ -63,7 +63,7 @@
 .ne-compose-row{display:flex;gap:6px;align-items:center}
 .ne-compose-row select{width:auto;flex:0 0 auto;padding:5px 8px}
 .ne-compose-row .ne-hint{flex:1;font-size:calc(var(--ne-fs,14px) - 2px);color:var(--ne-fg3)}
-.ne-entries{list-style:none;margin:10px 0 0;padding:0;position:relative}
+.ne-entries{list-style:none;margin:0 0 10px;padding:0;position:relative}
 .ne-entries::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--ne-line)}
 .ne-entry{position:relative;padding:0 0 12px 30px}
 .ne-entry::before{content:"";position:absolute;left:4px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--ne-bg3);border:2px solid #4b5563}
@@ -221,6 +221,7 @@
         </div>
         <div class="ne-sec">
           <div class="ne-label">${esc(t('timeline'))} <span class="ne-count"></span></div>
+          <ol class="ne-entries"></ol>
           <div class="ne-compose">
             <textarea class="ne-newtext" placeholder="${esc(t('new_entry_ph'))}"></textarea>
             <div class="ne-compose-row">
@@ -229,7 +230,6 @@
               <button class="primary ne-add" type="button">${esc(t('add'))}</button>
             </div>
           </div>
-          <ol class="ne-entries"></ol>
         </div>
       </div>
       <div class="ne-foot">
@@ -328,11 +328,23 @@
       renderTags();
       renderTimeline();
       renderTimes();
+      scrollToLatest();
       if (opts.allTags) {
         Promise.resolve(opts.allTags()).then(tags => {
           ui.tagList.innerHTML = (tags || []).map(t => `<option value="${esc(t)}">`).join('');
         });
       }
+    }
+
+    // Mở ghi chú là thấy ngay cái mới nhất: nhảy xuống đáy (hoặc tới đúng mốc vừa được thêm từ trang).
+    function scrollToLatest(smooth) {
+      const box = root.querySelector('.ne-body');
+      if (!box) return;
+      const target = highlightId && ui.entries.querySelector('.ne-entry--new');
+      requestAnimationFrame(() => {
+        if (target) target.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
+        else box.scrollTo({ top: box.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+      });
     }
 
     function renderStars() {
@@ -353,7 +365,7 @@
     }
 
     function renderTimeline() {
-      const list = [...project.timeline].sort((a, b) => b.ts - a.ts);
+      const list = [...project.timeline].sort((a, b) => a.ts - b.ts); // cũ -> mới, mốc mới nhất ở đáy
       ui.count.textContent = list.length ? `(${list.length})` : '';
       ui.entries.innerHTML = '';
       if (!list.length) {
@@ -433,7 +445,7 @@
       const before = project.timeline.length;
       project = await S.save(project, { removedIds });
       removedIds = [];
-      if (project.timeline.length !== before) renderTimeline(); // có mốc từ nơi khác được gộp vào
+      if (project.timeline.length !== before) { renderTimeline(); scrollToLatest(true); } // có mốc từ nơi khác được gộp vào
       persisted = true;
       renderTimes();
       flashSaved();
@@ -466,7 +478,7 @@
       if (ctx.mc) extra.mc = ctx.mc;
       project.timeline.push(S.newEntry(ui.newType.value, text, extra));
       ui.newText.value = '';
-      renderTimeline(); commit();
+      renderTimeline(); scrollToLatest(true); commit();
     }
 
     // ---- events ----
