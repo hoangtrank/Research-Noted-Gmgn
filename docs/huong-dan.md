@@ -171,7 +171,7 @@ Dashboard → **⚙ Settings**:
 
 Dùng khi bạn làm việc trên nhiều máy, ví dụ một máy Windows và một máy Mac, cùng một tài khoản Google trong Chrome.
 
-1. Trên mỗi máy, cài extension **từ Chrome Web Store**. Đăng nhập Google chỉ chạy với bản cài từ Store.
+1. Trên mỗi máy, cài extension **từ Chrome Web Store, bản 0.10.0 trở lên**. Đăng nhập Google chỉ chạy với bản cài từ Store vì Google gắn nó với mã định danh của bản đó — bản cài tay không đăng nhập được, còn bản Store cũ hơn thì chưa có mục đồng bộ.
 2. Mở **Dashboard → ⚙ Cài đặt → Đồng bộ giữa các máy**, bấm **Đăng nhập Google và bật đồng bộ**. Chrome hỏi quyền một lần, rồi Google hỏi bạn có cho extension lưu *dữ liệu của riêng nó* trong Drive không. Nó không thấy các file khác của bạn.
 3. Làm y như vậy trên máy thứ hai. Ghi chú của hai máy được gộp lại, không mất gì: timeline của cả hai đều được giữ.
 

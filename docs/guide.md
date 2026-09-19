@@ -170,7 +170,7 @@ Dashboard → **⚙ Settings**:
 
 Use this if you work on more than one computer, for example a Windows PC and a Mac, with the same Google account in Chrome.
 
-1. On each computer, install the extension **from the Chrome Web Store**. Sign-in only works with the Store build.
+1. On each computer, install the extension **from the Chrome Web Store, version 0.10.0 or later**. Sign-in only works with the Store build, because Google ties it to that build's ID — a hand-installed copy cannot sign in, and an older Store build has no sync section at all.
 2. Open the **Dashboard → ⚙ Settings → Sync between computers** and click **Sign in with Google and turn on sync**. Chrome asks for permission once, then Google asks you to allow the extension to keep *its own data* in your Drive. It cannot see your other files.
 3. Do the same on the second computer. Its notes and the first computer's notes are combined. Nothing is lost: both timelines are kept.
 
