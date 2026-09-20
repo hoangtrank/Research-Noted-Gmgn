@@ -142,7 +142,6 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 | Host permission `dexscreener.com` (content script) | Adds the note button next to each pair link on DexScreener and shows the note indicator/tooltip inline. |
 | Host permission `api.dexscreener.com` | DexScreener links identify trading pairs, not tokens. The extension calls DexScreener's public API to resolve a pair address to its token (symbol, address, market cap) so the note uses the same key as on gmgn.ai. No user data is sent; results are cached locally. |
 | Host permissions `x.com`, `twitter.com`, `grok.com` (content scripts) | On Grok pages: a "Save to Research-Noted-Gmgn" panel so the user can save Grok's research answer into the token's note. On X search pages: recognise the token in the search query and let the user save selected text into its note. Only content the user chooses to save is read; nothing is sent anywhere. |
-
 | `identity` (optional permission) | Requested only when the user clicks "Sign in with Google and turn on sync" in Settings. Used with chrome.identity.getAuthToken to obtain a token for the single scope `drive.appdata`, so the user's notes can be synced between the user's own computers. Not requested, and not used, unless the user turns sync on. |
 | `alarms` (optional permission) | Requested together with `identity`. Runs a sync every 15 minutes while sync is on, so notes written on another computer arrive without the user pressing anything. |
 | Host permission `https://www.googleapis.com/*` (optional) | Requested together with `identity`. The Google Drive REST API: the extension reads and writes ONE file in the hidden app-data area of the user's own Drive (scope `drive.appdata`; it cannot see any other file). No other Google API is called. |
@@ -155,7 +154,28 @@ To convert any screenshot to exactly 1280×800 (or 640×400, promo tile sizes), 
 - I do not use or transfer user data to determine creditworthiness or for lending purposes
 
 **Privacy policy URL**: https://github.com/hoangtrank/Research-Noted-Gmgn/blob/main/PRIVACY.md
-(use the branch name instead of `main` if the file is not on `main` yet, e.g. `claude/gmgn-project-notes-extension-dgkfnb`)
+
+## Before an update that ships sync
+
+**The Google OAuth consent screen decides whether sync works for anyone but you.**
+`drive.appdata` is a *sensitive* scope, so in Google Cloud Console → APIs & Services →
+OAuth consent screen:
+
+- **Testing** (the default): only accounts listed under *Test users* can sign in, at most
+  100 of them, and they see an "unverified app" warning. Fine for trying it yourself.
+- **In production**: needs Google's OAuth verification for the sensitive scope. Until it
+  passes, other people who press "Sign in with Google and turn on sync" are stopped by
+  Google, not by the extension.
+
+Verification is separate from the Chrome Web Store review, is requested in Cloud Console,
+and takes its own time. Start it before the Store review, or ship sync knowing only test
+users can turn it on.
+
+**An update that only adds optional permissions installs silently.** `identity`, `alarms`
+and `googleapis.com` are declared as optional, so Chrome does not disable the extension or
+prompt existing users — the request happens in the browser when someone turns sync on. An
+update that added them as *required* permissions would have disabled the extension for
+every existing user until they approved it.
 
 ## Distribution tab
 
