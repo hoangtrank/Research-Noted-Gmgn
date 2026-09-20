@@ -12,6 +12,9 @@
   I.bindSelect(document.querySelector('#lang'));
 
   const $ = sel => document.querySelector(sel);
+  // Mã định danh của bản trên Chrome Web Store. Khoá OAuth gắn với nó, nên chỉ bản mang đúng mã này
+  // mới đăng nhập Google được (bản Store, hoặc bản nạp từ thư mục có chép "key" của Store vào manifest).
+  const STORE_EXTENSION_ID = 'klmbonadppdmggifjlolbbpaaafkmplm';
   const ui = {
     stats: $('#stats'), search: $('#search'), status: $('#f-status'), sort: $('#f-sort'), pinned: $('#f-pinned'),
     tagbar: $('#tagbar'), list: $('#list'), empty: $('#empty'), mount: $('#editor-mount'),
@@ -244,6 +247,14 @@
       const st0 = (await chrome.storage.local.get('settings')).settings || {};
       const local = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(String(st0.driveApiBase || ''));   // Drive giả lập trong test: không cần Google
       if (!local) {
+        // Khoá OAuth của Google thuộc loại "Chrome Extension" nên gắn chặt với mã định danh của bản trên Store.
+        // Bản nạp từ thư mục có mã khác -> Google chắc chắn từ chối. Nói thẳng ra thay vì xin quyền rồi mới chết
+        // với một chuỗi lỗi thô của Google.
+        if (chrome.runtime.id !== STORE_EXTENSION_ID) {
+          syncState.className = 'sync-state err';
+          syncState.textContent = t('sync_err_unpacked', { id: chrome.runtime.id });
+          return;
+        }
         // Xin quyền NGAY trong cú bấm (Chrome chỉ cho hỏi khi có thao tác của người dùng), rồi mới đăng nhập.
         let granted = false;
         try { granted = await chrome.permissions.request({ permissions: ['identity', 'alarms'], origins: ['https://www.googleapis.com/*'] }); } catch (_) {}
