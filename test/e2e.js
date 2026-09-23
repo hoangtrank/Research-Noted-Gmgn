@@ -325,8 +325,8 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert(gurl.startsWith('https://x.com/i/grok?text='), 'mở tab Grok trên X với prompt điền sẵn: ' + gurl.slice(0, 60));
   const prompt = decodeURIComponent(gurl.split('text=')[1]);
   assert(prompt.includes('$PROLOG') && prompt.includes('0xaa40e79e987517f7462bf79315b8a118799b04e3') && prompt.includes('Robinhood') && prompt.includes('$10.64M'), 'prompt có symbol, chain, contract, market cap');
-  const order = ['\nDEV (', '\nKOL\n', '\nPROJECT (', '\n1. Problem', '\n6. Design risks', '\nMEME ('].map(h => prompt.indexOf(h));
-  assert(order.every((n, i) => n > 0 && (i === 0 || n > order[i - 1])), 'prompt có đủ DEV, KOL, PROJECT (6 mục), MEME theo đúng thứ tự: ' + order.join(','));
+  const order = ['\nDEV (', '\nKOL\n', '\nPROJECT (', '\n1. Problem', '\n3. How to use it', '\n4. Current state of the product', '\nMEME ('].map(h => prompt.indexOf(h));
+  assert(order.every((n, i) => n > 0 && (i === 0 || n > order[i - 1])), 'prompt có đủ DEV, KOL, PROJECT (4 mục), MEME theo đúng thứ tự: ' + order.join(','));
   assert(prompt.includes('OUTPUT IN EXACTLY THIS ORDER:') && prompt.includes('How to look:'), 'tiêu đề kết thúc bằng dấu hai chấm không bị bộ lọc nhãn rỗng nuốt mất');
   assert(prompt.includes('the $PROLOG token plays'), 'symbol được điền cả trong thân prompt');
   assert((await grok.$eval('#composer', e => e.textContent)).includes('Research token'), 'ô nhập của Grok nhận prompt');
@@ -492,7 +492,7 @@ const drawerOpen = page => page.evaluate(() => !!document.getElementById('noted-
   assert((await dash.$eval('#research-template', e => e.value)).includes('PROJECT (write in full'), 'template mặc định hiện trong Settings');
   const tpls = await dash.evaluate(() => ({ en: NotedResearch.defaultTemplate('en'), vi: NotedResearch.defaultTemplate('vi'), zh: NotedResearch.defaultTemplate('zh') }));
   assert(tpls.en.includes('Answer in English') && tpls.vi.includes('Tiếng Việt.') && tpls.zh.includes('用中文回答'), 'có ba bản prompt mặc định en/vi/zh');
-  assert(tpls.vi.includes('Không markdown ẩn link') && tpls.vi.includes('OUTPUT ĐÚNG THỨ TỰ:') && tpls.vi.includes('PROJECT (viết đầy đủ, theo đúng 6 mục này)') && tpls.vi.includes('6. Rủi ro thiết kế'), 'bản tiếng Việt đúng prompt mới: thứ tự output, 6 mục PROJECT, link đầy đủ');
+  assert(tpls.vi.includes('Không markdown ẩn link') && tpls.vi.includes('OUTPUT ĐÚNG THỨ TỰ:') && tpls.vi.includes('PROJECT (viết đầy đủ, theo đúng 4 mục này)') && tpls.vi.includes('3. Cách sử dụng nền tảng (giải thích cho người không rành kỹ thuật)') && tpls.vi.includes('4. Hiện trạng sản phẩm') && !tpls.vi.includes('Rủi ro thiết kế'), 'bản tiếng Việt đúng prompt mới: thứ tự output, 4 mục PROJECT, link đầy đủ');
   assert([tpls.en, tpls.vi, tpls.zh].every(x => x.split('\n').length === tpls.vi.split('\n').length && x.includes('${symbol}') && x.includes('{address}')), 'ba bản cùng cấu trúc, cùng placeholder');
   await dash.click('#settings-close');
   await sw.evaluate(async () => { const st = (await chrome.storage.local.get('settings')).settings || {}; await chrome.storage.local.set({ settings: { ...st, lang: 'vi' } }); });
