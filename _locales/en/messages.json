@@ -3,7 +3,7 @@
     "message": "Research-Noted-Gmgn"
   },
   "appDesc": {
-    "message": "Timeline research notes for every project you view on gmgn.ai: what it does, tags, pins, dated entries, X/AI links."
+    "message": "Timeline research notes for tokens on gmgn.ai, DexScreener and X — what it does, tags, pins, dated entries, Grok research."
   },
   "cmdToggle": {
     "message": "Open/close the note for the current token"

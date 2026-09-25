@@ -14,7 +14,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Summary (max 132 chars)**
 
-    Timeline research notes for every project you view on gmgn.ai: what it does, tags, pins, dated entries, X/AI links.
+    Timeline research notes for tokens on gmgn.ai, DexScreener and X — what it does, tags, pins, dated entries, Grok research.
 
 **Description**
 
@@ -51,7 +51,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Summary**
 
-    Ghi chú research theo timeline cho từng dự án bạn xem trên gmgn.ai: dự án làm gì, tag, pin, mốc thời gian, link X/AI.
+    Ghi chú research theo timeline cho token trên gmgn.ai, DexScreener và X: dự án làm gì, tag, pin, mốc thời gian, research Grok.
 
 **Description**
 
@@ -86,7 +86,7 @@ The Store lets you add one listing per language. Fill **English** first (default
 
 **Summary**
 
-    为你在 gmgn.ai 查看的每个项目记录时间线研究笔记：项目做什么、标签、置顶、带日期的记录、X/AI 链接。
+    在 gmgn.ai、DexScreener 和 X 上为代币记录时间线研究笔记：项目做什么、标签、置顶、带日期记录、Grok 研究。
 
 **Description**
 

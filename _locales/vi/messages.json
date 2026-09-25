@@ -3,7 +3,7 @@
     "message": "Research-Noted-Gmgn"
   },
   "appDesc": {
-    "message": "Ghi chú research theo timeline cho từng dự án bạn xem trên gmgn.ai: dự án làm gì, tag, pin, mốc thời gian, link X/AI."
+    "message": "Ghi chú research theo timeline cho token trên gmgn.ai, DexScreener và X: dự án làm gì, tag, pin, mốc thời gian, research Grok."
   },
   "cmdToggle": {
     "message": "Mở/đóng ghi chú cho token đang xem"
